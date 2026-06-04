@@ -1,0 +1,8 @@
+# Parameters for the emotion detector node.
+emotion_detector:
+  ros__parameters:
+    input_topic: "/camera/image_raw"
+    # Topic and JSON format ({"emotion", "confidence", "source"}) expected by DialogManagerNode.
+    output_topic: "/user_emotion"
+    model_name: "dima806/face_emotions_image_detection"
+    show_visualization: true

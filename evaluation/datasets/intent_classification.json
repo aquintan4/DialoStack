@@ -1,0 +1,836 @@
+{
+  "_instructions": [
+    "Benchmark: intent classification in the confirmation phase.",
+    "The frame is complete. The system has produced the summary and asks 'Is this correct?'.",
+    "The user responds and the system must classify into: confirms | corrects | question | unclear",
+    "",
+    "Required fields:",
+    "  id                  : unique identifier (e.g. ic_001)",
+    "  description         : what is being tested",
+    "  task                : task description",
+    "  slot_schema         : slot schema (used to build the frame)",
+    "  frame_filled        : complete frame state (all slots filled)",
+    "  user_text           : what the user says in response to the summary",
+    "  expected_intent     : 'confirms' | 'corrects' | 'question' | 'unclear'",
+    "  expected_corrections: dict slot->value when intent=corrects (empty if not applicable)",
+    "  notes               : observations",
+    "",
+    "Most costly errors (prioritize in the dataset):",
+    "  - 'confirms' classified as 'unclear' -> the confirmation is lost",
+    "  - 'corrects' classified as 'confirms' -> wrong information gets confirmed"
+  ],
+  "cases": [
+    {
+      "id": "ic_001",
+      "description": "Confirmación clara y directa",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate", "tamaño": "grande"},
+      "user_text": "Sí, está todo correcto",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Confirmación explícita, caso trivial"
+    },
+    {
+      "id": "ic_002",
+      "description": "Confirmación implícita con asentimiento",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "mediano"},
+      "user_text": "Sí",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Un simple 'sí' debe clasificar como confirms"
+    },
+    {
+      "id": "ic_003",
+      "description": "Confirmación con refuerzo positivo",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "pequeño"},
+      "user_text": "Perfecto, así está bien",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Lenguaje positivo no ambiguo"
+    },
+    {
+      "id": "ic_004",
+      "description": "Corrección directa de un slot",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate", "tamaño": "pequeño"},
+      "user_text": "No, el tamaño era grande, no pequeño",
+      "expected_intent": "corrects",
+      "expected_corrections": {"tamaño": "grande"},
+      "notes": "Corrección explícita con el valor antiguo y el nuevo"
+    },
+    {
+      "id": "ic_005",
+      "description": "Corrección sin mencionar el valor antiguo",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "grande"},
+      "user_text": "En realidad quiero el de fresa",
+      "expected_intent": "corrects",
+      "expected_corrections": {"sabor": "fresa"},
+      "notes": "Corrección implícita; el sistema debe deducir que 'fresa' reemplaza 'vainilla'"
+    },
+    {
+      "id": "ic_006",
+      "description": "Pregunta sobre los datos del resumen",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "doble", "num_noches": 3},
+      "user_text": "¿Eso incluye el desayuno?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "El usuario pregunta sobre el servicio, no corrige ni confirma"
+    },
+    {
+      "id": "ic_007",
+      "description": "Respuesta ambigua — unclear",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate", "tamaño": "mediano"},
+      "user_text": "Bueno...",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Respuesta vacía/dubitativa sin información clara"
+    },
+    {
+      "id": "ic_008",
+      "description": "Corrección de lista — quitar un elemento",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["champiñones", "cebolla", "aceitunas"], "tamaño": "grande"},
+      "user_text": "Quita las aceitunas",
+      "expected_intent": "corrects",
+      "expected_corrections": {"ingredientes": {"_remove": true, "items": ["aceitunas"]}},
+      "notes": "Corrección de list_str mediante eliminación de ítem"
+    },
+    {
+      "id": "ic_009",
+      "description": "Confirmación después de una aclaración",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "suite", "num_noches": 2},
+      "user_text": "Sí, eso es exactamente lo que quiero",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Confirmación enfática"
+    },
+    {
+      "id": "ic_010",
+      "description": "Respuesta negativa sin corrección — unclear",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "pequeño"},
+      "user_text": "No",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Negación sin especificar qué corregir → unclear (el sistema debe re-preguntar)"
+    },
+    {
+      "id": "ic_011",
+      "description": "Confirmación informal coloquial",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate", "tamaño": "mediano"},
+      "user_text": "Dale, está bien",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "'Dale' es coloquial pero inequívocamente afirmativo; riesgo de clasificar como unclear"
+    },
+    {
+      "id": "ic_012",
+      "description": "Confirmación de una sola palabra — 'Exacto'",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "doble", "num_noches": 2},
+      "user_text": "Exacto",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Una sola palabra afirmativa; no debe clasificarse como unclear"
+    },
+    {
+      "id": "ic_013",
+      "description": "Confirmación con agradecimiento al final",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["jamón", "queso"], "tamaño": "mediana"},
+      "user_text": "Todo correcto, gracias",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "El 'gracias' no debe confundir al clasificador; el contenido es una confirmación"
+    },
+    {
+      "id": "ic_014",
+      "description": "Confirmación con verbo de acción ('adelante')",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"categoria": "familiar", "dias": 3, "seguro": true},
+      "user_text": "Sí, adelante",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "'Adelante' indica aprobación; el 'sí' lo refuerza"
+    },
+    {
+      "id": "ic_015",
+      "description": "Confirmación muy corta — 'Eso es'",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "grande"},
+      "user_text": "Eso es",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Expresión deíctica de acuerdo; puede confundirse con unclear por su brevedad"
+    },
+    {
+      "id": "ic_016",
+      "description": "Confirmación de una palabra — 'Perfecto'",
+      "task": "Gestionar una cita médica",
+      "slot_schema": {
+        "slots": [
+          {"name": "especialidad", "type": "str", "canonical_values": ["medicina general", "cardiología", "dermatología", "traumatología"]},
+          {"name": "turno", "type": "str", "canonical_values": ["mañana", "tarde"]}
+        ]
+      },
+      "frame_filled": {"especialidad": "dermatología", "turno": "tarde"},
+      "user_text": "Perfecto",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Una sola palabra muy positiva; no debe ser unclear"
+    },
+    {
+      "id": "ic_017",
+      "description": "Confirmación con orden invertido",
+      "task": "Gestionar la reserva de una mesa",
+      "slot_schema": {
+        "slots": [
+          {"name": "num_personas", "type": "int"},
+          {"name": "zona", "type": "str", "canonical_values": ["interior", "terraza"]},
+          {"name": "hora", "type": "str", "canonical_values": ["13:00", "14:00", "20:00", "21:00"]}
+        ]
+      },
+      "frame_filled": {"num_personas": 4, "zona": "terraza", "hora": "20:00"},
+      "user_text": "Correcto, sí",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Orden adverbio + sí; semánticamente afirmativo"
+    },
+    {
+      "id": "ic_018",
+      "description": "Confirmación con expresión de satisfacción",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "grande"},
+      "user_text": "Genial, así está bien",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "'Genial' + 'así está bien' es confirmación con entusiasmo"
+    },
+    {
+      "id": "ic_019",
+      "description": "Confirmación con propuesta de continuar",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"},
+          {"name": "desayuno_incluido", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "suite", "num_noches": 3, "desayuno_incluido": true},
+      "user_text": "Me parece bien, podemos continuar",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "'Me parece bien' indica aprobación; 'podemos continuar' refuerza que está conforme"
+    },
+    {
+      "id": "ic_020",
+      "description": "Confirmación en frame complejo de pizza",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["champiñones", "cebolla", "pimiento"], "tamaño": "grande"},
+      "user_text": "Sí, eso es lo que quiero",
+      "expected_intent": "confirms",
+      "expected_corrections": {},
+      "notes": "Frame con list_str; confirmación clara"
+    },
+    {
+      "id": "ic_021",
+      "description": "Corrección de slot entero con contraste explícito",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"},
+          {"name": "desayuno_incluido", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "doble", "num_noches": 2, "desayuno_incluido": false},
+      "user_text": "Las noches son 3, no 2",
+      "expected_intent": "corrects",
+      "expected_corrections": {"num_noches": 3},
+      "notes": "Corrección de int con contraste 'X, no Y'"
+    },
+    {
+      "id": "ic_022",
+      "description": "Corrección de bool de true a false",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"},
+          {"name": "desayuno_incluido", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "suite", "num_noches": 1, "desayuno_incluido": true},
+      "user_text": "El desayuno no, gracias",
+      "expected_intent": "corrects",
+      "expected_corrections": {"desayuno_incluido": false},
+      "notes": "Negación educada de un bool; no debe clasificarse como confirms"
+    },
+    {
+      "id": "ic_023",
+      "description": "Corrección implícita sin negación — 'mejor X'",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "pequeño"},
+      "user_text": "Mejor grande",
+      "expected_intent": "corrects",
+      "expected_corrections": {"tamaño": "grande"},
+      "notes": "Corrección sin negación; 'mejor' señala preferencia diferente al valor registrado"
+    },
+    {
+      "id": "ic_024",
+      "description": "Corrección con 'en realidad' — str",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "individual", "num_noches": 3},
+      "user_text": "En realidad necesito una doble",
+      "expected_intent": "corrects",
+      "expected_corrections": {"tipo_habitacion": "doble"},
+      "notes": "'En realidad' señala corrección; solo cambia el tipo de habitación"
+    },
+    {
+      "id": "ic_025",
+      "description": "Corrección directa con verbo imperativo",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["jamón", "queso"], "tamaño": "pequeña"},
+      "user_text": "Cámbiame el tamaño a grande",
+      "expected_intent": "corrects",
+      "expected_corrections": {"tamaño": "grande"},
+      "notes": "Imperativo de corrección; muy explícito"
+    },
+    {
+      "id": "ic_026",
+      "description": "Corrección de list_str — eliminar ítem específico",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["jamón", "champiñones", "pimiento"], "tamaño": "mediana"},
+      "user_text": "Sin champiñones por favor",
+      "expected_intent": "corrects",
+      "expected_corrections": {"ingredientes": {"_remove": true, "items": ["champiñones"]}},
+      "notes": "Eliminación de ítem de lista con 'sin'; diferente a ic_008 (que usa 'quita')"
+    },
+    {
+      "id": "ic_027",
+      "description": "Corrección de int con contraste — reserva restaurante",
+      "task": "Gestionar la reserva de una mesa",
+      "slot_schema": {
+        "slots": [
+          {"name": "num_personas", "type": "int"},
+          {"name": "zona", "type": "str", "canonical_values": ["interior", "terraza"]},
+          {"name": "hora", "type": "str", "canonical_values": ["13:00", "14:00", "20:00", "21:00"]}
+        ]
+      },
+      "frame_filled": {"num_personas": 2, "zona": "terraza", "hora": "20:00"},
+      "user_text": "Somos tres, no dos",
+      "expected_intent": "corrects",
+      "expected_corrections": {"num_personas": 3},
+      "notes": "Contraste 'X, no Y' en slot int; solo cambia num_personas"
+    },
+    {
+      "id": "ic_028",
+      "description": "Corrección con disculpa explícita",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "mediano"},
+      "user_text": "Perdona, quería de chocolate, no vainilla",
+      "expected_intent": "corrects",
+      "expected_corrections": {"sabor": "chocolate"},
+      "notes": "La disculpa no interfiere; la corrección es clara con 'no vainilla'"
+    },
+    {
+      "id": "ic_029",
+      "description": "Corrección de dos slots simultáneamente",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"},
+          {"name": "desayuno_incluido", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "individual", "num_noches": 1, "desayuno_incluido": false},
+      "user_text": "Cambia a doble y que sean 2 noches",
+      "expected_intent": "corrects",
+      "expected_corrections": {"tipo_habitacion": "doble", "num_noches": 2},
+      "notes": "Corrección múltiple en un turno; el sistema debe extraer 2 correcciones"
+    },
+    {
+      "id": "ic_030",
+      "description": "Pregunta sobre ingrediente no incluido",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["jamón", "queso"], "tamaño": "grande"},
+      "user_text": "¿Qué tipo de queso usan?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "Pregunta de información sobre el servicio; no es corrección ni confirmación"
+    },
+    {
+      "id": "ic_031",
+      "description": "Pregunta sobre precio",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate", "tamaño": "grande"},
+      "user_text": "¿Y cuánto cuesta el grande?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "El usuario pide información de precio antes de confirmar"
+    },
+    {
+      "id": "ic_032",
+      "description": "Pregunta sobre disponibilidad",
+      "task": "Gestionar una cita médica",
+      "slot_schema": {
+        "slots": [
+          {"name": "especialidad", "type": "str", "canonical_values": ["medicina general", "cardiología", "dermatología", "traumatología"]},
+          {"name": "turno", "type": "str", "canonical_values": ["mañana", "tarde"]}
+        ]
+      },
+      "frame_filled": {"especialidad": "dermatología", "turno": "tarde"},
+      "user_text": "¿Hay disponibilidad para mañana?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "El usuario pregunta disponibilidad antes de confirmar; no corrige ni afirma"
+    },
+    {
+      "id": "ic_033",
+      "description": "Pregunta sobre política de cancelación",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"},
+          {"name": "desayuno_incluido", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "doble", "num_noches": 3, "desayuno_incluido": false},
+      "user_text": "¿Puedo cancelar la reserva sin coste?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "Pregunta sobre política del servicio; el usuario no ha confirmado ni corregido"
+    },
+    {
+      "id": "ic_034",
+      "description": "Pregunta de aclaración sobre ingrediente",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["jamón"], "tamaño": "mediana"},
+      "user_text": "¿El jamón es ibérico o york?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "Pregunta de aclaración sobre un dato ya registrado; no es corrección"
+    },
+    {
+      "id": "ic_035",
+      "description": "Pregunta sobre alternativas",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "pequeño"},
+      "user_text": "¿Tienen algún sabor especial del día?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "El usuario explora alternativas; podría preceder a una corrección pero por sí solo es question"
+    },
+    {
+      "id": "ic_036",
+      "description": "Pregunta retórica buscando verificación",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"categoria": "familiar", "dias": 5, "seguro": true},
+      "user_text": "¿No hay ningún error, verdad?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "Caso límite: suena casi como confirmación pero el usuario no confirma, pregunta; clasificar como question"
+    },
+    {
+      "id": "ic_037",
+      "description": "Pregunta sobre tiempo de espera",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["champiñones", "cebolla"], "tamaño": "grande"},
+      "user_text": "¿Cuánto tiempo tarda la pizza?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "Pregunta logística antes de confirmar; no toca el frame"
+    },
+    {
+      "id": "ic_038",
+      "description": "Pregunta sobre procedimiento de recogida",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"categoria": "SUV", "dias": 3, "seguro": true},
+      "user_text": "¿Dónde tengo que recoger el coche?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "Pregunta logística sobre el proceso; no corrige ni confirma datos"
+    },
+    {
+      "id": "ic_039",
+      "description": "Pregunta sobre diferencia entre opciones",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"},
+          {"name": "desayuno_incluido", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "suite", "num_noches": 2, "desayuno_incluido": true},
+      "user_text": "¿Qué diferencia hay entre suite y habitación doble?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "El usuario quiere más información antes de confirmar; podría preceder a corrección"
+    },
+    {
+      "id": "ic_040",
+      "description": "Pregunta hipotética sobre alternativa",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "grande"},
+      "user_text": "¿Y si pido uno de chocolate en vez de vainilla?",
+      "expected_intent": "question",
+      "expected_corrections": {},
+      "notes": "El usuario plantea hipótesis, no corrige directamente; peligro de clasificar como corrects"
+    },
+    {
+      "id": "ic_041",
+      "description": "Respuesta mínima dubitativa — 'Mmm'",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate", "tamaño": "mediano"},
+      "user_text": "Mmm",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Muletilla sin contenido informativo"
+    },
+    {
+      "id": "ic_042",
+      "description": "El usuario no entiende — '¿Cómo?'",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["jamón", "queso"], "tamaño": "mediana"},
+      "user_text": "¿Cómo?",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "El usuario pide repetición; no confirma ni corrige. Diferente de question: no busca información nueva"
+    },
+    {
+      "id": "ic_043",
+      "description": "Respuesta incoherente con el contexto",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "pequeño"},
+      "user_text": "El cielo está muy azul hoy",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Completamente fuera de contexto; no aporta información"
+    },
+    {
+      "id": "ic_044",
+      "description": "Silencio representado como puntos suspensivos",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "doble", "num_noches": 2},
+      "user_text": "...",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Silencio / pausa; ninguna señal de intención"
+    },
+    {
+      "id": "ic_045",
+      "description": "Indecisión explícita",
+      "task": "Gestionar una cita médica",
+      "slot_schema": {
+        "slots": [
+          {"name": "especialidad", "type": "str", "canonical_values": ["medicina general", "cardiología", "dermatología", "traumatología"]},
+          {"name": "turno", "type": "str", "canonical_values": ["mañana", "tarde"]}
+        ]
+      },
+      "frame_filled": {"especialidad": "cardiología", "turno": "tarde"},
+      "user_text": "No sé, la verdad",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "El usuario declara indecisión; el sistema debe re-preguntar"
+    },
+    {
+      "id": "ic_046",
+      "description": "Frase incompleta sin información",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "grande"},
+      "user_text": "Pues... es que...",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Frase incompleta y dubitativa; no hay intención clara"
+    },
+    {
+      "id": "ic_047",
+      "description": "Asentimiento con incertidumbre marcada — 'supongo que sí'",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"categoria": "familiar", "dias": 2, "seguro": false},
+      "user_text": "Supongo que sí",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Caso peligroso: suena como confirms pero la incertidumbre es demasiado alta; riesgo de falso confirms"
+    },
+    {
+      "id": "ic_048",
+      "description": "Negación parcial sin corrección — 'no exactamente'",
+      "task": "Registrar los ingredientes de una pizza",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["champiñones"], "tamaño": "mediana"},
+      "user_text": "No exactamente",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "El usuario indica que algo no está bien pero no dice qué; no es corrects"
+    },
+    {
+      "id": "ic_049",
+      "description": "Respuesta con ironía ambigua",
+      "task": "Tomar el pedido de un helado",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "fresa", "tamaño": "pequeño"},
+      "user_text": "Ah claro, como siempre",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "Expresión ambigua que puede ser sarcástica o afirmativa; sin señal clara"
+    },
+    {
+      "id": "ic_050",
+      "description": "Respuesta contradictoria — sí y no a la vez",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]},
+          {"name": "num_noches", "type": "int"}
+        ]
+      },
+      "frame_filled": {"tipo_habitacion": "doble", "num_noches": 2},
+      "user_text": "Sí, pero no sé...",
+      "expected_intent": "unclear",
+      "expected_corrections": {},
+      "notes": "El 'sí' inicial y el 'no sé' posterior se contradicen; debe tratarse como unclear"
+    }
+  ]
+}

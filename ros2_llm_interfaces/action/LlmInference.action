@@ -1,0 +1,17 @@
+# Goal
+string session_id
+string prompt
+int32  max_tokens
+string format_schema
+---
+# Result
+bool    success
+string  answer
+float64 total_time
+int32   prompt_tokens
+int32   completion_tokens
+string  status
+---
+# Feedback
+string partial_text
+int32  tokens_generated

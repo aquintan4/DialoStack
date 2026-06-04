@@ -1,0 +1,8 @@
+# Request
+---
+# Response
+string[] session_ids
+string[] providers
+string[] models
+bool[]   stateful
+int32[]  history_turns

@@ -1,0 +1,11 @@
+# Request
+string session_id
+string provider
+string model
+string system_prompt
+bool   stateful
+---
+# Response
+bool   success
+string session_id
+string message

@@ -1,0 +1,45 @@
+# Parameters for the lip activity detector node.
+# IMPORTANT: this key must match the Node `name:` in the launch file exactly.
+# If the launch uses name='lip_activity_detector_node', the key here must be
+# lip_activity_detector_node.
+lip_activity_detector_node:
+  ros__parameters:
+
+    image_topic: "/camera/image_raw"
+    speaking_topic: "/user_speaking"
+    lip_activity_topic: "/lip_activity"
+
+    min_detection_confidence: 0.5
+    min_tracking_confidence: 0.5
+
+    # Margin above the baseline to count as "mouth open".
+    open_threshold: 0.04
+
+    # Light smoothing: removes single-frame spikes without killing the speech
+    # oscillations (~5 Hz). Above 6 frames the speech signal is suppressed.
+    smoothing_frames: 4
+
+    # Variance of consecutive lip-opening diffs used to classify as speech.
+    # Real speech: ~1e-5..1e-4. Yawn/smile/single opening: ~1e-8..1e-7.
+    # Enable show_debug to read last_roughness in real time and tune it.
+    roughness_threshold: 7.0e-6
+
+    # Short window (~0.33 s = 10 frames): the diffs of a brief event (mouth
+    # open/close) leave the buffer quickly and roughness drops soon.
+    # With a large window the "bad" data stays trapped and roughness remains
+    # high for much longer than the actual movement.
+    roughness_window: 10
+
+    # Minimum CONTINUOUS time with high roughness required to enter SPEAKING.
+    # For a quick open-close (~0.5 s of movement):
+    #   total high roughness ≈ 0.5 s + 0.33 s (window) = 0.83 s → below 0.90 → no trigger.
+    # For sustained speech: continuous roughness → triggers after 0.90 s.
+    # Raise if false positives persist; lower if barge-in is too slow.
+    onset_secs: 0.90
+
+    # The mouth must stay closed for THIS CONTINUOUS time before deactivating.
+    silence_secs: 1.20
+
+    # true  → OpenCV window with landmarks, lip bars, and state
+    # false → no window
+    show_debug: true

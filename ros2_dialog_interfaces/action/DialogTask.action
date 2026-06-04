@@ -1,0 +1,31 @@
+# Goal
+string task_description    # Natural-language description of what the robot must accomplish.
+string frame_schema_json   # Optional. JSON slot schema {"slots":[{name,type,...}]}.
+                            # When non-empty, bypasses LLM frame generation entirely.
+                            # Slot fields: name (str), type (str|int|float|bool|list_str),
+                            # canonical_values ([str]), condition_slot (str),
+                            # condition_value (str). See DialogFrame.from_slots_json().
+string initial_frame_json  # Optional JSON object pre-filling slot values (resume support).
+                            # Applied after frame creation, whether from schema or LLM.
+int32  max_turns            # 0 = unlimited.
+string dialog_mode          # "slot_filling" | "explanation" | "quiz". Empty = auto-detect.
+                            # NOTE: "quiz" MUST be specified explicitly — it is never
+                            # auto-detected because it requires resources_json to work.
+string resources_json       # JSON array of {name, description, content} objects.
+                            # For quiz mode, the first parseable resource must be a JSON
+                            # list of {"question","answer"} objects.
+string domain               # Free-text hint injected into every prompt as context
+                            # (e.g. "hospital", "coffee shop", "university helpdesk").
+                            # Helps the LLM use domain-appropriate tone and vocabulary.
+---
+# Result
+bool   success
+string final_frame_json
+string failure_reason
+int32  total_turns
+---
+# Feedback
+string state
+string current_frame_json
+string last_utterance
+int32  turns

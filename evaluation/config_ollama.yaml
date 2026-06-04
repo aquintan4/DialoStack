@@ -1,0 +1,16 @@
+# Evaluation with Ollama (local model)
+# Usage: python3 run_eval.py --benchmark all --save --config config_ollama.yaml
+
+llm:
+  provider: "ollama"
+  model: "qwen2.5:7b"     # available models: llama3.2:3b, phi4-mini, llama3.2, qwen2.5:7b
+  ollama_host: "127.0.0.1"
+  ollama_port: 11434
+
+dialog:
+  language: "Spanish"
+  history_max_turns: 200
+  max_turns_simulation: 20
+
+prompts_yaml: "../ros2_dialog_manager/config/prompts.yaml"
+results_dir: "results"

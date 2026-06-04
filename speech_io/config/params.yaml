@@ -1,0 +1,64 @@
+speech_to_text_node:
+  ros__parameters:
+    # Topic where final transcriptions are published.
+    output_topic: /transcription
+
+    # Topic used to know when TTS is speaking. While True, STT is muted
+    # to avoid transcribing the robot's own voice.
+    is_speaking_topic: /is_speaking
+
+    # Topic where the raw VAD probability is published as Float32 [0, 1].
+    vad_topic: /user_vad
+
+    # Microphone input device. Empty string uses the default system input.
+    input_device: ''
+
+    # faster-whisper model size: tiny, base, small, medium, large-v3, etc.
+    model_size: base
+
+    # Expected speech language. Use ISO language codes, e.g. es, en.
+    language: es
+
+    # Inference device used by faster-whisper: cpu or cuda.
+    device: cpu
+
+    # faster-whisper compute type. Common CPU option: int8.
+    # Common CUDA options: float16, int8_float16.
+    compute_type: int8
+
+    # Number of CPU threads used by faster-whisper.
+    cpu_threads: 4
+
+    # Microphone sample rate expected by Silero VAD.
+    sample_rate: 16000
+
+    # Minimum Silero VAD probability required to consider a chunk as speech.
+    vad_threshold: 0.5
+
+    # Seconds of silence allowed after speech before closing a phrase.
+    grace_period: 0.8
+
+    # Maximum phrase duration before forcing transcription.
+    max_phrase_secs: 8.0
+
+    # Disable informational logs when true.
+    silent_mode: false
+
+
+text_to_speech_node:
+  ros__parameters:
+    # SpeakText action server name used to request speech synthesis.
+    action_name: /speak
+
+    # Topic used to publish whether TTS is currently playing audio.
+    # SpeechToTextNode uses this topic to mute itself during playback.
+    is_speaking_topic: /is_speaking
+
+    # Piper voice model used for speech synthesis.
+    model_path: models/es_ES-sharvard-medium.onnx
+
+    # Output sample rate expected by the selected Piper model.
+    sample_rate: 22050
+
+    # Audio output device. "default" uses the default system output.
+    audio_device: default

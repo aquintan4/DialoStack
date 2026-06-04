@@ -1,0 +1,92 @@
+speech_to_text_node:
+  ros__parameters:
+    output_topic: /transcription
+    is_speaking_topic: /is_speaking
+    input_device: ''
+    model_size: small
+    language: es
+    device: cuda
+    compute_type: float16
+    cpu_threads: 4
+    sample_rate: 16000
+    vad_threshold: 0.5
+    grace_period: 0.8
+    max_phrase_secs: 8.0
+    silent_mode: false
+
+text_to_speech_node:
+  ros__parameters:
+    action_name: /speak
+    is_speaking_topic: /is_speaking
+    model_path: models/es_ES-sharvard-medium.onnx
+    sample_rate: 22050
+    audio_device: default
+
+llm_manager_node:
+  ros__parameters:
+    default_provider: "gemini"
+    default_model: ""
+    max_concurrent: 4
+    silent_mode: false
+
+    ollama:
+      enable: false
+      host: "127.0.0.1"
+      port: 11434
+      model: "qwen2.5"
+      timeout: 120.0
+
+    gemini:
+      enable: true
+      # Leave empty — the provider picks up GEMINI_API_KEY from the environment.
+      api_key: ""
+      model: "gemini-2.5-flash"
+      timeout: 60.0
+
+dialog_manager_node:
+  ros__parameters:
+    # Topics.
+    transcription_topic: "/transcription"
+    user_emotion_topic: "/user_emotion"
+    # Set to "" to disable barge-in.
+    user_speaking_topic: "/user_speaking"
+
+    # Language for LLM generation and fallback phrases.
+    # Change to "English" (or any language name) to switch the dialog language.
+    language: "Spanish"
+
+    # Maximum number of turns kept in the dialog history buffer.
+    # When exceeded, the oldest half is dropped to bound memory usage.
+    history_max_turns: 200
+
+    # Acknowledgment phrases injected by the system (not the LLM) after each
+    # successful slot extraction. Set to [""] to disable acknowledgments.
+    ack_phrases:
+      - "Anotado."
+      - "Hecho."
+      - "Perfecto."
+      - "Entendido."
+      - "De acuerdo."
+
+    # Timing.
+    wait_timeout: 20.0
+    llm_timeout: 120.0
+    tts_timeout: 60.0
+    # Prompt spoken when the user doesn't respond within wait_timeout seconds.
+    timeout_prompt: "¿Sigues ahí?"
+
+    # FSM limits.
+    max_timeouts: 2
+    max_unclear: 3
+    max_attempts: 3
+
+    # LLM Manager binding. Empty → node picks its own defaults.
+    llm_provider: ""
+    llm_model: ""
+
+    # Logging.
+    silent_mode: false
+    # Set to "" to disable transcript logging.
+    conversation_log_path: "/tmp/dialog_conversations.log"
+    # Rotate transcript when it exceeds this size. 0 = never rotate.
+    conversation_log_max_mb: 10.0

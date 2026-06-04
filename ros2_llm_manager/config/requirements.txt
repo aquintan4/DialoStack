@@ -1,0 +1,17 @@
+# Runtime dependencies for ros2_llm_manager.
+# Tested on Python 3.12.3
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# Note: rclpy and all ros2_*_interfaces packages are managed by the ROS2
+# toolchain (rosdep / apt) and are intentionally excluded from this file.
+
+# ── HTTP client (Ollama provider) ─────────────────────────────────────────────
+httpx==0.28.1
+
+# ── Google Gemini SDK (Gemini provider) ───────────────────────────────────────
+google-genai==1.74.0
+
+# ── Build / packaging (required by ament_python) ─────────────────────────────
+setuptools==79.0.1

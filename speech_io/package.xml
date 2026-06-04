@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>speech_io</name>
+  <version>0.0.0</version>
+
+  <license>MIT</license>
+
+  <description>
+    Speech input/output package for ROS 2. It provides a speech-to-text node,
+    a text-to-speech node, and an interactive testing node for validating the
+    voice pipeline.
+  </description>
+
+  <maintainer email="aquintana.camacho@proton.me">aquintan4</maintainer>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>ros2_dialog_interfaces</depend>
+
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-sounddevice</exec_depend>
+  <exec_depend>python3-torch</exec_depend>
+  
+  <exec_depend>python3-numpy</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

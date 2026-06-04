@@ -1,0 +1,318 @@
+{
+  "_instructions": [
+    "Benchmark: end-to-end simulation of complete dialogs.",
+    "The system runs the full dialog with a simulated (scripted) user.",
+    "",
+    "Required fields:",
+    "  id                  : unique identifier (e.g. e2e_001)",
+    "  description         : scenario summary",
+    "  task_description    : task text for the DialogManager",
+    "  dialog_mode         : 'slot_filling' | 'quiz' (forces the strategy, avoids variability)",
+    "  frame_schema_json   : frame schema as a JSON string (for slot_filling)",
+    "                        If '', the LLM generates it (slower, less reproducible)",
+    "  resources_json      : resources for the context (JSON string array, '' = empty)",
+    "  domain              : dialog domain (string, '' = no domain)",
+    "  user_script         : ordered list of simulated user responses",
+    "                        If exhausted before the dialog ends, it simulates a timeout",
+    "  expected_success    : true if the dialog should end in success",
+    "  expected_final_frame: expected frame values at the end (for slot_filling)",
+    "                        Compared against the actual frame on completion",
+    "  notes               : description of the pattern being tested",
+    "",
+    "For quiz: resources_json must contain the array of questions.",
+    "For slot_filling: frame_schema_json defines the slots."
+  ],
+  "cases": [
+    {
+      "id": "e2e_sf_001",
+      "description": "Happy path — pedido de helado, 3 turnos, sin correcciones",
+      "task_description": "Tomar el pedido de un helado al cliente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"sabor\", \"type\": \"str\", \"canonical_values\": [\"chocolate\", \"vainilla\", \"fresa\", \"limon\"]}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequenyo\", \"mediano\", \"grande\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Quiero uno de chocolate",
+        "Grande",
+        "Sí, correcto"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"sabor": "chocolate", "tamanyo": "grande"},
+      "notes": "Camino feliz mínimo: un slot por turno, confirmación directa"
+    },
+    {
+      "id": "e2e_sf_002",
+      "description": "Corrección en fase confirming — el usuario cambia un dato",
+      "task_description": "Tomar el pedido de un helado al cliente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"sabor\", \"type\": \"str\", \"canonical_values\": [\"chocolate\", \"vainilla\", \"fresa\", \"limon\"]}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequenyo\", \"mediano\", \"grande\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Quiero vainilla",
+        "Mediano",
+        "No espera, el sabor cámbialo a fresa",
+        "Sí, ahora sí"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"sabor": "fresa", "tamanyo": "mediano"},
+      "notes": "Corrección de un slot en confirmación; el sistema debe volver a confirmar"
+    },
+    {
+      "id": "e2e_sf_003",
+      "description": "Dos slots en un turno — el usuario da toda la información de golpe",
+      "task_description": "Tomar el pedido de un helado al cliente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"sabor\", \"type\": \"str\", \"canonical_values\": [\"chocolate\", \"vainilla\", \"fresa\", \"limon\"]}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequenyo\", \"mediano\", \"grande\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Un helado grande de limón por favor",
+        "Sí"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"sabor": "limon", "tamanyo": "grande"},
+      "notes": "Eficiencia: dos slots en un turno debe llevar a confirmación directa"
+    },
+    {
+      "id": "e2e_sf_004",
+      "description": "El usuario abandona — script se agota (simulación de timeout)",
+      "task_description": "Registrar una reserva de hotel",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"tipo_habitacion\", \"type\": \"str\", \"canonical_values\": [\"individual\", \"doble\", \"suite\"]}, {\"name\": \"num_noches\", \"type\": \"int\"}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Quiero una habitación doble"
+      ],
+      "expected_success": false,
+      "expected_final_frame": {},
+      "notes": "Script se agota antes de completar el frame → timeout → abort. expected_success=false"
+    },
+    {
+      "id": "e2e_sf_005",
+      "description": "Slot list_str — el usuario añade ingredientes en varios turnos",
+      "task_description": "Registrar la pizza personalizada del cliente: ingredientes y tamaño",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"ingredientes\", \"type\": \"list_str\"}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequennya\", \"mediana\", \"grande\", \"familiar\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Con champiñones y cebolla",
+        "Y también aceitunas",
+        "Grande",
+        "Sí"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"ingredientes": ["champiñones", "cebolla", "aceitunas"], "tamanyo": "grande"},
+      "notes": "list_str acumulado en dos turnos consecutivos"
+    },
+    {
+      "id": "e2e_sf_006",
+      "description": "Corrección mid-gathering — el usuario cambia de sabor antes de confirmar",
+      "task_description": "Tomar el pedido de un helado al cliente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"sabor\", \"type\": \"str\", \"canonical_values\": [\"chocolate\", \"vainilla\", \"fresa\", \"limon\"]}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequenyo\", \"mediano\", \"grande\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Quiero de fresa",
+        "Mediano",
+        "Espera, cámbiame el sabor a chocolate",
+        "Sí, correcto"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"sabor": "chocolate", "tamanyo": "mediano"},
+      "notes": "La corrección ocurre en fase de confirmación; el sistema debe actualizar y volver a confirmar"
+    },
+    {
+      "id": "e2e_sf_007",
+      "description": "Respuestas ambiguas — el usuario titubea pero se resuelve",
+      "task_description": "Registrar una reserva de hotel",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"tipo_habitacion\", \"type\": \"str\", \"canonical_values\": [\"individual\", \"doble\", \"suite\"]}, {\"name\": \"num_noches\", \"type\": \"int\"}, {\"name\": \"desayuno_incluido\", \"type\": \"bool\"}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Una doble creo",
+        "Bueno, dos noches",
+        "Sin desayuno",
+        "Sí, eso es"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"tipo_habitacion": "doble", "num_noches": 2, "desayuno_incluido": false},
+      "notes": "'Creo' y 'bueno' son marcadores de duda; el sistema debe extraer los valores igualmente"
+    },
+    {
+      "id": "e2e_sf_008",
+      "description": "Corrección de list_str en confirming — quitar un ingrediente",
+      "task_description": "Registrar la pizza personalizada del cliente: ingredientes y tamaño",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"ingredientes\", \"type\": \"list_str\"}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequennya\", \"mediana\", \"grande\", \"familiar\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Con champiñones y aceitunas",
+        "Grande",
+        "Quita las aceitunas",
+        "Sí"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"ingredientes": ["champiñones"], "tamanyo": "grande"},
+      "notes": "El usuario elimina un ítem de la lista en fase de confirmación"
+    },
+    {
+      "id": "e2e_sf_009",
+      "description": "Happy path en dominio diferente — alquiler de coche",
+      "task_description": "Gestionar el alquiler de un coche para el cliente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"categoria\", \"type\": \"str\", \"canonical_values\": [\"economico\", \"familiar\", \"SUV\", \"premium\"]}, {\"name\": \"dias\", \"type\": \"int\"}, {\"name\": \"seguro\", \"type\": \"bool\"}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Un SUV por tres días",
+        "Con seguro",
+        "Sí, perfecto"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"categoria": "SUV", "dias": 3, "seguro": true},
+      "notes": "Happy path en dominio nuevo; primer turno cubre 2 slots (categoria + dias)"
+    },
+    {
+      "id": "e2e_sf_010",
+      "description": "Reserva de restaurante — slot por slot con hora en formato natural",
+      "task_description": "Gestionar la reserva de una mesa en el restaurante",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"num_personas\", \"type\": \"int\"}, {\"name\": \"zona\", \"type\": \"str\", \"canonical_values\": [\"interior\", \"terraza\"]}, {\"name\": \"hora\", \"type\": \"str\", \"canonical_values\": [\"13:00\", \"14:00\", \"20:00\", \"21:00\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Somos cuatro personas",
+        "En la terraza",
+        "A las ocho de la tarde",
+        "Correcto"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"num_personas": 4, "zona": "terraza", "hora": "20:00"},
+      "notes": "El usuario expresa la hora en formato natural ('ocho de la tarde'); el sistema debe mapear a '20:00'"
+    },
+    {
+      "id": "e2e_sf_011",
+      "description": "Corrección doble en confirming — el usuario cambia 2 slots a la vez",
+      "task_description": "Tomar el pedido de un helado al cliente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"sabor\", \"type\": \"str\", \"canonical_values\": [\"chocolate\", \"vainilla\", \"fresa\", \"limon\"]}, {\"name\": \"tamanyo\", \"type\": \"str\", \"canonical_values\": [\"pequenyo\", \"mediano\", \"grande\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Quiero chocolate pequeño",
+        "En realidad grande y de vainilla",
+        "Sí ahora sí"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"sabor": "vainilla", "tamanyo": "grande"},
+      "notes": "El primer turno rellena el frame; la segunda respuesta corrige ambos slots simultáneamente"
+    },
+    {
+      "id": "e2e_sf_012",
+      "description": "Happy path en cita médica — ambos slots en primer turno",
+      "task_description": "Gestionar una cita médica para el paciente",
+      "dialog_mode": "slot_filling",
+      "frame_schema_json": "{\"slots\": [{\"name\": \"especialidad\", \"type\": \"str\", \"canonical_values\": [\"medicina general\", \"cardiologia\", \"dermatologia\", \"traumatologia\"]}, {\"name\": \"turno\", \"type\": \"str\", \"canonical_values\": [\"manyana\", \"tarde\"]}]}",
+      "resources_json": "[]",
+      "domain": "",
+      "user_script": [
+        "Necesito dermatología por la tarde",
+        "Sí"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {"especialidad": "dermatologia", "turno": "tarde"},
+      "notes": "El usuario proporciona ambos slots en el primer turno; el robot debe pasar directamente a confirmación"
+    },
+    {
+      "id": "e2e_quiz_001",
+      "description": "Quiz completo — 3 preguntas, todas bien",
+      "task_description": "Cuestionario de cultura general sobre geografía",
+      "dialog_mode": "quiz",
+      "frame_schema_json": "",
+      "resources_json": "[{\"name\": \"preguntas\", \"description\": \"Preguntas del quiz\", \"content\": \"[{\\\"question\\\": \\\"¿Cuál es la capital de Francia?\\\", \\\"answer\\\": \\\"París\\\"}, {\\\"question\\\": \\\"¿Cuál es el río más largo del mundo?\\\", \\\"answer\\\": \\\"Nilo\\\"}, {\\\"question\\\": \\\"¿En qué continente está Brasil?\\\", \\\"answer\\\": \\\"América del Sur\\\"}]\"}]",
+      "domain": "",
+      "user_script": [
+        "París",
+        "El Nilo",
+        "En América del Sur"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {},
+      "notes": "Quiz 3/3 correcto, happy path"
+    },
+    {
+      "id": "e2e_quiz_002",
+      "description": "Quiz completo — 3 preguntas, respuestas mixtas",
+      "task_description": "Cuestionario de cultura general sobre geografía",
+      "dialog_mode": "quiz",
+      "frame_schema_json": "",
+      "resources_json": "[{\"name\": \"preguntas\", \"description\": \"Preguntas del quiz\", \"content\": \"[{\\\"question\\\": \\\"¿Cuál es la capital de Francia?\\\", \\\"answer\\\": \\\"París\\\"}, {\\\"question\\\": \\\"¿Cuál es el río más largo del mundo?\\\", \\\"answer\\\": \\\"Nilo\\\"}, {\\\"question\\\": \\\"¿En qué continente está Brasil?\\\", \\\"answer\\\": \\\"América del Sur\\\"}]\"}]",
+      "domain": "",
+      "user_script": [
+        "París",
+        "El Amazonas",
+        "Sudamérica"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {},
+      "notes": "1 fallo (Amazonas), 1 paráfrasis aceptable (Sudamérica = América del Sur)"
+    },
+    {
+      "id": "e2e_quiz_003",
+      "description": "Quiz con timeout — el usuario no responde a todas las preguntas",
+      "task_description": "Cuestionario de historia y cultura general",
+      "dialog_mode": "quiz",
+      "frame_schema_json": "",
+      "resources_json": "[{\"name\": \"preguntas\", \"description\": \"Preguntas de historia\", \"content\": \"[{\\\"question\\\": \\\"¿En qué año comenzó la Revolución Francesa?\\\", \\\"answer\\\": \\\"1789\\\"}, {\\\"question\\\": \\\"¿Quién pintó la Mona Lisa?\\\", \\\"answer\\\": \\\"Leonardo da Vinci\\\"}, {\\\"question\\\": \\\"¿Cuántos planetas tiene el sistema solar?\\\", \\\"answer\\\": \\\"8\\\"}]\"}]",
+      "domain": "",
+      "user_script": [
+        "1789"
+      ],
+      "expected_success": false,
+      "expected_final_frame": {},
+      "notes": "El script se agota tras 1 respuesta; el robot no puede completar el quiz → expected_success=false"
+    },
+    {
+      "id": "e2e_quiz_004",
+      "description": "Quiz completo con todas las respuestas incorrectas",
+      "task_description": "Cuestionario de historia y cultura general",
+      "dialog_mode": "quiz",
+      "frame_schema_json": "",
+      "resources_json": "[{\"name\": \"preguntas\", \"description\": \"Preguntas de historia\", \"content\": \"[{\\\"question\\\": \\\"¿En qué año comenzó la Revolución Francesa?\\\", \\\"answer\\\": \\\"1789\\\"}, {\\\"question\\\": \\\"¿Quién pintó la Mona Lisa?\\\", \\\"answer\\\": \\\"Leonardo da Vinci\\\"}, {\\\"question\\\": \\\"¿Cuántos planetas tiene el sistema solar?\\\", \\\"answer\\\": \\\"8\\\"}]\"}]",
+      "domain": "",
+      "user_script": [
+        "1790",
+        "Velázquez",
+        "Nueve"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {},
+      "notes": "Todas las respuestas son incorrectas pero el diálogo completa el quiz; el éxito depende de completar, no de acertar"
+    },
+    {
+      "id": "e2e_quiz_005",
+      "description": "Quiz largo — 5 preguntas de ciencias, respuestas mixtas",
+      "task_description": "Cuestionario de ciencias naturales",
+      "dialog_mode": "quiz",
+      "frame_schema_json": "",
+      "resources_json": "[{\"name\": \"preguntas\", \"description\": \"Preguntas de ciencias\", \"content\": \"[{\\\"question\\\": \\\"¿Cuál es el símbolo químico del oro?\\\", \\\"answer\\\": \\\"Au\\\"}, {\\\"question\\\": \\\"¿Cuántos huesos tiene el cuerpo humano adulto?\\\", \\\"answer\\\": \\\"206\\\"}, {\\\"question\\\": \\\"¿A qué temperatura hierve el agua a nivel del mar?\\\", \\\"answer\\\": \\\"100 grados Celsius\\\"}, {\\\"question\\\": \\\"¿Qué planeta es el más cercano al Sol?\\\", \\\"answer\\\": \\\"Mercurio\\\"}, {\\\"question\\\": \\\"¿Cuántos cromosomas tiene una célula humana normal?\\\", \\\"answer\\\": \\\"46\\\"}]\"}]",
+      "domain": "",
+      "user_script": [
+        "Au",
+        "Doscientos seis huesos",
+        "Cien grados",
+        "Venus",
+        "46"
+      ],
+      "expected_success": true,
+      "expected_final_frame": {},
+      "notes": "5 preguntas: correcta, correcta (letras), correcta (parcial), INCORRECTA (Venus≠Mercurio), correcta. El quiz debe completarse"
+    }
+  ]
+}

@@ -1,0 +1,631 @@
+# Dialog Manager — Prompt templates
+# Loaded by DialogManagerNode via get_parameters_by_prefix("prompts").
+# {language} is injected automatically by PromptBuilder — no need to declare it
+# in every template; it is available to all of them.
+# Literal '{' or '}' MUST be doubled ('{{', '}}'); the node validates at boot.
+
+dialog_manager_node:
+  ros__parameters:
+    prompts:
+
+      classify_task_mode: |
+        Classify the task into one interaction mode.
+
+        TASK: "{task}"
+
+        Modes:
+        - "slot_filling": the assistant must COLLECT specific structured data
+          from the user (form filling, order taking, registration, booking,
+          reservation, preference selection, etc.).
+          ALSO use this mode when the task combines informing the user with
+          collecting a preference or decision — the collection part is always
+          primary.
+        - "explanation": the assistant must EXPLAIN something and verify
+          that the user understood. Use ONLY when there is nothing to collect.
+
+        Output strict JSON only:
+        {{"mode": "slot_filling" | "explanation"}}
+
+      create_frame: |
+        Design the minimum slot schema needed to complete the task.
+
+        TASK: "{task}"
+
+        Output strict JSON only:
+        {{"slots": [
+          {{"name": "slot_a", "type": "str"}},
+          {{"name": "choice_slot", "type": "str",
+            "canonical_values": ["option_1", "option_2"]}},
+          {{"name": "child_slot", "type": "str",
+            "condition_slot": "choice_slot", "condition_value": "option_1"}}
+        ]}}
+
+        Rules:
+        - Include ONLY slots strictly necessary to complete the task.
+        - Names: lowercase snake_case, no accents, no spaces.
+        - Types: str, int, float, bool, list_str. Use list_str only when the
+          user may legitimately provide multiple values for the same slot.
+        - Anti-pattern: do NOT split a single concept into a "type" slot and a
+          "list" slot. Use ONE list_str slot.
+        - canonical_values: closed set of valid options, expressed exactly as
+          the user will say them in conversation (in the dialog language),
+          lowercased. Any user input that does not match is silently dropped,
+          so include every realistic option.
+        - canonical_values are REQUIRED for any choice slot and for any
+          list_str slot whose items come from a fixed set. Include every option.
+        - condition_slot / condition_value: a slot only appears when the named
+          parent slot equals a specific value. condition_value MUST exactly
+          match one of the parent's canonical_values. Do NOT condition on a
+          list_str parent.
+        - Return ONLY the JSON. No markdown, no preamble.
+
+      audit_frame: |
+        You just generated a slot schema for a conversational task. Review it
+        now against the [CONTEXT] resources to fix consistency issues BEFORE
+        the dialog starts.
+
+        Why this matters: any user value that does not exactly match one of a
+        slot's canonical_values is silently dropped at extraction time. If the
+        schema is missing a value the user will plausibly say, that input is
+        lost without the user knowing. Likewise, a value duplicated across two
+        slots creates ambiguity that ends up assigned to the wrong slot.
+
+        TASK: "{task}"
+
+        CURRENT SCHEMA:
+        {schema}
+
+        Find three kinds of issues:
+
+        1) MISSING canonical values. A slot ALREADY HAS canonical_values but
+           omits others mentioned in the [CONTEXT] resources. Propose adding
+           them with action "add".
+
+        2) EMPTY canonical values. A slot shows canonical_values = [] (none
+           defined), AND the [CONTEXT] resources clearly enumerate a finite
+           set of options the user will choose from. Propose adding the
+           complete set with action
+           "add". Only do this when the finite set is explicit in resources —
+           never invent values.
+
+        3) DUPLICATED values. The same value appears in canonical_values of
+           more than one slot. Decide which slot the value belongs to and
+           propose removing it from the others with action "remove".
+
+        Output strict JSON only:
+        {{"actions": [
+          {{"slot": "slot_a", "action": "add",    "values": ["v1", "v2"]}},
+          {{"slot": "slot_b", "action": "remove", "values": ["v3"]}}
+        ]}}
+
+        Rules:
+        - "add" values: use the exact terms the user will say verbatim in the
+          dialog language, lowercased. Never add prices, descriptions, or
+          metadata — only user-utterable identifiers.
+        - "remove" values: must currently exist in the slot's canonical_values.
+        - Free-text slots (names, addresses, open descriptions): do NOT add
+          canonical_values even if resources contain examples.
+        - Be conservative. If unsure, do NOT act. If the schema is fine,
+          return {{"actions": []}}.
+        - Return ONLY the JSON. No markdown, no preamble.
+
+      opening: |
+        Generate the OPENING line of a NEW conversation.
+
+        TASK: "{task}"
+        Slots to collect:
+        {slots}
+
+        Rules:
+        - {language} only. No markdown. Return only the raw sentence.
+        - Brief greeting + ask the FIRST missing slot. ONE sentence.
+        - Do NOT enumerate options or resources.
+        - Do NOT ask multiple things at once.
+
+      resume_opening: |
+        Generate the OPENING line of a conversation that is RESUMING with
+        partial data already provided (e.g. from a previous attempt that did
+        not complete). The user is NOT new — do not greet.
+
+        TASK: "{task}"
+        Already filled:
+        {known_slots}
+        Next slot to ask: {next_slot}
+
+        Rules:
+        - {language} only. No markdown. Return only the raw sentence.
+        - Do NOT greet the user; do NOT re-introduce the task.
+        - Briefly acknowledge that the conversation is continuing.
+        - Ask for next_slot naturally — do NOT echo the slot name, use its
+          semantics. ONE question.
+        - ONE sentence. Direct.
+
+      # ==== Quiz strategy ====
+
+      quiz_opening: |
+        Generate the OPENING line of a quiz with {total} questions.
+
+        TASK: "{task}"
+
+        Rules:
+        - {language} only. No markdown. Return only the raw sentence.
+        - Brief greeting + mention there are {total} questions ahead.
+        - Encouraging tone. ONE sentence.
+        - Do NOT ask the first question here — it is appended separately.
+
+      evaluate_quiz_answer: |
+        Evaluate a user's quiz answer.
+
+        QUESTION: "{question}"
+        EXPECTED ANSWER: "{expected}"
+        USER'S ANSWER: "{given}"
+
+        Decide whether the user's answer is essentially correct, tolerating:
+        - Synonyms and rewording.
+        - Different formats (e.g. "4" vs "four" vs "it is four").
+        - Phonetic ASR errors (the input is voice-transcribed).
+        - Extra explanation surrounding the right answer.
+
+        Output strict JSON only:
+        {{"correct": true | false, "feedback": "ONE short sentence in {language}"}}
+
+        Rules for "feedback":
+        - If correct: short positive acknowledgment. May briefly note why if
+          it adds value.
+        - If incorrect: ONE brief sentence stating the right answer.
+        - Max 15 words. {language} only. No markdown. No greeting.
+
+      quiz_next_question: |
+        We are mid-quiz. The previous answer was just evaluated. Produce ONE
+        line that smoothly transitions to the next question.
+
+        PREVIOUS FEEDBACK: "{feedback}"
+        NEXT QUESTION ({n} of {total}): "{question}"
+
+        Rules:
+        - {language} only. No markdown. No greeting.
+        - Echo the FEEDBACK verbatim, then ask the QUESTION verbatim.
+          You may add a short connector.
+        - Do NOT rephrase the question — ask it exactly as given.
+        - ONE compact sentence pair. Return only the raw text.
+
+      quiz_summary: |
+        Generate the CLOSING summary of a completed quiz.
+
+        TASK: "{task}"
+        Score: {correct} correct out of {total}.
+        Questions answered wrong: {wrongs}
+
+        Rules:
+        - {language} only. No markdown. No greeting.
+        - ONE short encouraging sentence mentioning the score.
+        - If the user got 0 wrong: celebrate briefly.
+        - If the user got everything wrong: stay kind, suggest practising.
+        - Max 25 words. Return only the raw text.
+
+      extract_slots: |
+        Single-pass NLU: identify everything the user wants to do with their
+        slots this turn — new values, additions, removals, replacements, or
+        corrections to already-filled values.
+
+        RECENT CONVERSATION (for resolving confirmations and references):
+        {recent_context}
+
+        USER MESSAGE: "{user_text}"
+
+        SLOTS YOU CAN UPDATE THIS TURN:
+        {slot_defs}
+
+        ALREADY FILLED (current values): {filled_ctx}
+
+        Output strict JSON only:
+        {{"extractions": [
+          {{"slot": "...", "value": <see below>, "source_span": "verbatim fragment"}}
+        ]}}
+
+        Slot-state markers in the SLOTS list:
+        - [empty — needs a value]: extract whenever the user provides one.
+        - [LIST — accumulates ...]: use the list value formats below.
+        - [ALREADY FILLED with X — ...]: do NOT re-extract by default. Only
+          emit a new value when the user is EXPLICITLY correcting it
+          (correction signals: "no, rather X", "change to X", "actually X",
+          "I prefer X", "no, X instead of Y", or their {language} equivalents).
+          Without a clear correction signal, ignore.
+
+        Value formats:
+        - scalar slots (str/int/float/bool): "value": "plain string"
+          (bool → "true"|"false"; numeric → numeric string)
+        - list_str slots, choose ONE form per extraction:
+          1) plain mention or addition (DEFAULT):
+             "value": ["A", "B"]   → ADDS to current list
+          2) removal (user asks to remove item X):
+             "value": {{"_remove": true, "items": ["A"]}}
+          3) full replacement (user wipes and restarts with a new set):
+             "value": {{"_replace": true, "items": ["A","B"]}}
+
+        Multiple operations per turn are allowed when the user combines actions.
+        Common pattern: "swap X for Y" emits TWO extractions on the same list
+        slot — a _remove for X plus a plain-value add for Y.
+
+        Examples (abstract — adapt to the actual {language} input):
+        - "[user names two items] A and B"
+          → [{{"slot":"list_slot","value":["A","B"],"source_span":"A and B"}}]
+        - "[user removes A, adds B]"
+          → [{{"slot":"list_slot","value":{{"_remove":true,"items":["A"]}},"source_span":"..."}},
+             {{"slot":"list_slot","value":["B"],"source_span":"..."}}]
+        - "[user replaces everything with only B]"
+          → [{{"slot":"list_slot","value":{{"_replace":true,"items":["B"]}},"source_span":"..."}}]
+        - "value_a" with choice_slot ∈ [opt_a, opt_b]
+          → [{{"slot":"choice_slot","value":"opt_a","source_span":"value_a"}}]
+        - choice_slot is [ALREADY FILLED with 'opt_a'], user explicitly corrects
+          → [{{"slot":"choice_slot","value":"opt_b","source_span":"..."}}]
+        - choice_slot is [ALREADY FILLED with 'opt_a'], user mentions 'opt_b'
+          with no correction signal → []
+
+        Rules:
+        - source_span: VERBATIM fragment from the user message.
+        - Choice slots marked [must be one of: ...] MUST be normalised to one
+          of those canonical values. For list_str with canonical_values, each
+          item must be canonical; drop items that do not match.
+        - ASR tolerance: input is voice-transcribed, spelling may differ. Map
+          phonetic intent to the closest canonical value.
+        - Boolean inference: affirmative → "true"; negative → "false".
+        - Confirmation pattern: if the RECENT CONVERSATION shows the assistant
+          computed or stated a specific value and the user affirms it ("yes",
+          "correct", "ok", "sure" or {language} equivalents), extract that
+          stated value into the appropriate slot.
+        - Numeric inference: for int/float slots, if the user describes a count
+          indirectly (e.g. a date range), infer the number when unambiguous.
+        - If the user is asking, chatting, or off-topic to all slots, return
+          {{"extractions": []}}.
+        - Return ONLY the JSON. No markdown.
+
+      generate_response: |
+        Generate the NEXT assistant message in a RUNNING dialog for: "{task}"
+        The user has already been greeted; this is NOT the first turn.
+
+        Slot state:
+        {slots}
+        Recent history:
+        {history}
+        User just said: "{user_text}"
+        Extracted this turn: {extracted_summary}
+        Next slot to collect: {next_slot}
+        Slots with repeated failures: {attempts_exceeded}
+
+        Rules:
+        - {language} only. No markdown. No mid-dialog greeting (phrases
+          equivalent to "Hello", "Hi", or "Good morning" in {language} are
+          forbidden mid-dialog). Return only the raw text.
+        - NEVER start with an acknowledgment of receipt ("Noted", "Done",
+          "Got it", "OK", "Understood" or their {language} equivalents) — the
+          system handles that separately. Start DIRECTLY with the question or
+          response.
+        - GROUND TRUTH is the Slot state above, NOT the conversation history.
+          Never state that a value has been "recorded", "noted", "confirmed",
+          or "saved" unless it already appears as filled in the Slot state.
+          If a slot shows MISSING, the value has NOT been captured yet.
+        - Do NOT ask "Is there anything else?" or "Shall I confirm?" — the
+          confirmation step is handled automatically by the system when all
+          slots are filled. Stay focused on collecting the missing slots.
+        - Tone: if [CONTEXT] reports a notable emotion, adapt — empathetic if
+          frustrated/sad, warmer if happy. Otherwise neutral and professional.
+
+        If next_slot is not NONE: ask for it naturally (ONE question), using
+        the slot's semantics, NEVER echoing the slot name. Do NOT ask multiple
+        things at once. ONLY ask about next_slot — NEVER ask for information
+        that is not listed as a slot in the schema above (e.g. dates, times,
+        or preferences not listed as slots).
+
+        If "Extracted this turn" is None / empty:
+        Nothing was recorded this turn. Go directly to one of these subcases:
+        a) User asked about options / prices / availability:
+           - If the answer IS in [CONTEXT] resources: answer in ONE factual
+             sentence using ONLY those resources as ground truth, then ask
+             next_slot.
+           - If [CONTEXT] does NOT contain the answer, OR if there are no
+             [CONTEXT] resources at all: say so honestly in ONE sentence, then
+             ask next_slot. NEVER answer from general training knowledge.
+             NEVER invent prices, names, schedules, or product details.
+           Max 30 words total.
+        b) User asked what has been collected so far: answer using the slot
+           state above, then ask next_slot. Max 30 words.
+        c) Off-topic or unclear: ONE varied recovery phrase, NEVER repeating
+           the same wording twice in a row. Rotate among four short options
+           that ask the user to clarify or repeat. Max 20 words.
+
+        List slots (list_str) as the active slot:
+        - Make it explicit the user can give multiple values.
+        - End list-slot questions with an invitation to add more items.
+
+        If a slot is in repeated failures, switch to a simpler closed yes/no
+        or pick-one question for it.
+
+        Never recap the overall task during gathering — that belongs to the
+        confirmation step.
+
+      ask_confirmation: |
+        All required information has been collected for: "{task}"
+
+        Collected:
+        {slots}
+
+        Ask the user to confirm everything in ONE compact sentence.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - The TASK field above is your operating instructions — do NOT include
+          it or any part of it in the recap. Only confirm the values in Collected.
+        - Recap ONLY the collected slot values listed above, in natural phrasing,
+          never using field names or slot keys.
+        - End with a single clear yes/no question.
+        - Do NOT add any information beyond what is listed in Collected above.
+          Do NOT mention prices, availability, dates, or scheduling details
+          unless they appear explicitly as a filled slot.
+        - Do NOT ask for any new information — only the yes/no confirmation.
+        - Tone follows [CONTEXT] emotional state.
+
+      classify_intent: |
+        The user was shown a recap and asked to confirm. Classify their reply.
+
+        Current slot state:
+        {slots_summary}
+        User reply: "{user_text}"
+
+        Intents:
+        - "confirms": accepts the data as correct.
+        - "corrects": wants to change one or more values.
+        - "question": asking about details, price, availability…
+        - "unclear": ambiguous reply.
+
+        Output strict JSON only:
+        {{"intent": "confirms"|"corrects"|"question"|"unclear",
+          "corrections": {{"slot_name": <new value OR list operation>}}}}
+
+        List slots in this phase: a plain string or array is interpreted as
+        ADDING items. Use explicit operations for other list intents:
+        - {{"_add": true,     "items": [...]}}
+        - {{"_remove": true,  "items": [...]}}
+        - {{"_replace": true, "items": [...]}}  ← overwrites the list
+
+        Examples (abstract — adapt to the actual {language} input):
+        - "[any short affirmative: yes, ok, perfect, correct, fine, great,
+           that's it, all good, confirmed, go ahead — or {language} equivalents]"
+                                         → confirms, corrections {{}}
+        - "[user adds item C]"           → corrects, {{"list_slot": ["C"]}}
+        - "[user explicitly adds C]"     → corrects, {{"list_slot": {{"_add":true,"items":["C"]}}}}
+        - "[user removes B]"             → corrects, {{"list_slot": {{"_remove":true,"items":["B"]}}}}
+        - "[user replaces all with C]"   → corrects, {{"list_slot": {{"_replace":true,"items":["C"]}}}}
+        - "[user updates scalar slot_x]" → corrects, {{"slot_x": "Y"}}
+        - "[user asks a factual question]" → question, {{}}
+        - "[vague or off-topic reply]"   → unclear, {{}}
+
+        Rules:
+        - confirms / question / unclear → corrections must be {{}}.
+        - For scalar corrections, value is a plain string; normalise choice
+          slots to their canonical value.
+        - BIAS TOWARD confirms: any reply whose only plausible reading is
+          "yes, that is correct" — including short positive expressions, echoing
+          a value back, or a plain "ok" / "yes" in any form — MUST be confirms.
+          Do NOT classify as corrects unless the user names a specific new value.
+          Do NOT classify as unclear unless the reply is genuinely unrelated.
+        - Any question → question. Vague / off-topic → unclear.
+        - Return ONLY the JSON.
+
+      response_to_intent: |
+        Close or adjust the interaction for: "{task}"
+
+        User intent: "{intent}"
+        Corrections applied: {corrections}
+        Current slot state (after corrections):
+        {slots}
+        Recent history:
+        {history}
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - confirms → ONE short action-oriented closing phrase. Do not ask
+          anything else. Do NOT add times, prices, or any details not present
+          in the Current slot state or [CONTEXT] resources.
+        - corrects → acknowledge the specific change briefly; then, if all
+          slots are filled, re-ask for confirmation in ONE compact sentence;
+          if a slot is still missing, ask for the next one naturally.
+        - unclear → apologise briefly in ONE phrase; then ask ONLY "yes or no:
+          is all the information correct?" Do NOT ask about any specific slot.
+          Do NOT ask "is there anything else?" or any open-ended question.
+        - Tone follows [CONTEXT] emotional state.
+        - Max 1–2 sentences.
+
+      answer_confirmation_question: |
+        Answer the user's question during the confirmation step.
+
+        TASK: "{task}"
+        Collected data: {slots_summary}
+        User question: "{user_text}"
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - Use the collected data and resources in [CONTEXT] as ground truth.
+        - Max 1–2 sentences. Direct and factual.
+        - If the information is not available, say so honestly.
+        - Do NOT ask for confirmation — the system handles that afterwards.
+
+      explanation_opening: |
+        Open a NEW explanation of: "{task}"
+
+        Rules:
+        - {language} only. No markdown of any kind — the output is read aloud
+          by TTS and symbols become audible noise. For step sequences use
+          plain prose (e.g. "first …, then …, finally …" or the equivalent
+          in {language}).
+        - Use resources in [CONTEXT] as ground truth.
+        - Max 4 sentences. Plain spoken language, no jargon.
+        - End BEFORE the comprehension check (the check is appended separately).
+        - Return only the raw text.
+
+      check_understanding: |
+        TOPIC JUST EXPLAINED: "{task}"
+
+        Ask in ONE short natural question whether the user understood, and
+        invite follow-ups if anything is unclear.
+
+        Rules: {language} only. No markdown. No greeting. ≤12 words. Raw text only.
+
+      classify_understanding: |
+        Classify the user's reaction to a comprehension check.
+
+        Recent history:
+        {history}
+        User's latest reply: "{user_text}"
+
+        Categories:
+        - "understood": affirmative or clearly positive answer with no misconceptions.
+        - "has_question": user asks a specific question about the topic, OR states
+          something INCORRECT or partially wrong about the topic (implicit misconception
+          that needs a direct correction). Use this whenever the user seems to believe
+          something false — even if they do not phrase it as a question.
+        - "not_understood": user EXPLICITLY says they did not understand, asks to
+          rephrase or repeat, or gives a genuinely off-topic / unrelated reply.
+          Do NOT use this when the user simply states a wrong fact.
+
+        Output strict JSON only:
+        {{"comprehension": "understood" | "has_question" | "not_understood"}}
+
+      answer_explanation_question: |
+        Answer a follow-up question or correct a misconception during an explanation.
+
+        TOPIC: "{task}"
+        Recent history:
+        {history}
+        User message: "{user_text}"
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - Use the resources in [CONTEXT] as ground truth.
+        - If the user stated something INCORRECT, correct it directly and briefly
+          (e.g. "No, en caso de humo debes agacharte, no saltar por la ventana.").
+          Do NOT re-explain the whole topic — only address the specific error.
+        - If the user asked a genuine question, answer it directly and factually.
+        - If the answer is not in [CONTEXT] or the conversation history, say
+          so honestly. Do NOT guess or invent.
+        - Max 2 sentences. Direct and factual.
+        - Do NOT ask for confirmation; the system follows up.
+
+      rephrase_explanation: |
+        Rephrase attempt {attempt_number} of an explanation the user did not
+        understand.
+
+        TOPIC: "{task}"
+        Previous conversation (avoid repeating yourself):
+        {history}
+
+        Rules:
+        - {language} only. No markdown of any kind (symbols become TTS noise).
+        - Try a CLEARLY different angle: an analogy, a simpler example, or a
+          step-by-step breakdown in plain prose (e.g. "first …, then …,
+          finally …" or the equivalent in {language}). No greeting.
+        - If [CONTEXT] flags frustration, acknowledge it briefly.
+        - End with a short comprehension check.
+        - Max 3 short sentences. Return raw text only.
+
+      understanding_confirmed: |
+        TOPIC: "{task}"
+
+        The user confirmed understanding. Generate ONE short warm closing.
+
+        Rules: {language} only. No markdown. No greeting. ≤12 words. Raw text only.
+
+      explanation_max_attempts: |
+        TOPIC: "{task}"
+
+        After multiple attempts the user still hasn't confirmed understanding.
+        Close supportively, leaving the door open.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - 1–2 sentences. Warm and non-judgemental; do NOT blame the user.
+        - Offer to revisit later or to seek another channel (a human, a guide),
+          without promising specifics.
+
+      detect_cancel_intent: |
+        Decide whether the user wants to STOP or CANCEL the current task
+        entirely.
+
+        USER SAID: "{user_text}"
+        DIALOG LANGUAGE: {language}
+        STRICT MODE: {strict}
+
+        A cancel signal is an explicit, context-independent command to abandon
+        the current interaction. Universal cancel markers (always cancel):
+        "stop", "exit", "cancel", "quit", "abort". Identify equivalent
+        expressions in {language} that unambiguously signal intent to abandon
+        the task.
+
+        NOT cancel — normal conversational turns:
+        - Task-related answers that happen to contain words like "stop" or
+          "cancel" in a non-cancellation context.
+        - Polite farewells used alone — they are polite closures, not stop
+          commands.
+        - Negation used as a yes/no answer ("no" answering a yes/no question).
+        - Corrections ("no, I meant X instead of Y").
+
+        Strict mode "true":
+        Return cancel=true ONLY for explicit unambiguous stop commands — the
+        universal markers or clear {language} equivalents. Anything ambiguous
+        or contextual → false.
+
+        Strict mode "false":
+        Stronger contextual cancel may be inferred, but be conservative.
+        Polite farewells alone → false.
+
+        Output strict JSON only: {{"cancel": true | false}}
+
+      detect_cancel_confirmation: |
+        The user was asked whether they want to cancel. Classify the reply.
+
+        USER REPLY: "{user_text}"
+
+        confirmed=true only for a clear affirmative to cancelling.
+        Hesitation, negation, or off-topic → false (safer default).
+
+        Output strict JSON only: {{"confirmed": true | false}}
+
+      ask_cancel_confirmation: |
+        TASK: "{task}"
+
+        The user may want to stop. Ask for confirmation in ONE short sentence.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - ≤15 words. Calm and neutral; do not pressure.
+        - Make clear that a positive answer confirms cancellation.
+
+      cancel_confirmed_response: |
+        TASK: "{task}"
+
+        The user confirmed they want to cancel. Generate a brief friendly close.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - ONE sentence, ≤12 words. Warm, no drama. Leave the door open.
+
+      cancel_denied_response: |
+        TASK: "{task}"
+
+        The user was asked if they wanted to cancel and said NO — they want to
+        continue.
+
+        Already collected (do NOT ask again): {filled_slots}
+        Next thing to ask: {next_slot}
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - Briefly acknowledge they continue — one short phrase.
+        - If next_slot is not "NONE": ask that slot naturally (never echo the
+          slot name).
+        - If next_slot is "NONE":
+          - slot-filling context (filled_slots not "None"): ask for confirmation
+            of the collected data in ONE compact sentence.
+          - explanation context (filled_slots = "None"): invite the user to
+            ask anything still pending.
+        - ONE sentence, ≤15 words. Natural, as if no interruption happened.

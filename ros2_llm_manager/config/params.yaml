@@ -1,0 +1,36 @@
+# Runtime parameters for the LLM Manager node (provider selection and config).
+llm_manager_node:
+  ros__parameters:
+
+    # Default provider used when a session request does not specify one.
+    # Must match one of the enabled providers below: "gemini" or "ollama".
+    default_provider: "gemini"
+
+    # Default model override. Leave empty to use the provider's own default.
+    default_model: ""
+
+    # Maximum number of concurrent inference threads.
+    max_concurrent: 4
+
+    # Disable informational logs when true.
+    silent_mode: false
+
+    ollama:
+      # Set to true to enable the Ollama provider and connect at startup.
+      enable: true
+      host: "127.0.0.1"
+      port: 11434
+      # Model to pre-load into VRAM on startup.
+      model: "llama3.2:3b"
+      # Request timeout in seconds for inference calls.
+      timeout: 120.0
+
+    gemini:
+      # Set to true to enable the Gemini provider and connect at startup.
+      enable: true
+      # API key for Google Gemini. Prefer setting the GEMINI_API_KEY
+      # environment variable and leaving this field empty.
+      api_key: ""
+      model: "gemini-2.5-flash"
+      # Request timeout in seconds for inference calls.
+      timeout: 60.0

@@ -1,0 +1,21 @@
+# Evaluation package configuration
+# Run: python run_eval.py --benchmark <name>
+
+llm:
+  provider: "gemini"          # "gemini" | "ollama"
+  model: "gemini-2.5-flash"   # Gemini model name, or Ollama model name
+  api_key: ""                 # Leave empty → reads GEMINI_API_KEY from env
+  # Ollama options (only used when provider=ollama)
+  ollama_host: "127.0.0.1"
+  ollama_port: 11434
+
+dialog:
+  language: "Spanish"
+  history_max_turns: 200
+  max_turns_simulation: 20    # Safety cap for end-to-end simulation
+
+# Path to the production prompts.yaml (relative to this config file)
+prompts_yaml: "../ros2_dialog_manager/config/prompts.yaml"
+
+# Results directory (relative to this config file)
+results_dir: "results"

@@ -1,0 +1,677 @@
+{
+  "_instructions": [
+    "Benchmark: slot extraction (NLU gathering phase).",
+    "Each case defines the current frame state and what the user says.",
+    "The system must extract exactly the slots listed in expected_extractions.",
+    "",
+    "Required fields:",
+    "  id              : unique identifier (e.g. sf_001)",
+    "  description     : what is being tested (one sentence)",
+    "  task            : dialog task description (the one the DialogManager receives)",
+    "  slot_schema     : slot schema (same format as frame_schema_json in production)",
+    "  frame_filled    : values already filled before this turn (simulates mid-conversation)",
+    "  user_text       : user utterance to analyze",
+    "  expected_extractions: list of {slot, value} expected to be extracted",
+    "                        For list_str: value is a list of strings",
+    "                        For a correction: include the new value",
+    "  notes           : optional observations (what makes this case hard)",
+    "",
+    "Guidance for annotating with an LLM:",
+    "  Suggested prompt: 'Given this slot schema {slot_schema} and this frame state {frame_filled},",
+    "  the user says: \"{user_text}\". Which slots and values should the system extract?",
+    "  Return JSON with expected_extractions.' Then review manually."
+  ],
+  "cases": [
+    {
+      "id": "sf_001",
+      "description": "Extracción simple de un slot escalar con valor canónico",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Quiero uno de chocolate",
+      "expected_extractions": [
+        {"slot": "sabor", "value": "chocolate"}
+      ],
+      "notes": "Happy path, un solo slot, valor exacto en canonical_values"
+    },
+    {
+      "id": "sf_002",
+      "description": "Extracción de dos slots en un mismo turno",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Un helado grande de vainilla por favor",
+      "expected_extractions": [
+        {"slot": "sabor", "value": "vainilla"},
+        {"slot": "tamaño", "value": "grande"}
+      ],
+      "notes": "Dos slots en un turno, orden arbitrario en el utterance"
+    },
+    {
+      "id": "sf_003",
+      "description": "Corrección de un slot ya relleno",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate"},
+      "user_text": "Espera, mejor de vainilla",
+      "expected_extractions": [
+        {"slot": "sabor", "value": "vainilla"}
+      ],
+      "notes": "Corrección explícita mid-gathering; el slot ya tenía valor"
+    },
+    {
+      "id": "sf_004",
+      "description": "Valor fuera del canonical_values — no debe extraerse nada",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Quiero uno de mango",
+      "expected_extractions": [],
+      "notes": "'mango' no está en canonical_values; el sistema debe descartar la extracción"
+    },
+    {
+      "id": "sf_005",
+      "description": "Respuesta totalmente fuera de tema — no extrae nada",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Mmm no sé, ¿qué recomiendas?",
+      "expected_extractions": [],
+      "notes": "El usuario pregunta, no da datos; no debe extraerse nada"
+    },
+    {
+      "id": "sf_006",
+      "description": "Slot list_str — el usuario menciona varios elementos",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Con champiñones, cebolla y aceitunas",
+      "expected_extractions": [
+        {"slot": "ingredientes", "value": ["champiñones", "cebolla", "aceitunas"]}
+      ],
+      "notes": "list_str multi-ítem en un turno"
+    },
+    {
+      "id": "sf_007",
+      "description": "Slot list_str — el usuario añade un ítem a la lista existente",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["champiñones"]},
+      "user_text": "Y también quiero cebolla",
+      "expected_extractions": [
+        {"slot": "ingredientes", "value": ["cebolla"]}
+      ],
+      "notes": "ADD a lista existente; 'también' es señal de adición"
+    },
+    {
+      "id": "sf_008",
+      "description": "Slot booleano — el usuario dice que sí",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "desayuno_incluido", "type": "bool"},
+          {"name": "num_noches", "type": "int"},
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Sí, quiero desayuno incluido",
+      "expected_extractions": [
+        {"slot": "desayuno_incluido", "value": true}
+      ],
+      "notes": "Slot bool simple"
+    },
+    {
+      "id": "sf_009",
+      "description": "Slot entero — el usuario da un número en letras",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "desayuno_incluido", "type": "bool"},
+          {"name": "num_noches", "type": "int"},
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Quiero quedarme tres noches",
+      "expected_extractions": [
+        {"slot": "num_noches", "value": 3}
+      ],
+      "notes": "Número en letras; el sistema debe convertir 'tres' a 3"
+    },
+    {
+      "id": "sf_010",
+      "description": "Varios slots a la vez en tarea de reserva",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "desayuno_incluido", "type": "bool"},
+          {"name": "num_noches", "type": "int"},
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Una habitación doble para dos noches sin desayuno",
+      "expected_extractions": [
+        {"slot": "tipo_habitacion", "value": "doble"},
+        {"slot": "num_noches", "value": 2},
+        {"slot": "desayuno_incluido", "value": false}
+      ],
+      "notes": "Tres slots en un turno incluyendo bool negativo"
+    },
+    {
+      "id": "sf_011",
+      "description": "Extracción simple — cafetería, tipo de café",
+      "task": "Tomar el pedido de café al cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo", "type": "str", "canonical_values": ["espresso", "cortado", "café con leche", "cappuccino", "americano"]},
+          {"name": "leche", "type": "str", "canonical_values": ["entera", "desnatada", "vegetal"]},
+          {"name": "azucar", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Un cappuccino, por favor",
+      "expected_extractions": [
+        {"slot": "tipo", "value": "cappuccino"}
+      ],
+      "notes": "Un solo slot str con valor canónico exacto"
+    },
+    {
+      "id": "sf_012",
+      "description": "Extracción simple — alquiler de coche, categoría",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Me gustaría un coche familiar",
+      "expected_extractions": [
+        {"slot": "categoria", "value": "familiar"}
+      ],
+      "notes": "Un slot str; la palabra 'familiar' aparece textualmente en canonical_values"
+    },
+    {
+      "id": "sf_013",
+      "description": "Extracción simple — cita médica, especialidad",
+      "task": "Gestionar una cita médica para el paciente",
+      "slot_schema": {
+        "slots": [
+          {"name": "especialidad", "type": "str", "canonical_values": ["medicina general", "cardiología", "dermatología", "traumatología"]},
+          {"name": "turno", "type": "str", "canonical_values": ["mañana", "tarde"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Necesito ver a un dermatólogo",
+      "expected_extractions": [
+        {"slot": "especialidad", "value": "dermatología"}
+      ],
+      "notes": "El usuario dice 'dermatólogo' (forma nominal); debe mapearse a 'dermatología'"
+    },
+    {
+      "id": "sf_014",
+      "description": "Extracción simple — reserva de mesa, zona",
+      "task": "Gestionar la reserva de una mesa en el restaurante",
+      "slot_schema": {
+        "slots": [
+          {"name": "num_personas", "type": "int"},
+          {"name": "hora", "type": "str", "canonical_values": ["13:00", "14:00", "20:00", "21:00"]},
+          {"name": "zona", "type": "str", "canonical_values": ["interior", "terraza"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "En la terraza, por favor",
+      "expected_extractions": [
+        {"slot": "zona", "value": "terraza"}
+      ],
+      "notes": "Un slot str con valor exacto en canonical_values"
+    },
+    {
+      "id": "sf_015",
+      "description": "Extracción simple — bool negativo implícito",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Sin seguro adicional",
+      "expected_extractions": [
+        {"slot": "seguro", "value": false}
+      ],
+      "notes": "Bool negativo implícito con 'sin'; no hay verbo explícito"
+    },
+    {
+      "id": "sf_016",
+      "description": "Multi-slot — cafetería, tres slots en un turno",
+      "task": "Tomar el pedido de café al cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo", "type": "str", "canonical_values": ["espresso", "cortado", "café con leche", "cappuccino", "americano"]},
+          {"name": "leche", "type": "str", "canonical_values": ["entera", "desnatada", "vegetal"]},
+          {"name": "azucar", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Un americano con leche vegetal y sin azúcar",
+      "expected_extractions": [
+        {"slot": "tipo", "value": "americano"},
+        {"slot": "leche", "value": "vegetal"},
+        {"slot": "azucar", "value": false}
+      ],
+      "notes": "Tres slots en un turno: str + str + bool negativo"
+    },
+    {
+      "id": "sf_017",
+      "description": "Multi-slot — alquiler coche, categoría e int",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Un SUV por cinco días",
+      "expected_extractions": [
+        {"slot": "categoria", "value": "SUV"},
+        {"slot": "dias", "value": 5}
+      ],
+      "notes": "str + int; 'cinco' debe convertirse a 5"
+    },
+    {
+      "id": "sf_018",
+      "description": "Multi-slot — cita médica, especialidad y turno",
+      "task": "Gestionar una cita médica para el paciente",
+      "slot_schema": {
+        "slots": [
+          {"name": "especialidad", "type": "str", "canonical_values": ["medicina general", "cardiología", "dermatología", "traumatología"]},
+          {"name": "turno", "type": "str", "canonical_values": ["mañana", "tarde"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Cardiología por la tarde",
+      "expected_extractions": [
+        {"slot": "especialidad", "value": "cardiología"},
+        {"slot": "turno", "value": "tarde"}
+      ],
+      "notes": "Dos slots en un turno; orden natural"
+    },
+    {
+      "id": "sf_019",
+      "description": "Multi-slot — reserva restaurante, personas y zona",
+      "task": "Gestionar la reserva de una mesa en el restaurante",
+      "slot_schema": {
+        "slots": [
+          {"name": "num_personas", "type": "int"},
+          {"name": "hora", "type": "str", "canonical_values": ["13:00", "14:00", "20:00", "21:00"]},
+          {"name": "zona", "type": "str", "canonical_values": ["interior", "terraza"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Dos personas en la terraza",
+      "expected_extractions": [
+        {"slot": "num_personas", "value": 2},
+        {"slot": "zona", "value": "terraza"}
+      ],
+      "notes": "int + str; 'dos' debe convertirse a 2"
+    },
+    {
+      "id": "sf_020",
+      "description": "Multi-slot — pizza, tamaño e ingredientes",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Una pizza mediana con jamón y queso extra",
+      "expected_extractions": [
+        {"slot": "tamaño", "value": "mediana"},
+        {"slot": "ingredientes", "value": ["jamón", "queso extra"]}
+      ],
+      "notes": "str + list_str en el mismo turno"
+    },
+    {
+      "id": "sf_021",
+      "description": "Corrección implícita de turno en cita médica",
+      "task": "Gestionar una cita médica para el paciente",
+      "slot_schema": {
+        "slots": [
+          {"name": "especialidad", "type": "str", "canonical_values": ["medicina general", "cardiología", "dermatología", "traumatología"]},
+          {"name": "turno", "type": "str", "canonical_values": ["mañana", "tarde"]}
+        ]
+      },
+      "frame_filled": {"turno": "mañana"},
+      "user_text": "Prefiero por la tarde si puede ser",
+      "expected_extractions": [
+        {"slot": "turno", "value": "tarde"}
+      ],
+      "notes": "Corrección implícita; sin negación explícita del valor anterior"
+    },
+    {
+      "id": "sf_022",
+      "description": "Corrección explícita con 'no X sino Y'",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "vainilla", "tamaño": "grande"},
+      "user_text": "No, el tamaño pequeño, no grande",
+      "expected_extractions": [
+        {"slot": "tamaño", "value": "pequeño"}
+      ],
+      "notes": "Corrección con contraste explícito 'no X, no grande'; frame ya completo"
+    },
+    {
+      "id": "sf_023",
+      "description": "Corrección de slot booleano — cambia true a false",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "desayuno_incluido", "type": "bool"},
+          {"name": "num_noches", "type": "int"},
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]}
+        ]
+      },
+      "frame_filled": {"desayuno_incluido": true},
+      "user_text": "Mejor sin desayuno",
+      "expected_extractions": [
+        {"slot": "desayuno_incluido", "value": false}
+      ],
+      "notes": "Corrección de bool; el slot tenía true y debe pasar a false"
+    },
+    {
+      "id": "sf_024",
+      "description": "Corrección de slot entero",
+      "task": "Registrar una reserva de hotel",
+      "slot_schema": {
+        "slots": [
+          {"name": "desayuno_incluido", "type": "bool"},
+          {"name": "num_noches", "type": "int"},
+          {"name": "tipo_habitacion", "type": "str", "canonical_values": ["individual", "doble", "suite"]}
+        ]
+      },
+      "frame_filled": {"num_noches": 3},
+      "user_text": "En realidad son dos noches",
+      "expected_extractions": [
+        {"slot": "num_noches", "value": 2}
+      ],
+      "notes": "Corrección de int con 'en realidad'"
+    },
+    {
+      "id": "sf_025",
+      "description": "Corrección con 'me equivoqué'",
+      "task": "Tomar el pedido de café al cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo", "type": "str", "canonical_values": ["espresso", "cortado", "café con leche", "cappuccino", "americano"]},
+          {"name": "leche", "type": "str", "canonical_values": ["entera", "desnatada", "vegetal"]},
+          {"name": "azucar", "type": "bool"}
+        ]
+      },
+      "frame_filled": {"tipo": "espresso"},
+      "user_text": "Me equivoqué, quería un cortado",
+      "expected_extractions": [
+        {"slot": "tipo", "value": "cortado"}
+      ],
+      "notes": "Corrección marcada explícitamente con 'me equivoqué'"
+    },
+    {
+      "id": "sf_026",
+      "description": "Sin extracción — el usuario pregunta el precio",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "¿Cuánto cuesta el helado grande?",
+      "expected_extractions": [],
+      "notes": "Pregunta sobre precio; no contiene datos de slot"
+    },
+    {
+      "id": "sf_027",
+      "description": "Sin extracción — comentario irrelevante",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Tengo mucha hambre hoy",
+      "expected_extractions": [],
+      "notes": "Comentario personal sin información de slots"
+    },
+    {
+      "id": "sf_028",
+      "description": "Sin extracción — el usuario pide tiempo",
+      "task": "Gestionar la reserva de una mesa en el restaurante",
+      "slot_schema": {
+        "slots": [
+          {"name": "num_personas", "type": "int"},
+          {"name": "hora", "type": "str", "canonical_values": ["13:00", "14:00", "20:00", "21:00"]},
+          {"name": "zona", "type": "str", "canonical_values": ["interior", "terraza"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Dame un momento que lo consulto",
+      "expected_extractions": [],
+      "notes": "Stall; el usuario necesita tiempo y no da datos"
+    },
+    {
+      "id": "sf_029",
+      "description": "Sin extracción — respuesta completamente fuera de contexto",
+      "task": "Gestionar el alquiler de un coche",
+      "slot_schema": {
+        "slots": [
+          {"name": "categoria", "type": "str", "canonical_values": ["económico", "familiar", "SUV", "premium"]},
+          {"name": "dias", "type": "int"},
+          {"name": "seguro", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "El tiempo está muy nublado hoy",
+      "expected_extractions": [],
+      "notes": "Completamente fuera de contexto; ningún slot puede extraerse"
+    },
+    {
+      "id": "sf_030",
+      "description": "Sin extracción — el usuario expresa duda sin confirmar",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {"sabor": "chocolate"},
+      "user_text": "No sé, estoy dudando entre mediano y grande...",
+      "expected_extractions": [],
+      "notes": "Menciona valores canónicos pero no confirma ninguno; no debe extraerse nada"
+    },
+    {
+      "id": "sf_031",
+      "description": "list_str — un solo ítem en primer turno",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Quiero una pizza con jamón",
+      "expected_extractions": [
+        {"slot": "ingredientes", "value": ["jamón"]}
+      ],
+      "notes": "list_str con un único ítem en el primer turno"
+    },
+    {
+      "id": "sf_032",
+      "description": "list_str — varios ítems con 'y' enumerativo",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Con tomate, mozzarella y albahaca",
+      "expected_extractions": [
+        {"slot": "ingredientes", "value": ["tomate", "mozzarella", "albahaca"]}
+      ],
+      "notes": "Tres ítems con coma y 'y' final"
+    },
+    {
+      "id": "sf_033",
+      "description": "list_str — añadir ítem a lista con 'añade'",
+      "task": "Registrar los ingredientes de una pizza para el cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "ingredientes", "type": "list_str"},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeña", "mediana", "grande", "familiar"]}
+        ]
+      },
+      "frame_filled": {"ingredientes": ["champiñones", "cebolla"]},
+      "user_text": "Añade también jamón serrano",
+      "expected_extractions": [
+        {"slot": "ingredientes", "value": ["jamón serrano"]}
+      ],
+      "notes": "El usuario añade a una lista existente; debe extraerse solo el ítem nuevo"
+    },
+    {
+      "id": "sf_034",
+      "description": "list_str en dominio diferente — alergias",
+      "task": "Registrar el perfil nutricional del cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "alergias", "type": "list_str"},
+          {"name": "tipo_dieta", "type": "str", "canonical_values": ["omnívoro", "vegetariano", "vegano", "sin gluten"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Soy alérgico a los frutos secos y al marisco",
+      "expected_extractions": [
+        {"slot": "alergias", "value": ["frutos secos", "marisco"]}
+      ],
+      "notes": "list_str en un dominio de salud; ítems con artículo a ignorar"
+    },
+    {
+      "id": "sf_035",
+      "description": "list_str — acumulación turno a turno en dominio de alergias",
+      "task": "Registrar el perfil nutricional del cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "alergias", "type": "list_str"},
+          {"name": "tipo_dieta", "type": "str", "canonical_values": ["omnívoro", "vegetariano", "vegano", "sin gluten"]}
+        ]
+      },
+      "frame_filled": {"alergias": ["frutos secos"]},
+      "user_text": "Y también al gluten",
+      "expected_extractions": [
+        {"slot": "alergias", "value": ["gluten"]}
+      ],
+      "notes": "Acumulación en lista existente; 'Y también' señal de adición"
+    },
+    {
+      "id": "sf_036",
+      "description": "Valor fuera de canonical — café no disponible",
+      "task": "Tomar el pedido de café al cliente",
+      "slot_schema": {
+        "slots": [
+          {"name": "tipo", "type": "str", "canonical_values": ["espresso", "cortado", "café con leche", "cappuccino", "americano"]},
+          {"name": "leche", "type": "str", "canonical_values": ["entera", "desnatada", "vegetal"]},
+          {"name": "azucar", "type": "bool"}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Quiero un café irlandés",
+      "expected_extractions": [],
+      "notes": "'café irlandés' no está en canonical_values; no debe extraerse nada"
+    },
+    {
+      "id": "sf_037",
+      "description": "Valor fuera de canonical — sabor similar pero diferente",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Uno de frambuesa",
+      "expected_extractions": [],
+      "notes": "'frambuesa' no está en canonical_values; no debe confundirse con 'fresa' pese a la similitud"
+    },
+    {
+      "id": "sf_038",
+      "description": "Valor fuera de canonical — tamaño no disponible",
+      "task": "Tomar el pedido de un helado de la heladería",
+      "slot_schema": {
+        "slots": [
+          {"name": "sabor", "type": "str", "canonical_values": ["chocolate", "vainilla", "fresa", "limón"]},
+          {"name": "tamaño", "type": "str", "canonical_values": ["pequeño", "mediano", "grande"]}
+        ]
+      },
+      "frame_filled": {},
+      "user_text": "Quiero uno de tamaño XL",
+      "expected_extractions": [],
+      "notes": "'XL' no es un canonical_value; no debe mapearse a 'grande'"
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "_instructions": [
+    "Benchmark: dialog mode classification.",
+    "Given the task text, the system must decide: 'slot_filling' or 'explanation'.",
+    "",
+    "Reference rule (from your prompts.yaml):",
+    "  slot_filling  -> the assistant must COLLECT structured data from the user.",
+    "                  Also when it combines information + collecting a preference.",
+    "  explanation   -> the assistant must EXPLAIN something and check comprehension.",
+    "                  ONLY when there is NOTHING to collect.",
+    "",
+    "Required fields:",
+    "  id              : unique identifier (e.g. tm_001)",
+    "  description     : what is being tested",
+    "  task            : task text as it would reach the DialogManager",
+    "  expected_mode   : 'slot_filling' | 'explanation'",
+    "  notes           : why this case is hard or interesting"
+  ],
+  "cases": [
+    {
+      "id": "tm_001",
+      "description": "Toma de pedido — claramente slot_filling",
+      "task": "Tomar el pedido de un helado para el cliente",
+      "expected_mode": "slot_filling",
+      "notes": "Prototípico slot_filling"
+    },
+    {
+      "id": "tm_002",
+      "description": "Explicación de concepto — claramente explanation",
+      "task": "Explicar al cliente cómo funciona el programa de fidelización del restaurante",
+      "expected_mode": "explanation",
+      "notes": "No hay nada que recoger, solo informar y verificar comprensión"
+    },
+    {
+      "id": "tm_003",
+      "description": "Reserva — slot_filling",
+      "task": "Gestionar la reserva de una mesa para el cliente: número de personas, fecha y hora",
+      "expected_mode": "slot_filling",
+      "notes": "Recogida de datos estructurados típica"
+    },
+    {
+      "id": "tm_004",
+      "description": "Explicación de normas — explanation",
+      "task": "Informar al nuevo empleado sobre la política de turnos de trabajo y confirmar que lo ha entendido",
+      "expected_mode": "explanation",
+      "notes": "Explicación + verificación de comprensión, sin datos que recoger"
+    },
+    {
+      "id": "tm_005",
+      "description": "Combinación info + preferencia — slot_filling",
+      "task": "Explicar las opciones del menú del día y tomar la elección del cliente",
+      "expected_mode": "slot_filling",
+      "notes": "Caso mixto: hay explicación pero el objetivo final es recoger una elección"
+    },
+    {
+      "id": "tm_006",
+      "description": "Registro de usuario — slot_filling",
+      "task": "Registrar a un nuevo cliente: nombre, email y preferencias de notificación",
+      "expected_mode": "slot_filling",
+      "notes": "Formulario clásico"
+    },
+    {
+      "id": "tm_007",
+      "description": "Tutorial de uso — explanation",
+      "task": "Enseñar al cliente a usar la aplicación móvil del restaurante paso a paso",
+      "expected_mode": "explanation",
+      "notes": "Proceso de aprendizaje, no hay datos que recoger"
+    },
+    {
+      "id": "tm_008",
+      "description": "Encuesta con opción — slot_filling",
+      "task": "Preguntar al cliente su nivel de satisfacción con el servicio y registrar su puntuación",
+      "expected_mode": "slot_filling",
+      "notes": "Aunque puede parecer conversacional, el objetivo es recoger una puntuación"
+    },
+    {
+      "id": "tm_009",
+      "description": "Descripción de alérgenos — explanation",
+      "task": "Explicar los alérgenos presentes en el plato que ha pedido el cliente y asegurarse de que es consciente",
+      "expected_mode": "explanation",
+      "notes": "Solo información crítica + confirmación de comprensión"
+    },
+    {
+      "id": "tm_010",
+      "description": "Pedido de personalización compleja — slot_filling",
+      "task": "Recoger la personalización completa de la hamburguesa: pan, carne, ingredientes extra y acompañamiento",
+      "expected_mode": "slot_filling",
+      "notes": "Varios slots incluyendo list_str"
+    },
+    {
+      "id": "tm_011",
+      "description": "Registro de visita — slot_filling",
+      "task": "Registrar la entrada de un visitante al edificio: nombre, empresa y persona a visitar",
+      "expected_mode": "slot_filling",
+      "notes": "Formulario de recepción; prototípico slot_filling con varios campos de texto"
+    },
+    {
+      "id": "tm_012",
+      "description": "Pedido de bebidas — slot_filling",
+      "task": "Tomar el pedido de bebidas de la mesa: tipo de bebida y cantidad",
+      "expected_mode": "slot_filling",
+      "notes": "Variante de toma de pedido; cantidad es un slot int"
+    },
+    {
+      "id": "tm_013",
+      "description": "Devolución de artículo — slot_filling",
+      "task": "Gestionar la devolución de un artículo: motivo de devolución y nombre del producto",
+      "expected_mode": "slot_filling",
+      "notes": "Aunque implica un proceso, el objetivo es recoger motivo y producto"
+    },
+    {
+      "id": "tm_014",
+      "description": "Preferencia de asiento — slot_filling",
+      "task": "Recoger la preferencia de asiento del pasajero para su vuelo: ventana, pasillo o central",
+      "expected_mode": "slot_filling",
+      "notes": "Un solo dato a recoger, muy prototípico"
+    },
+    {
+      "id": "tm_015",
+      "description": "Datos de envío — slot_filling",
+      "task": "Confirmar los datos de envío del pedido: dirección, ciudad y código postal",
+      "expected_mode": "slot_filling",
+      "notes": "Formulario de dirección clásico con múltiples campos de texto"
+    },
+    {
+      "id": "tm_016",
+      "description": "Preferencias de peluquería — slot_filling",
+      "task": "Apuntar las preferencias del cliente para su corte de pelo: tipo de corte y longitud deseada",
+      "expected_mode": "slot_filling",
+      "notes": "Recopilación de preferencias de servicio; claramente slot_filling"
+    },
+    {
+      "id": "tm_017",
+      "description": "Inscripción con consentimiento — slot_filling",
+      "task": "Registrar al voluntario en el estudio: confirmar que acepta las condiciones y recoger su teléfono de contacto",
+      "expected_mode": "slot_filling",
+      "notes": "Caso mixto: hay información que dar pero el objetivo final es recoger consentimiento (bool) y datos"
+    },
+    {
+      "id": "tm_018",
+      "description": "Descripción de garantía — explanation",
+      "task": "Explicar al cliente en qué consiste la garantía extendida del producto que acaba de adquirir",
+      "expected_mode": "explanation",
+      "notes": "Solo informar sobre las condiciones; no hay ningún dato que recoger del cliente"
+    },
+    {
+      "id": "tm_019",
+      "description": "Cambios en política de privacidad — explanation",
+      "task": "Informar al usuario sobre los cambios en la política de privacidad de la aplicación y asegurarse de que los comprende",
+      "expected_mode": "explanation",
+      "notes": "Explicación + verificación de comprensión; aunque al final se 'confirma', no se recoge ningún dato estructurado"
+    },
+    {
+      "id": "tm_020",
+      "description": "Consejos médicos — explanation",
+      "task": "Describir los síntomas comunes de la gripe y explicar al paciente cuándo debe acudir al médico",
+      "expected_mode": "explanation",
+      "notes": "Información médica puramente explicativa; el robot no recoge ningún dato"
+    },
+    {
+      "id": "tm_021",
+      "description": "Sistema de puntos — explanation",
+      "task": "Explicar cómo funciona el programa de puntos del restaurante y qué ventajas tiene el cliente actual",
+      "expected_mode": "explanation",
+      "notes": "Explicación de funcionamiento; podría confundirse con slot_filling si el LLM ve 'cliente actual' como un dato a recoger"
+    },
+    {
+      "id": "tm_022",
+      "description": "Resultados de evaluación — explanation",
+      "task": "Comunicar al empleado los resultados de su última evaluación de desempeño y resolver sus dudas",
+      "expected_mode": "explanation",
+      "notes": "El robot transmite información ya conocida; 'resolver dudas' no implica recoger datos estructurados"
+    },
+    {
+      "id": "tm_023",
+      "description": "Nuevo protocolo de seguridad — explanation",
+      "task": "Presentar al personal el nuevo protocolo de seguridad del almacén y verificar que lo han entendido",
+      "expected_mode": "explanation",
+      "notes": "Formación / briefing; solo explicar y confirmar comprensión"
+    },
+    {
+      "id": "tm_024",
+      "description": "Condiciones de cancelación — explanation",
+      "task": "Explicar al cliente las condiciones de cancelación de su reserva y las penalizaciones aplicables",
+      "expected_mode": "explanation",
+      "notes": "El cliente solo escucha y confirma entendimiento; no hay slots que rellenar"
+    },
+    {
+      "id": "tm_025",
+      "description": "Estado de reclamación — explanation",
+      "task": "Informar al cliente sobre el estado actual de su reclamación presentada la semana pasada y los próximos pasos del proceso",
+      "expected_mode": "explanation",
+      "notes": "Actualización de estado; informativa sin recogida de datos. 'próximos pasos' no es un slot"
+    }
+  ]
+}

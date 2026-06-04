@@ -1,0 +1,14 @@
+# Goal
+string text
+string voice
+float32 speed
+---
+# Result
+bool success
+string status
+float32 duration_s
+---
+# Feedback
+float32 progress
+string current_chunk
+bool is_speaking

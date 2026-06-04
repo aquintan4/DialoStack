@@ -1,0 +1,405 @@
+# Per-pose transition speeds (rad per tick at 20 Hz).
+# All speech gestures use 0.03 — same deliberate pace as active_listening.
+_speeds:
+  natural_rest: 0.03
+  active_listening: 0.03
+  speech_transition: 0.03
+  open_explanation: 0.03
+  wide_explanation: 0.03
+  one_hand_explanation: 0.03
+  speaking_emphasis: 0.03
+  offer_show: 0.03
+  strong_affirmation: 0.03
+  point_forward: 0.03
+  shoulder_shrug: 0.03
+  thoughtful: 0.03
+  arms_crossed: 0.03
+  happy_greeting: 0.05
+  gentle_negation: 0.03
+  hand_to_chest: 0.03
+  thoughtful_captured: 0.03
+
+# ---------------------------------------------------------------------------
+# Idle / listening poses
+# ---------------------------------------------------------------------------
+
+natural_rest:
+  LElbowRoll: -0.2
+  LElbowYaw: -1.2
+  LHand: 0.2
+  LShoulderPitch: 1.4
+  LShoulderRoll: 0.1
+  LWristYaw: 0.0
+  RElbowRoll: 0.2
+  RElbowYaw: 1.2
+  RHand: 0.2
+  RShoulderPitch: 1.4
+  RShoulderRoll: -0.1
+  RWristYaw: 0.0
+
+active_listening:
+  HeadPitch: 0.14980493760000013
+  HeadYaw: 0.0
+  LAnklePitch: -0.00016097489999999937
+  LAnkleRoll: -1.490230000000814e-05
+  LElbowRoll: -0.8000293511200001
+  LElbowYaw: -0.49764086200000013
+  LFinger11: 0.3999596
+  LFinger12: 0.3999596
+  LFinger13: 0.3999596
+  LFinger21: 0.3999596
+  LFinger22: 0.3999596
+  LFinger23: 0.3999596
+  LHand: 0.4
+  LHipPitch: -0.00038482599999989375
+  LHipRoll: -0.0001550409999999669
+  LHipYawPitch: -0.19719377839999985
+  LKneePitch: -0.00016400378000000493
+  LShoulderPitch: 1.099982358
+  LShoulderRoll: 0.09369639739999996
+  LThumb1: 0.3999596
+  LThumb2: 0.3999596
+  LWristYaw: -0.15
+  RAnklePitch: -4.8639999999711137e-05
+  RAnkleRoll: -0.00045179890000013323
+  RElbowRoll: 0.7998783797800001
+  RElbowYaw: 0.49972653199999995
+  RFinger11: 0.3999596
+  RFinger12: 0.3999596
+  RFinger13: 0.3999596
+  RFinger21: 0.3999596
+  RFinger22: 0.3999596
+  RFinger23: 0.3999596
+  RHand: 0.4
+  RHipPitch: -0.00038482599999989375
+  RHipRoll: -0.0001959274999999705
+  RHipYawPitch: -0.19719377839999985
+  RKneePitch: -0.00016400378000000493
+  RShoulderPitch: 1.099982358
+  RShoulderRoll: -0.05825924299999996
+  RThumb1: 0.3999596
+  RThumb2: 0.3999596
+  RWristYaw: 0.15
+
+# ---------------------------------------------------------------------------
+# Speech gestures
+#
+# Design rule: all ShoulderPitch values stay in the 0.7–1.1 range so arms
+# never rise above the natural conversational position. Gestures are small
+# variations around the active_listening baseline, not dramatic departures.
+# ---------------------------------------------------------------------------
+
+# Neutral entry pose — arms rise slightly from rest to signal engagement.
+speech_transition:
+  LElbowRoll: -0.5
+  LElbowYaw: -0.6
+  LHand: 0.4
+  LShoulderPitch: 1.0
+  LShoulderRoll: 0.1
+  LWristYaw: 0.0
+  RElbowRoll: 0.5
+  RElbowYaw: 0.6
+  RHand: 0.4
+  RShoulderPitch: 1.0
+  RShoulderRoll: -0.1
+  RWristYaw: 0.0
+
+# Both arms open slightly forward — calm explanatory gesture.
+open_explanation:
+  LElbowRoll: -0.75
+  LElbowYaw: -0.75
+  LHand: 0.65
+  LShoulderPitch: 0.45
+  LShoulderRoll: 0.25
+  LWristYaw: 0.0
+  RElbowRoll: 0.75
+  RElbowYaw: 0.75
+  RHand: 0.65
+  RShoulderPitch: 0.45
+  RShoulderRoll: -0.25
+  RWristYaw: 0.0
+
+# Arms spread a bit wider — "as I was saying" breadth gesture.
+wide_explanation:
+  LElbowRoll: -0.6
+  LElbowYaw: -0.95
+  LHand: 0.65
+  LShoulderPitch: 0.5
+  LShoulderRoll: 0.5
+  LWristYaw: -0.1
+  RElbowRoll: 0.6
+  RElbowYaw: 0.95
+  RHand: 0.65
+  RShoulderPitch: 0.5
+  RShoulderRoll: -0.5
+  RWristYaw: 0.1
+
+# Right arm leads a small forward gesture; left stays at mid-height.
+one_hand_explanation:
+  LElbowRoll: -0.45
+  LElbowYaw: -0.65
+  LHand: 0.4
+  LShoulderPitch: 0.85
+  LShoulderRoll: 0.15
+  LWristYaw: 0.0
+  RElbowRoll: 0.75
+  RElbowYaw: 0.65
+  RHand: 0.6
+  RShoulderPitch: 0.35
+  RShoulderRoll: -0.2
+  RWristYaw: 0.1
+
+# Both arms slightly lower with elbows out — open-palms emphasis.
+speaking_emphasis:
+  LElbowRoll: -0.95
+  LElbowYaw: -0.9
+  LHand: 0.55
+  LShoulderPitch: 0.45
+  LShoulderRoll: 0.2
+  LWristYaw: -0.1
+  RElbowRoll: 0.95
+  RElbowYaw: 0.9
+  RHand: 0.55
+  RShoulderPitch: 0.45
+  RShoulderRoll: -0.2
+  RWristYaw: 0.1
+
+# Arms forward and slightly open — gentle "here you go" gesture.
+offer_show:
+  LElbowRoll: -0.55
+  LElbowYaw: -0.55
+  LHand: 0.65
+  LShoulderPitch: 0.5
+  LShoulderRoll: 0.3
+  LWristYaw: -0.1
+  RElbowRoll: 0.55
+  RElbowYaw: 0.55
+  RHand: 0.65
+  RShoulderPitch: 0.5
+  RShoulderRoll: -0.3
+  RWristYaw: 0.1
+
+# Right arm drops slightly with purpose; left provides balance.
+strong_affirmation:
+  LElbowRoll: -0.55
+  LElbowYaw: -0.7
+  LHand: 0.45
+  LShoulderPitch: 0.8
+  LShoulderRoll: 0.2
+  LWristYaw: 0.0
+  RElbowRoll: 0.8
+  RElbowYaw: 0.8
+  RHand: 0.5
+  RShoulderPitch: 0.38
+  RShoulderRoll: -0.1
+  RWristYaw: 0.0
+
+# ---------------------------------------------------------------------------
+# Triggered poses — used on demand via /target_pose topic
+# ---------------------------------------------------------------------------
+
+point_forward:
+  LElbowRoll: -0.2
+  LElbowYaw: -1.2
+  LHand: 0.2
+  LShoulderPitch: 1.4
+  LShoulderRoll: 0.1
+  LWristYaw: 0.0
+  RElbowRoll: 0.1
+  RElbowYaw: 0.0
+  RHand: 0.5
+  RShoulderPitch: 0.1
+  RShoulderRoll: -0.1
+  RWristYaw: 0.0
+
+shoulder_shrug:
+  LElbowRoll: -0.7
+  LElbowYaw: -0.8
+  LHand: 0.7
+  LShoulderPitch: 1.0
+  LShoulderRoll: 0.35
+  LWristYaw: 0.0
+  RElbowRoll: 0.7
+  RElbowYaw: 0.8
+  RHand: 0.7
+  RShoulderPitch: 1.0
+  RShoulderRoll: -0.35
+  RWristYaw: 0.0
+
+arms_crossed:
+  LElbowRoll: -1.5
+  LElbowYaw: 0.5
+  LHand: 0.2
+  LShoulderPitch: 0.9
+  LShoulderRoll: 0.0
+  LWristYaw: 0.0
+  RElbowRoll: 1.5
+  RElbowYaw: -0.5
+  RHand: 0.2
+  RShoulderPitch: 0.9
+  RShoulderRoll: 0.0
+  RWristYaw: 0.0
+
+thoughtful:
+  LElbowRoll: -1.2
+  LElbowYaw: -0.5
+  LHand: 0.3
+  LShoulderPitch: 1.0
+  LShoulderRoll: 0.1
+  LWristYaw: 0.0
+  RElbowRoll: 1.0
+  RElbowYaw: -0.3
+  RHand: 0.1
+  RShoulderPitch: 0.3
+  RShoulderRoll: -0.1
+  RWristYaw: -0.2
+
+happy_greeting:
+  LElbowRoll: -0.2
+  LElbowYaw: -1.2
+  LHand: 0.2
+  LShoulderPitch: 1.4
+  LShoulderRoll: 0.1
+  LWristYaw: 0.0
+  RElbowRoll: 1.0
+  RElbowYaw: 1.2
+  RHand: 1.0
+  RShoulderPitch: -0.5
+  RShoulderRoll: -0.3
+  RWristYaw: -0.3
+
+# ---------------------------------------------------------------------------
+# Full-body captured poses (legs included — arm_gesture_manager filters legs)
+# ---------------------------------------------------------------------------
+
+hand_to_chest:
+  HeadPitch: 0.09995832960000006
+  HeadYaw: 0.0
+  LAnklePitch: -0.00016097489999999937
+  LAnkleRoll: -1.490230000000814e-05
+  LElbowRoll: -0.2000692459600002
+  LElbowYaw: -1.000287332
+  LFinger11: 0.1999798
+  LFinger12: 0.1999798
+  LFinger13: 0.1999798
+  LFinger21: 0.1999798
+  LFinger22: 0.1999798
+  LFinger23: 0.1999798
+  LHand: 0.2
+  LHipPitch: -0.00038482599999989375
+  LHipRoll: -0.0001550409999999669
+  LHipYawPitch: -0.19719377839999985
+  LKneePitch: -0.00016400378000000493
+  LShoulderPitch: 1.1996773839999997
+  LShoulderRoll: 0.0999307116
+  LThumb1: 0.1999798
+  LThumb2: 0.1999798
+  LWristYaw: -1.500315462
+  RAnklePitch: -4.8639999999711137e-05
+  RAnkleRoll: -0.00045179890000013323
+  RElbowRoll: 1.49993248336
+  RElbowYaw: 0.0
+  RFinger11: 0.999899
+  RFinger12: 0.999899
+  RFinger13: 0.999899
+  RFinger21: 0.999899
+  RFinger22: 0.999899
+  RFinger23: 0.999899
+  RHand: 1.0
+  RHipPitch: -0.00038482599999989375
+  RHipRoll: -0.0001959274999999705
+  RHipYawPitch: -0.19719377839999985
+  RKneePitch: -0.00016400378000000493
+  RShoulderPitch: 0.2999193459999998
+  RShoulderRoll: -0.10009477249999987
+  RThumb1: 0.999899
+  RThumb2: 0.999899
+  RWristYaw: 1.0943220000000002
+
+gentle_negation:
+  HeadPitch: 0.04999303919999998
+  HeadYaw: 0.0
+  LAnklePitch: -0.00016097489999999937
+  LAnkleRoll: -1.490230000000814e-05
+  LElbowRoll: -1.00006637662
+  LElbowYaw: -0.500143666
+  LFinger11: 0.999899
+  LFinger12: 0.999899
+  LFinger13: 0.999899
+  LFinger21: 0.999899
+  LFinger22: 0.999899
+  LFinger23: 0.999899
+  LHand: 1.0
+  LHipPitch: -0.00038482599999989375
+  LHipRoll: -0.0001550409999999669
+  LHipYawPitch: -0.19719377839999985
+  LKneePitch: -0.00016400378000000493
+  LShoulderPitch: 0.5297601799999998
+  LShoulderRoll: 0.1
+  LThumb1: 0.999899
+  LThumb2: 0.999899
+  LWristYaw: -1.498126818
+  RAnklePitch: -4.8639999999711137e-05
+  RAnkleRoll: -0.00045179890000013323
+  RElbowRoll: 0.99991540528
+  RElbowYaw: 0.49972653199999995
+  RFinger11: 0.999899
+  RFinger12: 0.999899
+  RFinger13: 0.999899
+  RFinger21: 0.999899
+  RFinger22: 0.999899
+  RFinger23: 0.999899
+  RHand: 1.0
+  RHipPitch: -0.00038482599999989375
+  RHipRoll: -0.0001959274999999705
+  RHipYawPitch: -0.19719377839999985
+  RKneePitch: -0.00016400378000000493
+  RShoulderPitch: 0.2999193459999998
+  RShoulderRoll: -0.1
+  RThumb1: 0.999899
+  RThumb2: 0.999899
+  RWristYaw: 1.499950688
+
+thoughtful_captured:
+  HeadPitch: -0.15010548719999994
+  HeadYaw: 0.2999193459999998
+  LAnklePitch: -0.00016097489999999937
+  LAnkleRoll: -1.490230000000814e-05
+  LElbowRoll: -0.8000293511200001
+  LElbowYaw: -1.0057100739999998
+  LFinger11: 0.7999192
+  LFinger12: 0.7999192
+  LFinger13: 0.7999192
+  LFinger21: 0.7999192
+  LFinger22: 0.7999192
+  LFinger23: 0.7999192
+  LHand: 0.8
+  LHipPitch: -0.00038482599999989375
+  LHipRoll: -0.0001550409999999669
+  LHipYawPitch: -0.19719377839999985
+  LKneePitch: -0.00016400378000000493
+  LShoulderPitch: 0.19980718600000014
+  LShoulderRoll: 0.2999209487
+  LThumb1: 0.7999192
+  LThumb2: 0.7999192
+  LWristYaw: 0.0
+  RAnklePitch: -4.8639999999711137e-05
+  RAnkleRoll: -0.00045179890000013323
+  RElbowRoll: 1.54462
+  RElbowYaw: 0.394608764
+  RFinger11: 0.0
+  RFinger12: 0.0
+  RFinger13: 0.0
+  RFinger21: 0.0
+  RFinger22: 0.0
+  RFinger23: 0.0
+  RHand: 0.0
+  RHipPitch: -0.00038482599999989375
+  RHipRoll: -0.0001959274999999705
+  RHipYawPitch: -0.19719377839999985
+  RKneePitch: -0.00016400378000000493
+  RShoulderPitch: 0.0
+  RShoulderRoll: 0.056911508800000066
+  RThumb1: 0.0
+  RThumb2: 0.0
+  RWristYaw: 1.429549306

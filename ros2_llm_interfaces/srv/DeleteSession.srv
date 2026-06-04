@@ -1,0 +1,7 @@
+# Request
+string session_id
+---
+# Response
+bool   success
+int32  deleted_count
+string message

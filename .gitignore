@@ -1,0 +1,31 @@
+# ROS 2 / colcon build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Evaluation outputs (generated, not source)
+evaluation/results/*.json
+evaluation/results/*.csv
+
+# Model binaries (download separately)
+*.onnx
+*.task
+
+# Editor / OS noise
+.vscode/
+.idea/
+*~
+*.swp
+.DS_Store
+
+# Secrets — never commit API keys
+.env
+*.key

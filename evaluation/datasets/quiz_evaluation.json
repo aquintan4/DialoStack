@@ -1,0 +1,346 @@
+{
+  "_instructions": [
+    "Benchmark: answer evaluation in quiz mode.",
+    "The system receives a question, an expected answer and what the user said.",
+    "It must classify whether the user answer is correct or not (ground_truth_correct).",
+    "",
+    "What is measured: does the LLM's evaluate_quiz_answer() match the ground_truth?",
+    "Interesting cases: paraphrases, partially correct answers, semantically",
+    "equivalent answers with a different form, convincing incorrect answers.",
+    "",
+    "Required fields:",
+    "  id                   : unique identifier (e.g. qe_001)",
+    "  description          : what kind of answer is being tested",
+    "  question             : the quiz question",
+    "  expected_answer      : the correct reference answer",
+    "  given_answer         : what the user answered (simulated)",
+    "  ground_truth_correct : true if the user answer is acceptable, false otherwise",
+    "  notes                : why it is interesting or difficult"
+  ],
+  "cases": [
+    {
+      "id": "qe_001",
+      "description": "Respuesta exacta — trivialmente correcta",
+      "question": "¿Cuál es la capital de España?",
+      "expected_answer": "Madrid",
+      "given_answer": "Madrid",
+      "ground_truth_correct": true,
+      "notes": "Caso trivial, baseline"
+    },
+    {
+      "id": "qe_002",
+      "description": "Paráfrasis correcta con frase completa",
+      "question": "¿Cuál es la capital de España?",
+      "expected_answer": "Madrid",
+      "given_answer": "La capital de España es Madrid",
+      "ground_truth_correct": true,
+      "notes": "Mismo contenido, forma de frase completa"
+    },
+    {
+      "id": "qe_003",
+      "description": "Respuesta correcta con contexto adicional",
+      "question": "¿En qué año se fundó la empresa Apple?",
+      "expected_answer": "1976",
+      "given_answer": "Apple se fundó en 1976 por Steve Jobs y Steve Wozniak",
+      "ground_truth_correct": true,
+      "notes": "Información correcta con datos adicionales que no están en la respuesta esperada"
+    },
+    {
+      "id": "qe_004",
+      "description": "Respuesta completamente incorrecta",
+      "question": "¿Cuántos planetas tiene el sistema solar?",
+      "expected_answer": "8",
+      "given_answer": "Nueve",
+      "ground_truth_correct": false,
+      "notes": "Respuesta incorrecta (Plutón fue reclasificado en 2006)"
+    },
+    {
+      "id": "qe_005",
+      "description": "Respuesta semánticamente equivalente — número en letras",
+      "question": "¿Cuántos días tiene una semana?",
+      "expected_answer": "7",
+      "given_answer": "Siete días",
+      "ground_truth_correct": true,
+      "notes": "7 vs 'Siete': equivalentes semánticamente"
+    },
+    {
+      "id": "qe_006",
+      "description": "Respuesta parcialmente correcta — debe ser incorrecta",
+      "question": "¿Cuáles son los tres colores primarios de la luz?",
+      "expected_answer": "Rojo, verde y azul",
+      "given_answer": "Rojo y azul",
+      "ground_truth_correct": false,
+      "notes": "Falta uno de los tres; respuesta incompleta = incorrecta"
+    },
+    {
+      "id": "qe_007",
+      "description": "Respuesta correcta con ortografía diferente",
+      "question": "¿Cómo se llama el proceso por el que las plantas producen energía?",
+      "expected_answer": "Fotosíntesis",
+      "given_answer": "fotosintesis",
+      "ground_truth_correct": true,
+      "notes": "Sin acento, minúscula — semánticamente correcta"
+    },
+    {
+      "id": "qe_008",
+      "description": "Respuesta incorrecta pero plausible",
+      "question": "¿En qué año llegó el hombre a la Luna por primera vez?",
+      "expected_answer": "1969",
+      "given_answer": "1971",
+      "ground_truth_correct": false,
+      "notes": "Año plausible pero incorrecto"
+    },
+    {
+      "id": "qe_009",
+      "description": "El usuario no sabe — respuesta explícita de no saber",
+      "question": "¿Qué significa el acrónimo HTTP?",
+      "expected_answer": "HyperText Transfer Protocol",
+      "given_answer": "No lo sé",
+      "ground_truth_correct": false,
+      "notes": "El usuario reconoce que no sabe"
+    },
+    {
+      "id": "qe_010",
+      "description": "Respuesta correcta con sinónimo aceptado",
+      "question": "¿Cuál es el órgano principal del sistema circulatorio?",
+      "expected_answer": "El corazón",
+      "given_answer": "El corazón es el órgano central del sistema circulatorio",
+      "ground_truth_correct": true,
+      "notes": "Sinónimo + elaboración, semánticamente correcto"
+    },
+    {
+      "id": "qe_011",
+      "description": "Apellido sin nombre — identificación unívoca",
+      "question": "¿Quién escribió 'Don Quijote de la Mancha'?",
+      "expected_answer": "Miguel de Cervantes",
+      "given_answer": "Cervantes",
+      "ground_truth_correct": true,
+      "notes": "Apellido solo, pero identifica inequívocamente al autor"
+    },
+    {
+      "id": "qe_012",
+      "description": "Número en letras con unidad",
+      "question": "¿Cuántos meses tiene un año?",
+      "expected_answer": "12",
+      "given_answer": "Doce meses",
+      "ground_truth_correct": true,
+      "notes": "Número en letras + unidad redundante; semánticamente correcto"
+    },
+    {
+      "id": "qe_013",
+      "description": "Símbolo con unidad añadida",
+      "question": "¿A qué temperatura hierve el agua a nivel del mar?",
+      "expected_answer": "100 grados Celsius",
+      "given_answer": "100°C",
+      "ground_truth_correct": true,
+      "notes": "Misma información en notación científica abreviada"
+    },
+    {
+      "id": "qe_014",
+      "description": "Artículo añadido al nombre propio",
+      "question": "¿Cómo se llama el océano que bordea la costa este de Estados Unidos?",
+      "expected_answer": "Atlántico",
+      "given_answer": "El Océano Atlántico",
+      "ground_truth_correct": true,
+      "notes": "Nombre con artículo y categoría añadida; correcto"
+    },
+    {
+      "id": "qe_015",
+      "description": "Respuesta extensa pero correcta",
+      "question": "¿Cuál es la capital de Japón?",
+      "expected_answer": "Tokio",
+      "given_answer": "La capital de Japón es Tokio, una de las ciudades más pobladas del mundo",
+      "ground_truth_correct": true,
+      "notes": "Respuesta muy elaborada con datos adicionales correctos; la respuesta clave está presente"
+    },
+    {
+      "id": "qe_016",
+      "description": "Reformulación en voz pasiva",
+      "question": "¿Quién pintó la Capilla Sixtina?",
+      "expected_answer": "Miguel Ángel",
+      "given_answer": "La Capilla Sixtina fue pintada por Miguel Ángel",
+      "ground_truth_correct": true,
+      "notes": "Misma información en construcción pasiva"
+    },
+    {
+      "id": "qe_017",
+      "description": "Abreviatura suficientemente informativa",
+      "question": "¿Qué significa ONU?",
+      "expected_answer": "Organización de las Naciones Unidas",
+      "given_answer": "Organización Naciones Unidas",
+      "ground_truth_correct": true,
+      "notes": "Falta el artículo 'de las', pero el contenido es esencialmente correcto"
+    },
+    {
+      "id": "qe_018",
+      "description": "Respuesta con preposición inicial",
+      "question": "¿En qué año empezó la Primera Guerra Mundial?",
+      "expected_answer": "1914",
+      "given_answer": "En 1914",
+      "ground_truth_correct": true,
+      "notes": "Preposición introductoria, valor correcto"
+    },
+    {
+      "id": "qe_019",
+      "description": "Nombre en minúsculas sin acento",
+      "question": "¿Cómo se llama el proceso de división celular ordinaria?",
+      "expected_answer": "Mitosis",
+      "given_answer": "mitosis",
+      "ground_truth_correct": true,
+      "notes": "Solo diferencia tipográfica (minúscula); semánticamente idéntico"
+    },
+    {
+      "id": "qe_020",
+      "description": "Paráfrasis semántica correcta",
+      "question": "¿Qué es la fotosíntesis?",
+      "expected_answer": "Proceso por el que las plantas convierten luz solar en energía",
+      "given_answer": "Las plantas usan la luz del sol para fabricar su alimento",
+      "ground_truth_correct": true,
+      "notes": "Paráfrasis con vocabulario diferente pero significado equivalente; caso difícil"
+    },
+    {
+      "id": "qe_021",
+      "description": "Artículo con variante gramatical",
+      "question": "¿Cuál es el animal más rápido del mundo?",
+      "expected_answer": "El guepardo",
+      "given_answer": "Un guepardo",
+      "ground_truth_correct": true,
+      "notes": "Artículo definido vs indefinido; referencia al mismo animal"
+    },
+    {
+      "id": "qe_022",
+      "description": "Respuesta con contexto histórico correcto",
+      "question": "¿Dónde se firmó el armisticio que puso fin a la Primera Guerra Mundial?",
+      "expected_answer": "Compiègne",
+      "given_answer": "En Compiègne, Francia",
+      "ground_truth_correct": true,
+      "notes": "Añade el país como contexto; la información clave está correcta"
+    },
+    {
+      "id": "qe_023",
+      "description": "Fórmula con tipografía alternativa",
+      "question": "¿Cuál es la fórmula química del agua?",
+      "expected_answer": "H2O",
+      "given_answer": "H₂O",
+      "ground_truth_correct": true,
+      "notes": "Subíndice tipográfico vs texto plano; misma fórmula"
+    },
+    {
+      "id": "qe_024",
+      "description": "Número en letras con aproximación",
+      "question": "¿Cuántos huesos tiene el cuerpo humano adulto?",
+      "expected_answer": "206",
+      "given_answer": "Doscientos seis huesos",
+      "ground_truth_correct": true,
+      "notes": "Número en letras + unidad; equivalente a '206'"
+    },
+    {
+      "id": "qe_025",
+      "description": "Año incorrecto por un año",
+      "question": "¿En qué año comenzó la Segunda Guerra Mundial?",
+      "expected_answer": "1939",
+      "given_answer": "1940",
+      "ground_truth_correct": false,
+      "notes": "Año muy cercano al real; fácil que un LLM lo acepte erróneamente"
+    },
+    {
+      "id": "qe_026",
+      "description": "Ciudad famosa pero incorrecta — confusión capital vs metrópoli",
+      "question": "¿Cuál es la capital de Australia?",
+      "expected_answer": "Canberra",
+      "given_answer": "Sídney",
+      "ground_truth_correct": false,
+      "notes": "Error muy común; Sídney es la ciudad más conocida, pero Canberra es la capital"
+    },
+    {
+      "id": "qe_027",
+      "description": "Número incorrecto cercano",
+      "question": "¿Cuántos cromosomas tiene una célula humana normal?",
+      "expected_answer": "46",
+      "given_answer": "48",
+      "ground_truth_correct": false,
+      "notes": "48 es el número en chimpancés; error plausible pero incorrecto"
+    },
+    {
+      "id": "qe_028",
+      "description": "Lista incompleta — falta un elemento",
+      "question": "¿Cuáles son los tres estados de la materia clásicos?",
+      "expected_answer": "Sólido, líquido y gaseoso",
+      "given_answer": "Sólido y líquido",
+      "ground_truth_correct": false,
+      "notes": "Solo da dos de los tres elementos requeridos"
+    },
+    {
+      "id": "qe_029",
+      "description": "Confusión entre términos biológicos similares",
+      "question": "¿Qué es la meiosis?",
+      "expected_answer": "División celular que produce gametos con la mitad de cromosomas",
+      "given_answer": "Es la división celular que permite la reproducción normal de todas las células del cuerpo",
+      "ground_truth_correct": false,
+      "notes": "Describe la mitosis, no la meiosis; confusión de términos"
+    },
+    {
+      "id": "qe_030",
+      "description": "Número de patas incorrecto — confunde con insecto",
+      "question": "¿Cuántas patas tiene una araña?",
+      "expected_answer": "8",
+      "given_answer": "Seis patas, como los insectos",
+      "ground_truth_correct": false,
+      "notes": "Confunde arácnido con insecto; número incorrecto"
+    },
+    {
+      "id": "qe_031",
+      "description": "El usuario divaga sin responder",
+      "question": "¿Cuál es el planeta más grande del sistema solar?",
+      "expected_answer": "Júpiter",
+      "given_answer": "Hay muchos planetas muy grandes, todos son fascinantes",
+      "ground_truth_correct": false,
+      "notes": "Respuesta evasiva sin contenido informativo relevante"
+    },
+    {
+      "id": "qe_032",
+      "description": "País confundido con otro dato del mismo dominio",
+      "question": "¿Cuál es el país más extenso del mundo?",
+      "expected_answer": "Rusia",
+      "given_answer": "China",
+      "ground_truth_correct": false,
+      "notes": "China es el más poblado, no el más extenso; confusión de atributo"
+    },
+    {
+      "id": "qe_033",
+      "description": "Respuesta correcta pero unidad equivocada",
+      "question": "¿Cuál es la velocidad de la luz en el vacío?",
+      "expected_answer": "299.792 km/s",
+      "given_answer": "300 millones de km/h",
+      "ground_truth_correct": false,
+      "notes": "El número es aproximado y la unidad es incorrecta (km/h en lugar de km/s)"
+    },
+    {
+      "id": "qe_034",
+      "description": "El usuario admite no recordar",
+      "question": "¿En qué año se publicó la primera parte del Quijote?",
+      "expected_answer": "1605",
+      "given_answer": "Creo que fue en el siglo XVII, no recuerdo el año exacto",
+      "ground_truth_correct": false,
+      "notes": "El usuario reconoce que no sabe el año; el siglo es correcto pero no es la respuesta"
+    },
+    {
+      "id": "qe_035",
+      "description": "Respuesta con año de segunda edición en vez de primera",
+      "question": "¿En qué año se publicó la primera parte del Quijote?",
+      "expected_answer": "1605",
+      "given_answer": "1615",
+      "ground_truth_correct": false,
+      "notes": "1615 es el año de la segunda parte; dato histórico plausible pero incorrecto para esta pregunta"
+    },
+    {
+      "id": "qe_036",
+      "description": "Respuesta correcta sin acento en nombre propio",
+      "question": "¿Cuál es la capital de México?",
+      "expected_answer": "Ciudad de México",
+      "given_answer": "Ciudad de Mexico",
+      "ground_truth_correct": true,
+      "notes": "Falta tilde en 'México'; el contenido es correcto"
+    }
+  ]
+}

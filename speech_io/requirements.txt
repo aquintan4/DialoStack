@@ -1,0 +1,25 @@
+# Runtime dependencies for the audio manager package.
+# Tested on Python 3.12.3
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# Note: rclpy and all ros2_*_interfaces packages are managed by the ROS2
+# toolchain (rosdep / apt) and are intentionally excluded from this file.
+
+# ── Numerical computing ───────────────────────────────────────────────────────
+numpy==1.26.4
+
+# ── Audio I/O ─────────────────────────────────────────────────────────────────
+sounddevice==0.5.5
+
+# ── PyTorch (CPU/GPU inference backend) ───────────────────────────────────────
+torch==2.11.0
+torchaudio==2.11.0
+torchvision==0.26.0
+
+# ── ASR — Automatic Speech Recognition (Whisper) ─────────────────────────────
+faster-whisper==1.2.1
+
+# ── TTS — Text-to-Speech (Piper) ──────────────────────────────────────────────
+piper-tts==1.4.2
