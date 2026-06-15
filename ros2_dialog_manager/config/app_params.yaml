@@ -5,8 +5,8 @@ speech_to_text_node:
     input_device: ''
     model_size: small
     language: es
-    device: cuda
-    compute_type: float16
+    device: cpu
+    compute_type: int8
     cpu_threads: 4
     sample_rate: 16000
     vad_threshold: 0.5
@@ -18,7 +18,7 @@ text_to_speech_node:
   ros__parameters:
     action_name: /speak
     is_speaking_topic: /is_speaking
-    model_path: models/es_ES-sharvard-medium.onnx
+    model_path: /home/aquintan/tfg_ws/models/es_ES-sharvard-medium.onnx
     sample_rate: 22050
     audio_device: default
 

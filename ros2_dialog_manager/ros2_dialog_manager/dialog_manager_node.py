@@ -102,6 +102,10 @@ class DialogManagerNode(Node):
             callback_group=self._cb,
         )
 
+        self._robot_utterance_pub = self.create_publisher(
+            String, "/robot_utterance", 10
+        )
+
         self._log("Dialog Manager ready (single-dialog mode).")
 
     # ==== PARAMETER HANDLING ====
@@ -516,6 +520,7 @@ class DialogManagerNode(Node):
     def _speak_sync(self, text: str, interrupt_event: threading.Event) -> None:
         if not text or not self._tts_client.wait_for_server(timeout_sec=5.0):
             return
+        self._robot_utterance_pub.publish(String(data=text))
         # TRACE
         _ts = time.monotonic()
         self.get_logger().info(f"[TRACE] tts_start chars={len(text)} | t={_ts:.4f}")
