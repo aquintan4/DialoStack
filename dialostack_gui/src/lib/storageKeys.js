@@ -10,6 +10,10 @@ export const STORAGE = {
   config: 'dialostack_gui_config',
   monitorTags: 'dialostack_monitor_tags',
 
+  // Monitor image viewer (debug peek at an image topic)
+  monitorImageOpen: 'dialostack_monitor_image_open',
+  monitorImageTopic: 'dialostack_monitor_image_topic',
+
   // Launcher (task draft + saved tasks)
   launchForm: 'dialostack_launch_form',
   launchSchema: 'dialostack_launch_schema',

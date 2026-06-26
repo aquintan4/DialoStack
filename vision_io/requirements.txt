@@ -1,0 +1,17 @@
+# Runtime dependencies for the vision_io package (OPTIONAL layer: emotion
+# detection + lip-activity barge-in). Install only if you use the vision nodes.
+# Tested on Python 3.12.
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# Note: rclpy and all ros2_*_interfaces packages are managed by the ROS2
+# toolchain (rosdep / apt) and are intentionally excluded from this file.
+# The MediaPipe face-landmarker and the Hugging Face emotion model download
+# themselves on first run.
+
+# ── Computer vision ───────────────────────────────────────────────────────────
+opencv-python==4.13.0.92
+
+# ── Face landmarks / lip activity ─────────────────────────────────────────────
+mediapipe==0.10.35

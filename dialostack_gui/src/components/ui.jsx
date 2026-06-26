@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronDown, ChevronUp, Info } from 'lucide-react'
+import { ChevronDown, ChevronUp, Info, RotateCcw } from 'lucide-react'
 
 /**
  * Form atoms and status pieces shared across the whole GUI.
@@ -254,5 +254,32 @@ export function StatusBadge({ dot, text, label }) {
       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
       <span className={`text-xs font-medium ${text}`}>{label}</span>
     </div>
+  )
+}
+
+/**
+ * The floating panel of a header menu/popover. Pairs with the usePopover() hook:
+ * the caller keeps the `relative` wrapper + ref + trigger button and renders
+ * this only while open. Standardizes the shared panel styling; placement/align/
+ * width vary per menu.
+ */
+export function PopoverPanel({ placement = 'bottom', align = 'right', width = 'w-56', children }) {
+  const pos = placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+  const side = align === 'left' ? 'left-0' : 'right-0'
+  return (
+    <div className={`absolute ${pos} ${side} ${width} z-50 p-1.5 rounded-xl
+      bg-app-800 border border-app-border shadow-xl shadow-black/50 animate-fade-in`}>
+      {children}
+    </div>
+  )
+}
+
+/** "modified · reset" affordance for an overridden field (editors). */
+export function ModifiedTag({ onReset }) {
+  return (
+    <button onClick={onReset}
+      className="text-[10px] text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors">
+      <RotateCcw size={10} /> modified · reset
+    </button>
   )
 }

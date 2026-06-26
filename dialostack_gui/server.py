@@ -22,6 +22,14 @@ API
     POST /api/config/yaml       body {'config': {...}} -> {'yaml'}
     GET  /api/prompts           -> {'prompts': {key: template}, 'available'}
     POST /api/prompts/yaml      body {'overrides': {...}, 'mode': 'full'|'overrides'} -> {'yaml'}
+    POST /api/prompts/parse     body {'text': '<file>'} -> {'prompts': {key: template}}
+    GET  /api/phrases?language= -> {'phrases': {key: str|list}, 'languages', 'available'}
+    POST /api/phrases/yaml      body {'overrides','language','mode'} -> {'yaml'}
+    POST /api/phrases/parse     body {'text': '<file>'} -> {'phrases': {key: str|list}}
+    POST /api/task/parse        body {'text': '<json|yaml|ros2 cmd>'} -> {'goal': {...}}
+    GET  /api/mic/status        -> {'available', 'muted'}
+    POST /api/mic/mute          body {'muted': bool} -> {'available', 'muted'}
+    POST /api/system/kill-all   -> {'ok', 'killed': [pid], 'count', 'forced'}
 """
 
 import argparse
@@ -47,6 +55,29 @@ KEEPALIVE_TIMEOUT = 300  # seconds
 STARTUP_GRACE = 5  # seconds before 'starting' promotes to 'running'
 ENGINE_PATTERN = "ros2_dialog_manager.*main.launch"
 LOG_TAIL_LINES = 80
+
+# Process patterns for every node/launch the DialoStack stack can spawn, used by
+# the "kill all" panic button to reap orphans left across terminals (not only the
+# GUI-launched engine). Matched with `pgrep -f`, so node executables and launch
+# filenames are specific enough on their own. Deliberately NOT here: rosbridge
+# (the Monitor's live link) and the GUI server itself, so both keep working.
+DIALOSTACK_KILL_PATTERNS = (
+    # dialog engine
+    "ros2_dialog_manager", "dialog_manager_node", "main.launch.py",
+    # LLM manager
+    "llm_manager_node", "llm_cli_client", "llm_manager.launch.py",
+    # speech I/O
+    "speech_to_text_node", "text_to_speech_node", "audio_bridge_node",
+    "test_audio_node", "speech_io.launch.py", "audio_bridge.launch.py",
+    "nao_demo.launch.py", "nao_min.launch.py",
+    # vision
+    "emotion_detector", "lip_activity_detector",
+    "emotion_detector.launch.py", "lip_detector.launch.py",
+    # nao
+    "nao_pose_manager", "pose_saver", "keyboard_trigger", "gui_trigger",
+    "pose_tester", "gesture_manager", "arm_gesture_manager", "eye_led_feedback",
+    "arm_gesture_manager.launch.py", "nao_sim.launch.py",
+)
 
 
 # ==== CONFIG SANITISATION ====
@@ -176,6 +207,153 @@ def prompts_yaml(overrides: dict, mode: str) -> str:
     )
 
 
+def extract_prompt_overrides(text: str) -> dict:
+    """Pull the {key: template} mapping out of an imported prompts file. Accepts
+    YAML or JSON (JSON is valid YAML) in any of three shapes: the engine's nested
+    params layout (dialog_manager_node.ros__parameters.prompts, e.g. a prompts.yaml
+    or the clinical-demo overrides file), a top-level 'prompts' map, or a flat
+    key->template map (the GUI's overrides JSON). Only string leaves are kept; no
+    filtering against known keys happens here - the client validates each entry
+    against the live defaults and keeps only the ones that match."""
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+
+    # Nested ROS params: <node>.ros__parameters.prompts (a prompts.yaml file).
+    for value in data.values():
+        if isinstance(value, dict):
+            params = value.get("ros__parameters")
+            if isinstance(params, dict) and isinstance(params.get("prompts"), dict):
+                return {
+                    k: v for k, v in params["prompts"].items() if isinstance(v, str)
+                }
+
+    # Top-level 'prompts' mapping.
+    if isinstance(data.get("prompts"), dict):
+        return {k: v for k, v in data["prompts"].items() if isinstance(v, str)}
+
+    # Flat key -> template mapping (e.g. the GUI's overrides JSON export).
+    return {k: v for k, v in data.items() if isinstance(v, str)}
+
+
+# ==== PHRASES: PER-LANGUAGE CANNED LINES (STRATEGIES EDITOR) ====
+# The deterministic fallback phrases (and the slot-filling ack list + timeout
+# line) live per-language in the engine code. The GUI edits them per language
+# and overrides reach the engine as "phrases.*" node parameters, exactly like
+# prompts. 'ack' is a list; every other key is a single string.
+
+
+def _default_phrases(language: str) -> dict:
+    """Default phrase set for a language: {key: str} (incl 'timeout') + 'ack' list."""
+    try:
+        from ros2_dialog_manager.llm_client import default_phrases, default_ack_phrases
+
+        out = dict(default_phrases(language))
+        out["ack"] = list(default_ack_phrases(language))
+        return out
+    except Exception:
+        return {}
+
+
+def _phrase_languages() -> list:
+    try:
+        from ros2_dialog_manager.llm_client import phrase_languages
+
+        return phrase_languages()
+    except Exception:
+        return ["English", "Spanish"]
+
+
+def _clean_phrase_overrides(raw: dict, language: str) -> dict:
+    """Keep only overrides that differ from the default and are safe. 'ack' is a
+    list of non-empty strings; the rest are strings validated like prompts (no
+    new placeholders beyond the default's, e.g. {expected} in quiz_wrong)."""
+    defaults = _default_phrases(language)
+    out: dict = {}
+    for key, val in (raw or {}).items():
+        default = defaults.get(key)
+        if key == "ack":
+            if isinstance(val, list):
+                acks = [str(s).strip() for s in val if str(s).strip()]
+                if acks and acks != list(default or []):
+                    out["ack"] = acks
+            continue
+        if not isinstance(val, str) or not val.strip() or not isinstance(default, str):
+            continue
+        if val != default and _valid_prompt_override(val, default):
+            out[key] = val
+    return out
+
+
+def phrases_yaml(overrides: dict, language: str, mode: str) -> str:
+    """Phrases YAML to export, mirroring prompts_yaml. 'full' = defaults+overrides
+    for this language (drop-in); 'overrides' = only the changes."""
+    valid = _clean_phrase_overrides(overrides, language)
+    merged = {**_default_phrases(language), **valid} if mode == "full" else valid
+    doc = {"dialog_manager_node": {"ros__parameters": {"phrases": merged}}}
+    header = (
+        f"# Generated by DialoStack GUI - canned phrases for language: {language}\n"
+        + (
+            "# Full set (engine defaults + your overrides).\n"
+            if mode == "full"
+            else "# Overrides only. Pass as an extra --params-file AFTER app_params.yaml.\n"
+        )
+    )
+    return header + yaml.dump(
+        doc, Dumper=_BlockDumper, sort_keys=False, allow_unicode=True, default_flow_style=False
+    )
+
+
+def extract_phrase_overrides(text: str) -> dict:
+    """Pull the phrases map from an imported file (nested params / top-level
+    'phrases' / flat). Keeps string leaves and the 'ack' list."""
+    def clean(m):
+        out = {k: v for k, v in m.items() if isinstance(v, str)}
+        if isinstance(m.get("ack"), list):
+            out["ack"] = [str(s) for s in m["ack"]]
+        return out
+
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    for value in data.values():
+        if isinstance(value, dict):
+            params = value.get("ros__parameters")
+            if isinstance(params, dict) and isinstance(params.get("phrases"), dict):
+                return clean(params["phrases"])
+    if isinstance(data.get("phrases"), dict):
+        return clean(data["phrases"])
+    return clean(data)
+
+
+# ==== TASK IMPORT ====
+# Inverse of the Launch drawer's "copy": parse a task back out of pasted text so
+# it can be re-imported. Accepts the goal as JSON, as YAML, or wrapped in a full
+# `ros2 action send_goal ... "{...}"` command.
+
+
+def extract_task_goal(text: str) -> dict:
+    """Pull a DialogTask goal dict out of pasted text. Returns {} on failure."""
+    if not text or not text.strip():
+        return {}
+    s = text.strip()
+    # If wrapped in a ros2 command (or any quoting), take the {...} goal object.
+    start, end = s.find("{"), s.rfind("}")
+    if start != -1 and end > start:
+        s = s[start:end + 1]
+    try:
+        data = yaml.safe_load(s)  # YAML is a superset of JSON, so both parse
+    except yaml.YAMLError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def build_params(config: dict) -> dict:
     """Build the ROS 2 params dict (node -> ros__parameters) from a GUI config."""
     llm = config.get("llm") or {}
@@ -205,6 +383,21 @@ def build_params(config: dict) -> dict:
     if tts_model_path:
         # Only override when set - otherwise the node keeps its app_params value
         tts_params["model_path"] = tts_model_path
+
+    # Audio routing "flavour": local hardware or AudioChunk over ROS topics.
+    # A single GUI choice drives the STT source and the TTS sink together.
+    audio = config.get("audio") or {}
+    if audio.get("mode") == "topic":
+        stt_params["audio_source"] = "topic"
+        stt_params["audio_topic"] = _text(audio.get("in_topic"), "/audio_in")
+        tts_params["audio_sink"] = "topic"
+        tts_params["audio_topic"] = _text(audio.get("out_topic"), "/audio_out")
+        tts_params["topic_latency_pad"] = _num(
+            audio.get("topic_latency_pad"), 0.3, 0.0, 5.0
+        )
+    else:
+        stt_params["audio_source"] = "microphone"
+        tts_params["audio_sink"] = "speaker"
 
     provider = "ollama" if llm.get("provider") == "ollama" else "gemini"
     llm_timeout = _num(llm.get("timeout"), 60.0, 1.0, 3600.0)
@@ -242,8 +435,10 @@ def build_params(config: dict) -> dict:
         if isinstance(raw_acks, list)
         else []
     )
+    # Empty -> the sentinel [""], so the engine falls back to its language-aware
+    # acknowledgments instead of being pinned to one language by the GUI.
     if not ack_phrases:
-        ack_phrases = ["Entendido."]
+        ack_phrases = [""]
 
     dialog_params = {
         "language": _text(dialog.get("language"), "Spanish"),
@@ -254,7 +449,8 @@ def build_params(config: dict) -> dict:
         "wait_timeout": _num(dialog.get("wait_timeout"), 20.0, 1.0),
         "llm_timeout": _num(dialog.get("llm_timeout"), 120.0, 1.0),
         "tts_timeout": _num(dialog.get("tts_timeout"), 60.0, 1.0),
-        "timeout_prompt": _text(dialog.get("timeout_prompt"), "¿Sigues ahí?"),
+        # Empty -> engine uses the language-aware timeout line.
+        "timeout_prompt": _text(dialog.get("timeout_prompt")),
         "max_timeouts": _num(dialog.get("max_timeouts"), 2, 1, integer=True),
         "max_unclear": _num(dialog.get("max_unclear"), 3, 1, integer=True),
         "max_attempts": _num(dialog.get("max_attempts"), 3, 1, integer=True),
@@ -281,6 +477,15 @@ def build_params(config: dict) -> dict:
                 overrides[key] = val
         if overrides:
             dialog_node_params = {**dialog_params, "prompts": overrides}
+
+    # Phrase overrides for the ACTIVE dialogue language only (the engine runs one
+    # language at a time); injected as "phrases.*" node parameters.
+    by_lang = config.get("phrases")
+    if isinstance(by_lang, dict):
+        language = _text(dialog.get("language"), "Spanish")
+        phrase_ovr = _clean_phrase_overrides(by_lang.get(language) or {}, language)
+        if phrase_ovr:
+            dialog_node_params = {**dialog_node_params, "phrases": phrase_ovr}
 
     return {
         "speech_to_text_node": {"ros__parameters": stt_params},
@@ -331,6 +536,67 @@ def _mic_set_mute(muted: bool) -> dict:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     return _mic_status()
+
+
+# ==== KILL-ALL (PANIC BUTTON) ====
+# System-wide cleanup of every DialoStack node/launch, including orphans started
+# from other terminals. Kills by process GROUP (SIGTERM, then SIGKILL the
+# survivors) like _kill_stale, but never touches the GUI server's own group.
+
+
+def _kill_all_dialostack() -> dict:
+    """Kill every DialoStack process matching DIALOSTACK_KILL_PATTERNS."""
+    try:
+        own_pgid = os.getpgid(0)
+    except OSError:
+        own_pgid = None
+
+    pids: set[int] = set()
+    for pat in DIALOSTACK_KILL_PATTERNS:
+        try:
+            out = subprocess.run(["pgrep", "-f", pat], capture_output=True, text=True)
+        except FileNotFoundError:
+            return {"ok": False, "error": "pgrep not available", "killed": [], "count": 0}
+        for tok in out.stdout.split():
+            try:
+                pids.add(int(tok))
+            except ValueError:
+                pass
+
+    # Resolve PIDs to process groups, skipping our own group (the GUI server and
+    # whatever pgrep/subprocess children it spawned).
+    pgids: set[int] = set()
+    killed: list[int] = []
+    for pid in pids:
+        try:
+            pgid = os.getpgid(pid)
+        except (ProcessLookupError, OSError):
+            continue
+        if pgid == own_pgid:
+            continue
+        pgids.add(pgid)
+        killed.append(pid)
+
+    for pgid in pgids:
+        try:
+            os.killpg(pgid, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass
+
+    forced = 0
+    if pgids:
+        time.sleep(1.5)
+        for pgid in pgids:
+            try:
+                os.killpg(pgid, 0)  # raises if the group is already gone
+                os.killpg(pgid, signal.SIGKILL)
+                forced += 1
+            except (ProcessLookupError, OSError):
+                pass
+
+    killed.sort()
+    print(f"[kill-all] DialoStack PIDs terminated: {killed} (force-killed {forced} groups)", flush=True)
+    return {"ok": True, "killed": killed, "count": len(killed), "forced": forced}
 
 
 def _check_llm_provider(llm: dict):
@@ -616,10 +882,49 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
                     )
                 }
             )
+        elif route == "/api/prompts/parse" and method == "POST":
+            text = self._body_json().get("text")
+            self._json(
+                {"prompts": extract_prompt_overrides(text if isinstance(text, str) else "")}
+            )
+        elif route == "/api/phrases" and method == "GET":
+            from urllib.parse import urlparse, parse_qs
+
+            language = (parse_qs(urlparse(self.path).query).get("language") or ["Spanish"])[0]
+            defaults = _default_phrases(language)
+            self._json(
+                {"phrases": defaults, "languages": _phrase_languages(), "available": bool(defaults)}
+            )
+        elif route == "/api/phrases/yaml" and method == "POST":
+            body = self._body_json()
+            overrides = body.get("overrides")
+            mode = "overrides" if body.get("mode") == "overrides" else "full"
+            self._json(
+                {
+                    "yaml": phrases_yaml(
+                        overrides if isinstance(overrides, dict) else {},
+                        _text(body.get("language"), "Spanish"),
+                        mode,
+                    )
+                }
+            )
+        elif route == "/api/phrases/parse" and method == "POST":
+            text = self._body_json().get("text")
+            self._json(
+                {"phrases": extract_phrase_overrides(text if isinstance(text, str) else "")}
+            )
+        elif route == "/api/task/parse" and method == "POST":
+            text = self._body_json().get("text")
+            self._json({"goal": extract_task_goal(text if isinstance(text, str) else "")})
         elif route == "/api/mic/status" and method == "GET":
             self._json(_mic_status())
         elif route == "/api/mic/mute" and method == "POST":
             self._json(_mic_set_mute(bool(self._body_json().get("muted"))))
+        elif route == "/api/system/kill-all" and method == "POST":
+            # Stop the tracked engine cleanly first (so its exit reads as a manual
+            # stop, not a crash), then sweep every other DialoStack process.
+            _engine.stop()
+            self._json(_kill_all_dialostack())
         else:
             self._json({"error": "Not found"}, 404)
 

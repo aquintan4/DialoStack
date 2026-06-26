@@ -54,8 +54,10 @@ text_to_speech_node:
     # SpeechToTextNode uses this topic to mute itself during playback.
     is_speaking_topic: /is_speaking
 
-    # Piper voice model used for speech synthesis.
-    model_path: models/es_ES-sharvard-medium.onnx
+    # Piper voice for speech synthesis: a filename resolved under
+    # DIALOSTACK_MODELS_DIR (default ~/.local/share/dialostack/models; run
+    # scripts/download_models.sh), or an absolute path.
+    model_path: es_ES-sharvard-medium.onnx
 
     # Output sample rate expected by the selected Piper model.
     sample_rate: 22050

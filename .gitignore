@@ -26,6 +26,6 @@ evaluation/results/*.csv
 *.swp
 .DS_Store
 
-# Secrets — never commit API keys
+# Secrets (never commit API keys)
 .env
 *.key

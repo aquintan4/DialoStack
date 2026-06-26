@@ -1,4 +1,4 @@
-# robots/nao — NAO embodiment layer
+# robots/nao: NAO embodiment layer
 
 Optional robot-embodiment layer for the SoftBank NAO. It contains the robot model
 (`nao_description`) and the pose/gesture/LED tooling (`nao_pose_manager`). This layer is
@@ -10,20 +10,20 @@ See [../../docs/architecture.md](../../docs/architecture.md) for the full design
 
 ## Packages
 
-- **nao_description** — URDF and RViz config for the NAO V40, plus a sim bringup.
-- **nao_pose_manager** — pose capture, playback, gesture managers and eye-LED feedback.
+- **nao_description**: URDF and RViz config for the NAO V40, plus a sim bringup.
+- **nao_pose_manager**: pose capture, playback, gesture managers and eye-LED feedback.
 
 > **Note on meshes:** the NAO 3D meshes are licensed by SoftBank Robotics and cannot be
 > redistributed here (`meshes/` and `texture/` are git-ignored). To visualise the full
-> model, install them with the official `nao_meshes` installer — see the setup steps in
+> model, install them with the official `nao_meshes` installer. See the setup steps in
 > [`nao_description/README.md`](nao_description/README.md).
 
 ## Nodes (nao_pose_manager)
 
 | Node (ros2 run name) | Description |
 | --- | --- |
-| `gesture_manager` | Simulation gesture FSM; publishes `JointState` to `/pose_tester_joints` for RViz. |
-| `arm_gesture_manager` | Real-robot arm gesture FSM; drives nao_lola effector topics. |
+| `gesture_manager` | Simulation gesture FSM. Publishes `JointState` to `/pose_tester_joints` for RViz. |
+| `arm_gesture_manager` | Real-robot arm gesture FSM. Drives nao_lola effector topics. |
 | `eye_led_feedback` | Maps interaction state to NAO eye-LED colors. |
 | `pose_saver` | Saves the live `/joint_states` pose to `nao_saved_poses.yaml` on trigger. |
 | `pose_tester` | Tkinter tool to preview saved poses in simulation. |
@@ -74,5 +74,5 @@ ros2 launch nao_pose_manager arm_gesture_manager.launch.py
 ## Configuration
 
 Saved poses and RViz views live in `nao_pose_manager/config/` (`nao_saved_poses.yaml`,
-`config.rviz`); gesture timing/stiffness are launch arguments on
+`config.rviz`). Gesture timing and stiffness are launch arguments on
 `arm_gesture_manager.launch.py`. See [../../docs/configuration.md](../../docs/configuration.md).

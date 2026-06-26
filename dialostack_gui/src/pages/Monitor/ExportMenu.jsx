@@ -3,6 +3,7 @@ import { Braces, Download, FileText, Sheet } from 'lucide-react'
 import { buildExport } from '../../lib/sessionExport'
 import { downloadFile } from '../../lib/download'
 import { usePopover } from '../../hooks/usePopover'
+import { PopoverPanel } from '../../components/ui'
 
 const FORMATS = [
   { key: 'csv',  ext: 'csv', mime: 'text/csv',         icon: Sheet,    label: 'CSV',      hint: 'one row per turn (Excel/pandas)' },
@@ -43,8 +44,7 @@ export function ExportMenu({ events }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 z-50 p-1.5 rounded-xl
-          bg-app-800 border border-app-border shadow-xl shadow-black/50 animate-fade-in">
+        <PopoverPanel width="w-56">
           <p className="px-2.5 pt-1.5 pb-1 text-[11px] text-slate-600 uppercase tracking-wide">
             Export session
           </p>
@@ -61,7 +61,7 @@ export function ExportMenu({ events }) {
               </span>
             </button>
           ))}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   )

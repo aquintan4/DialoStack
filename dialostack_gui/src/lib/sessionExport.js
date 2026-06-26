@@ -10,15 +10,12 @@
  */
 
 import { fileStamp } from './download'
+import { formatMs as fmtMs, formatTime } from './formatters'
 
-const formatMs = (ms) => {
-  if (ms == null || !isFinite(ms)) return '—'
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`
-}
-
+// Export uses an em dash for missing durations and en-GB wall-clock times.
+const formatMs = (ms) => fmtMs(ms) ?? '—'
 const isoTime = (ts) => (ts != null ? new Date(ts).toISOString() : '')
-const clockTime = (ts) =>
-  ts != null ? new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''
+const clockTime = (ts) => formatTime(ts, 'en-GB')
 
 /** Basic stats over an array of ms (drops nulls). null if no data. */
 function stats(arr) {
@@ -188,7 +185,9 @@ function toMarkdown(segments, overall, exportedAtIso) {
  * Returns { json, csv, markdown, filenameBase, isEmpty }.
  */
 export function buildExport(events, date) {
-  const segments = segmentByTask(events)
+  // Bubbles flagged as noise are dropped from every format and from the stats:
+  // they are not real conversation.
+  const segments = segmentByTask(events.filter((e) => !e.noise))
   const allTurns = segments.flatMap((s) => s.turns)
   const taskSegs = segments.filter((s) => s.isTask)
   const overall = {

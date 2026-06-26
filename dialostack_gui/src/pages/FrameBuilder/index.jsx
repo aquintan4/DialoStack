@@ -56,8 +56,12 @@ export function FrameBuilder() {
     const h = readHandoff(HANDOFF_TO_BUILDER)
     if (h?.kind) {
       setKind(h.kind)
-      applyState(h.kind, h.state)
-      if (h.state?.resources?.some((r) => r.name?.trim() || r.content?.trim())) setResourcesOpen(true)
+      // A kind-only handoff (e.g. from the Strategies page) just focuses the
+      // Builder on a strategy; it must not wipe the current draft.
+      if (h.state) {
+        applyState(h.kind, h.state)
+        if (h.state.resources?.some((r) => r.name?.trim() || r.content?.trim())) setResourcesOpen(true)
+      }
       clearHandoff(HANDOFF_TO_BUILDER)
     }
     // only on mount

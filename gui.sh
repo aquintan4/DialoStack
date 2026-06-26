@@ -57,7 +57,7 @@ if [ -n "$WS_SETUP" ]; then
   echo -e "  Workspace: ${GREEN}${WS_SETUP}${NC}"
 else
   echo -e "  ${YELLOW}WARNING: No compiled workspace found — ros2 launch may fail.${NC}"
-  echo -e "  Run: cd ~/Desktop/dialostack_ws && colcon build --symlink-install"
+  echo -e "  Run 'colcon build --symlink-install' from your workspace root, then source install/setup.bash"
   echo ""
 fi
 

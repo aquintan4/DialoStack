@@ -1,6 +1,6 @@
 /** Tag filter: button + popover to choose which metric tags are shown in the chat bubbles. */
 import { Tags } from 'lucide-react'
-import { Toggle } from '../../components/ui'
+import { PopoverPanel, Toggle } from '../../components/ui'
 import { usePopover } from '../../hooks/usePopover'
 
 // Tags that can be hidden in the chat bubbles. `key` must match what
@@ -44,8 +44,7 @@ export function TagFilter({ value, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-60 z-50 p-1.5 rounded-xl
-          bg-app-800 border border-app-border shadow-xl shadow-black/50 animate-fade-in">
+        <PopoverPanel width="w-60">
           <p className="px-2.5 pt-1.5 pb-1 text-[11px] text-slate-600 uppercase tracking-wide">
             Visible tags
           </p>
@@ -61,7 +60,7 @@ export function TagFilter({ value, onChange }) {
               />
             </div>
           ))}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   )

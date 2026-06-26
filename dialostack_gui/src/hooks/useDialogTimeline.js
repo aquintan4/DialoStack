@@ -41,6 +41,12 @@ export function useDialogTimeline() {
   useTopic(TOPICS.isSpeaking.name, TOPICS.isSpeaking.type, (msg) =>
     dispatch({ type: 'isSpeaking', value: msg.data, now: Date.now() }))
 
+  // Authoritative barge-in from the backend: the robot tells us it was actually
+  // cut off and how long it had spoken. This is the only trigger for the
+  // "interrupted"/"barge-in" marks; the GUI no longer infers them from timing.
+  useTopic(TOPICS.bargeIn.name, TOPICS.bargeIn.type, (msg) =>
+    dispatch({ type: 'bargeIn', spokenMs: msg.spoken_ms, now: Date.now() }))
+
   useTopic(TOPICS.dialogFeedback.name, TOPICS.dialogFeedback.type, (msg) =>
     dispatch({
       type: 'feedback',
@@ -74,14 +80,22 @@ export function useDialogTimeline() {
   const pushLocalUserMessage = useCallback(
     (text) => dispatch({ type: 'localUserMessage', text, now: Date.now() }), [])
   const clearTimeline = useCallback(() => dispatch({ type: 'clear' }), [])
+  // Called right before sending a goal so the next new goal seen on the
+  // feedback/status topics is tagged as launched-by-this-GUI (survives tab
+  // switches, unlike the action client's in-memory state).
+  const markOwnLaunch = useCallback(() => dispatch({ type: 'ownLaunch' }), [])
+  // Per-bubble curation from the Monitor.
+  const deleteEvent = useCallback((id) => dispatch({ type: 'deleteEvent', id }), [])
+  const toggleNoise = useCallback((id) => dispatch({ type: 'toggleNoise', id }), [])
 
   const {
     events, isSpeaking, speakingId, userTalking, transcribing, emotion,
-    fsmState, currentFrame, taskTurns, taskRunning,
+    fsmState, currentFrame, taskTurns, taskRunning, activeGoalId, ownGoalId,
   } = state
 
   return {
     events, isSpeaking, speakingId, userTalking, transcribing, emotion,
-    fsmState, currentFrame, taskTurns, taskRunning, clearTimeline, pushLocalUserMessage,
+    fsmState, currentFrame, taskTurns, taskRunning, activeGoalId, ownGoalId,
+    clearTimeline, pushLocalUserMessage, markOwnLaunch, deleteEvent, toggleNoise,
   }
 }

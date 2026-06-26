@@ -43,4 +43,15 @@ describe('buildExport', () => {
   it('a timeline with no turns is marked as empty', () => {
     expect(buildExport([], new Date()).isEmpty).toBe(true)
   })
+
+  it('excludes bubbles flagged as noise from every format and the stats', () => {
+    const withNoise = [
+      ...sample,
+      { id: 'e6', kind: 'user', text: 'cough cough', timestamp: 2200, transcriptionMs: 100, noise: true },
+    ]
+    const out = buildExport(withNoise, new Date('2026-06-14T10:00:00Z'))
+    expect(JSON.parse(out.json).summary.userTurns).toBe(2)   // noise user turn not counted
+    expect(out.markdown).not.toContain('cough cough')
+    expect(out.csv).not.toContain('cough cough')
+  })
 })

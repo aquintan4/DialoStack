@@ -112,6 +112,12 @@ class PromptBuilder:
         # No context injection: avoids the opening reciting menu options unprompted.
         return self._t("opening", task=task, slots=frame.describe_slots())
 
+    def opening_direct(self, task: str, frame: DialogFrame, ctx: DialogContext | None = None) -> str:
+        # Context IS injected: opening_direct is for chained dialogs where the
+        # patient/domain context is already established and the LLM needs it
+        # (e.g. to use the patient's name without resorting to placeholders).
+        return self._inject(self._t("opening_direct", task=task, slots=frame.describe_slots()), ctx)
+
     def resume_opening(
         self, task: str, frame: DialogFrame, next_slot: str | None, ctx: DialogContext | None = None
     ) -> str:
@@ -260,6 +266,9 @@ class PromptBuilder:
 
     def explanation_opening(self, task: str, ctx: DialogContext | None = None) -> str:
         return self._inject(self._t("explanation_opening", task=task), ctx)
+
+    def explanation_opening_direct(self, task: str, ctx: DialogContext | None = None) -> str:
+        return self._inject(self._t("explanation_opening_direct", task=task), ctx)
 
     def check_understanding(self, task: str, ctx: DialogContext | None = None) -> str:
         return self._inject(self._t("check_understanding", task=task), ctx)

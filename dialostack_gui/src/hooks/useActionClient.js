@@ -108,5 +108,31 @@ export function useActionClient(serverName, actionName) {
     }
   }, [ros, serverName, resetActive])
 
-  return { sendGoal, cancelGoal, goalStatus, feedback, result }
+  /**
+   * Cancel a goal by its ROS 2 UUID via the action's cancel_goal service.
+   * Unlike cancelGoal (which needs the client-side request id from this very
+   * mount), this works for any goal whose UUID we know - so a GUI-launched task
+   * stays cancellable after a tab switch. `goalIdStr` is the stringified uuid
+   * array as the timeline stores it (JSON.stringify(msg.goal_id.uuid)).
+   */
+  const cancelByUuid = useCallback((goalIdStr) => {
+    if (!ros.current || !goalIdStr) return
+    let uuid
+    try {
+      const parsed = JSON.parse(goalIdStr)
+      uuid = Array.isArray(parsed) ? parsed : Object.values(parsed)
+    } catch {
+      return
+    }
+    if (!uuid?.length) return
+    resetActive('cancelled')
+    ros.current.callOnConnection({
+      op: 'call_service',
+      service: `${serverName}/_action/cancel_goal`,
+      type: 'action_msgs/srv/CancelGoal',
+      args: { goal_info: { goal_id: { uuid }, stamp: { sec: 0, nanosec: 0 } } },
+    })
+  }, [ros, serverName, resetActive])
+
+  return { sendGoal, cancelGoal, cancelByUuid, goalStatus, feedback, result }
 }

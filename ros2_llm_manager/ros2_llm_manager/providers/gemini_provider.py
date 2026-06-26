@@ -99,7 +99,16 @@ class GeminiProvider(BaseProvider):
                 return self._stream(model, contents, config, stream_callback)
             return self._blocking(model, contents, config)
         except Exception as exc:
-            return GenerateResult(success=False, error=str(exc))
+            # google-genai APIError subclasses carry an HTTP `.code` (e.g. 404
+            # model not found, 429 quota, 503 unavailable); fall back to 0.
+            code = getattr(exc, "code", 0)
+            try:
+                code = int(code)
+            except (TypeError, ValueError):
+                code = 0
+            return GenerateResult(
+                success=False, error=str(exc), status_code=code, error_type="api"
+            )
 
     def _blocking(self, model, contents, config) -> GenerateResult:
         response = self._client.models.generate_content(

@@ -1,6 +1,6 @@
 /** Configuration page: engine panel, tabbed parameter editor, YAML export and reset. */
 import { useState } from 'react'
-import { Check, Copy, MessagesSquare, Mic, RotateCcw, Sparkles, Volume2, X } from 'lucide-react'
+import { Check, Copy, MessagesSquare, Mic, Radio, RotateCcw, Sparkles, Volume2, X } from 'lucide-react'
 import { useConfig } from '../../contexts/ConfigContext'
 import { api } from '../../lib/api'
 import { EnginePanel } from './EnginePanel'
@@ -8,12 +8,14 @@ import { LLMTab } from './LLMTab'
 import { DialogTab } from './DialogTab'
 import { STTTab } from './STTTab'
 import { TTSTab } from './TTSTab'
+import { AudioTab } from './AudioTab'
 
 const TABS = [
   { id: 'llm',    label: 'LLM',     icon: Sparkles       },
   { id: 'dialog', label: 'Dialogue', icon: MessagesSquare },
   { id: 'stt',    label: 'STT',     icon: Mic            },
   { id: 'tts',    label: 'TTS',     icon: Volume2        },
+  { id: 'audio',  label: 'Audio',   icon: Radio          },
 ]
 
 export function ConfigEditor() {
@@ -101,6 +103,7 @@ export function ConfigEditor() {
             {activeTab === 'dialog' && <DialogTab dialog={config.dialog} update={v => updateSection('dialog', v)} />}
             {activeTab === 'stt'    && <STTTab    stt={config.stt}       update={v => updateSection('stt', v)}    />}
             {activeTab === 'tts'    && <TTSTab    tts={config.tts}       update={v => updateSection('tts', v)}    />}
+            {activeTab === 'audio'  && <AudioTab  audio={config.audio}   update={v => updateSection('audio', v)}  />}
           </div>
         </div>
       </div>

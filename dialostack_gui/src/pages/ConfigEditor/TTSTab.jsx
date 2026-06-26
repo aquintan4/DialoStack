@@ -10,11 +10,11 @@ export function TTSTab({ tts, update }) {
         title="Piper voice"
         description="Neural speech synthesis model"
       >
-        <Field label="ONNX model path"
-          hint="Piper .onnx file. The .onnx.json must be in the same folder">
+        <Field label="Piper voice"
+          hint="Voice filename (resolved under DIALOSTACK_MODELS_DIR) or an absolute .onnx path. The .onnx.json must sit next to it.">
           <input type="text" value={tts.model_path}
             onChange={e => update({ model_path: e.target.value })}
-            placeholder="/home/user/models/es_ES-sharvard-medium.onnx"
+            placeholder="es_ES-sharvard-medium.onnx"
             className={inputCls} />
         </Field>
       </SectionCard>

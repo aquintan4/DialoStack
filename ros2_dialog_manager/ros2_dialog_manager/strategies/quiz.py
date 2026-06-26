@@ -29,6 +29,7 @@ class QuizStrategy(BaseDialogStrategy):
         self._results: list[dict] = []
         self._completed = False
         self._log = logging.getLogger("QuizStrategy")
+        self._skip_intro: bool = bool(getattr(request, "skip_intro", False)) if request else False
 
     @staticmethod
     def _parse_questions(ctx) -> list[dict]:
@@ -60,6 +61,8 @@ class QuizStrategy(BaseDialogStrategy):
                 "QuizStrategy requires a resource with a JSON list of "
                 "{'question','answer'} items in its content field."
             )
+        if self._skip_intro:
+            return self._questions[0]['question']
         intro = self._llm.quiz_opening(task, len(self._questions))
         return f"{intro} {self._questions[0]['question']}"
 

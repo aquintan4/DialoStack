@@ -4,7 +4,7 @@
 
 <p align="center">
   <strong>LLM-powered spoken dialogue stack for ROS 2 robots</strong><br/>
-  Task-oriented dialogue management, speech I/O and multimodal perception — with ready-to-use NAO support.
+  Task-oriented dialogue management, speech I/O and multimodal perception, with ready-to-use NAO support.
 </p>
 
 <p align="center">
@@ -17,19 +17,19 @@
 
 ---
 
-DialoStack lets a robot hold **goal-driven spoken conversations**: collect structured data from a user, explain a topic and verify understanding, or run an interactive quiz — entirely through voice, in any language, on any ROS 2 robot.
+DialoStack lets a robot hold **goal-driven spoken conversations**: collect structured data from a user, explain a topic and check understanding, or run an interactive quiz. It works entirely through voice, in any language, on any ROS 2 robot.
 
-Its core design principle: **deterministic control, probabilistic understanding**. The dialogue flow (states, phases, turn limits, cancellation, confirmation) is plain, testable Python — the LLM is only consulted for what it is good at: understanding what the user said and phrasing the next utterance. This keeps behavior predictable and debuggable while still feeling natural to talk to.
+The core design principle is **deterministic control, probabilistic understanding**. The dialogue flow (states, phases, turn limits, cancellation, confirmation) is plain, testable Python. The LLM is consulted only for what it does well: understanding what the user said and phrasing the next reply. The behavior stays predictable and debuggable, and the conversation still feels natural.
 
 ## Features
 
-- 🎯 **Task-oriented dialogue engine** with three pluggable strategies: **slot filling**, **explanation** and **quiz** — and a registry to add your own.
+- 🎯 **Task-oriented dialogue engine** with three pluggable strategies: **slot filling**, **explanation** and **quiz**, plus a registry to add your own.
 - 🗣️ **Full speech pipeline**: faster-whisper + Silero VAD for STT, Piper for streaming TTS, with automatic self-muting so the robot never transcribes its own voice.
 - 🧠 **Provider-agnostic LLM backend**: Google Gemini (cloud) or Ollama (local) behind one ROS interface, with isolated NLU/NLG sessions per dialogue.
 - 👀 **Multimodal perception**: facial emotion recognition and lip-activity detection feed live user state into the dialogue context.
-- 🤖 **Robot embodiment layer**: gestures, posture and eye-LED feedback for the SoftBank NAO, in simulation (RViz) and on the real robot — designed so other robots can slot in.
+- 🤖 **Robot embodiment layer**: gestures, posture and eye-LED feedback for the SoftBank NAO, in simulation (RViz) and on the real robot. Other robots can slot in.
 - 📊 **Evaluation suite**: five statistical benchmarks (precision/recall/F1, confusion matrices, end-to-end task completion) that run without ROS, against hand-annotated datasets.
-- ✅ **173 unit tests** over the deterministic core — runnable with plain `pytest`, no ROS required.
+- ✅ **173 unit tests** over the deterministic core. They run with plain `pytest`, no ROS required.
 
 ## Architecture
 
@@ -68,7 +68,7 @@ flowchart TB
     LIP -- "/user_speaking" --> DM
 ```
 
-A dialogue turn flows like this: the user speaks → `speech_to_text_node` publishes the transcription → the active **strategy** asks the LLM to interpret it (NLU), updates its state, asks the LLM to phrase the reply (NLG) → the reply is spoken through `/speak`, while `/is_speaking` mutes the microphone and drives gestures/LEDs. Emotion and lip activity stream in continuously and are injected into prompts as live context.
+A dialogue turn runs as follows. The user speaks and `speech_to_text_node` publishes the transcription. The active **strategy** asks the LLM to interpret it (NLU), updates its state, then asks the LLM to phrase the reply (NLG). The reply is spoken through `/speak`, and `/is_speaking` mutes the microphone and drives gestures and LEDs. Emotion and lip activity stream in continuously and feed into the prompts as live context.
 
 See **[docs/architecture.md](docs/architecture.md)** for the full design: node graph, dialogue FSM, strategy contracts, LLM session model and extension points.
 
@@ -83,6 +83,7 @@ See **[docs/architecture.md](docs/architecture.md)** for the full design: node g
 | [`speech_io/`](speech_io) | STT and TTS nodes |
 | [`vision_io/`](vision_io) | Emotion and lip-activity detection nodes |
 | [`robots/nao/`](robots/nao) | NAO-specific layer: URDF, gestures, eye LEDs, pose tooling |
+| [`dialostack_bt_client/`](dialostack_bt_client) | BehaviorTree.CPP leaf node to run a dialogue from a behavior tree |
 | [`evaluation/`](evaluation) | ROS-free benchmark suite with annotated datasets |
 | [`docs/`](docs) | Architecture and configuration documentation |
 
@@ -92,7 +93,7 @@ See **[docs/architecture.md](docs/architecture.md)** for the full design: node g
 
 - Ubuntu 24.04 with [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html)
 - Python ≥ 3.10
-- An LLM provider: a [Gemini API key](https://aistudio.google.com/apikey) (free tier works) **or** a local [Ollama](https://ollama.com) install
+- An LLM provider: a [Gemini API key](https://aistudio.google.com/apikey) (the free tier works) **or** a local [Ollama](https://ollama.com) install
 - A microphone and speakers (any ALSA device)
 
 ### Install & build
@@ -105,14 +106,23 @@ cd ..
 # Python dependencies (faster-whisper, piper-tts, sounddevice, providers...)
 pip install -r src/DialoStack/speech_io/requirements.txt
 pip install -r src/DialoStack/ros2_llm_manager/config/requirements.txt
+pip install -r src/DialoStack/vision_io/requirements.txt   # optional: vision nodes
 
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-### Download a TTS voice
+> **Using a venv?** Sourcing the overlay reorders `PYTHONPATH` and hides the pip packages from the nodes. `activate.sh` fixes this. Open `src/DialoStack/activate.sh`, set the two variables at the top (your ROS distro and the venv path), then `source src/DialoStack/activate.sh` instead of `install/setup.bash` in every new terminal. It also exports `DIALOSTACK_MODELS_DIR`.
 
-`text_to_speech_node` uses [Piper](https://github.com/rhasspy/piper) voices. Download one and point `model_path` at it (default config expects `models/es_ES-sharvard-medium.onnx` relative to the working directory — see [Piper voices](https://huggingface.co/rhasspy/piper-voices)).
+### Download the TTS voices
+
+`text_to_speech_node` uses [Piper](https://github.com/rhasspy/piper) voices. One script fetches the default Spanish and English voices:
+
+```bash
+./src/DialoStack/scripts/download_models.sh
+```
+
+It downloads into `~/.local/share/dialostack/models` (override with `DIALOSTACK_MODELS_DIR`), where the nodes look by default. The shipped config references voices **by filename**, so you never edit a path. STT (faster-whisper) and the vision models download themselves on first run.
 
 ### Run the stack
 
@@ -125,9 +135,9 @@ This brings up the four core nodes: STT, TTS, LLM manager and dialogue manager. 
 
 ## Your first dialogue
 
-Everything goes through one action: **`/dialog/execute_task`**. Describe the task in natural language and the engine does the rest — it can even design the slot schema itself.
+Everything goes through one action: **`/dialog/execute_task`**. Describe the task in natural language and the engine does the rest. It can even design the slot schema itself.
 
-**Slot filling** — collect structured data:
+**Slot filling** collects structured data:
 
 ```bash
 ros2 action send_goal --feedback /dialog/execute_task \
@@ -139,7 +149,7 @@ ros2 action send_goal --feedback /dialog/execute_task \
 
 The robot greets the user, asks for each missing slot, handles corrections ("actually, make it a large"), confirms the result, and returns the completed frame as JSON in `result.final_frame_json`. You can also supply your own schema (`frame_schema_json`) and pre-filled values (`initial_frame_json`) to resume an interrupted dialogue.
 
-**Explanation** — explain something and verify it was understood:
+**Explanation** explains something and checks it was understood:
 
 ```bash
 ros2 action send_goal /dialog/execute_task \
@@ -152,7 +162,7 @@ ros2 action send_goal /dialog/execute_task \
 
 The engine explains, asks a comprehension question, answers follow-up questions, and rephrases (a bounded number of times) if the user did not understand.
 
-**Quiz** — interactive Q&A with scoring:
+**Quiz** runs interactive Q&A with scoring:
 
 ```bash
 ros2 action send_goal /dialog/execute_task \
@@ -162,20 +172,20 @@ ros2 action send_goal /dialog/execute_task \
     resources_json: '[{\"name\": \"questions\", \"description\": \"quiz bank\", \"content\": \"[{\\\"question\\\": \\\"Capital of France?\\\", \\\"answer\\\": \\\"Paris\\\"}]\"}]'}"
 ```
 
-Per-turn **feedback** (current phase, frame state, last utterance) streams while the dialogue runs, and the final **result** reports success, the collected data and the turn count. Users can cancel naturally at any point ("forget it, stop") — the engine detects the intent, asks for confirmation and aborts cleanly.
+Per-turn **feedback** (current phase, frame state, last utterance) streams while the dialogue runs, and the final **result** reports success, the collected data and the turn count. Users can cancel naturally at any point ("forget it, stop"). The engine detects the intent, asks for confirmation and aborts cleanly.
 
 ## Configuration
 
-All runtime behavior is driven by two YAML files loaded by `main.launch.py`:
+All runtime behavior comes from two YAML files loaded by `main.launch.py`:
 
-- [`ros2_dialog_manager/config/app_params.yaml`](ros2_dialog_manager/config/app_params.yaml) — topics, language, timeouts, turn limits, LLM provider/model, logging.
-- [`ros2_dialog_manager/config/prompts.yaml`](ros2_dialog_manager/config/prompts.yaml) — every prompt template the engine uses, editable without touching code.
+- [`ros2_dialog_manager/config/app_params.yaml`](ros2_dialog_manager/config/app_params.yaml): topics, language, timeouts, turn limits, LLM provider and model, logging.
+- [`ros2_dialog_manager/config/prompts.yaml`](ros2_dialog_manager/config/prompts.yaml): every prompt template the engine uses, editable without touching code.
 
-The dialogue language is a single parameter (`language: "Spanish"`) — prompts instruct the LLM accordingly and fallback phrases follow. The full parameter reference lives in **[docs/configuration.md](docs/configuration.md)**.
+The dialogue language is a single parameter (`language: "Spanish"`). The prompts instruct the LLM accordingly and the fallback phrases follow. The full parameter reference lives in **[docs/configuration.md](docs/configuration.md)**.
 
 ## Evaluation
 
-The [`evaluation/`](evaluation) suite measures the LLM-dependent pieces in isolation — slot extraction (P/R/F1), intent classification (confusion matrix), mode detection, quiz grading and full simulated dialogues (task completion rate) — against hand-annotated datasets, with any configured provider. It runs without ROS:
+The [`evaluation/`](evaluation) suite measures the LLM-dependent pieces in isolation: slot extraction (P/R/F1), intent classification (confusion matrix), mode detection, quiz grading and full simulated dialogues (task completion rate). It runs against hand-annotated datasets with any configured provider, and needs no ROS:
 
 ```bash
 cd evaluation
@@ -188,16 +198,16 @@ See [`evaluation/README.md`](evaluation/README.md) for datasets, metrics and how
 
 The [`robots/nao/`](robots/nao) layer embodies the dialogue on a SoftBank NAO:
 
-- **`gesture_manager`** (simulation) / **`arm_gesture_manager`** (real robot) — natural talking gestures while `/is_speaking` is high, idle poses otherwise, plus on-demand poses via `/target_pose`.
-- **`eye_led_feedback`** — eye color reflects conversation state: blue (idle), green (hearing the user), pulsing warm white (speaking).
-- **Pose tooling** — capture, name and replay full-body poses against the URDF in RViz.
+- **`gesture_manager`** (simulation) and **`arm_gesture_manager`** (real robot): natural talking gestures while `/is_speaking` is high, idle poses otherwise, plus on-demand poses via `/target_pose`.
+- **`eye_led_feedback`**: eye color reflects conversation state. Blue is idle, green is hearing the user, pulsing warm white is speaking.
+- **Pose tooling**: capture, name and replay full-body poses against the URDF in RViz.
 
 ```bash
 ros2 launch nao_pose_manager nao_sim.launch.py               # RViz simulation
 ros2 launch nao_pose_manager arm_gesture_manager.launch.py   # real robot (nao_lola)
 ```
 
-Nothing in the dialogue core depends on the NAO — supporting another robot means mapping `/is_speaking`, `/user_vad` and `/target_pose` to your platform's effectors.
+Nothing in the dialogue core depends on the NAO. Supporting another robot means mapping `/is_speaking`, `/user_vad` and `/target_pose` to your platform's effectors.
 
 ## Testing
 
@@ -223,4 +233,6 @@ If you use DialoStack in academic work, please cite it:
 
 ## License
 
-[MIT](LICENSE) — use it, fork it, put it on your robot.
+Licensed under the [MIT License](LICENSE).
+
+The one exception is the vendored `robots/nao/nao_description/`. Its NAO URDF and meshes are third-party, distributed under Apache-2.0 and BSD with their own `LICENSE` and `NOTICE`, and they keep those terms.

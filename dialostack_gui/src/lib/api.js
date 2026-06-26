@@ -56,8 +56,31 @@ export const api = {
   /** Generates the exportable prompts.yaml (defaults+overrides or overrides only). */
   promptsYaml: (overrides, mode = 'full') => postJson('/api/prompts/yaml', { overrides, mode }),
 
+  /** Parses an imported prompts file (YAML or JSON) into a {key: template} map. */
+  promptsParse: (text) => postJson('/api/prompts/parse', { text }),
+
+  /** Engine default canned phrases for a language ({key: str | 'ack': list}). */
+  phrases: (language) => request(`/api/phrases?language=${encodeURIComponent(language)}`),
+
+  /** Generates the exportable phrases.yaml for a language (full or overrides). */
+  phrasesYaml: (overrides, language, mode = 'full') =>
+    postJson('/api/phrases/yaml', { overrides, language, mode }),
+
+  /** Parses an imported phrases file into a {key: str | 'ack': list} map. */
+  phrasesParse: (text) => postJson('/api/phrases/parse', { text }),
+
+  /** Parses a pasted task (goal JSON, YAML, or a `ros2 action send_goal` command) into a goal object. */
+  taskParse: (text) => postJson('/api/task/parse', { text }),
+
   /** System microphone status (hardware mute via PipeWire). */
   micStatus: () => request('/api/mic/status'),
 
   micMute: (muted) => postJson('/api/mic/mute', { muted }),
+
+  /**
+   * Panic button: kills every DialoStack node/launch across terminals (engine,
+   * LLM, speech, vision, NAO). rosbridge and the GUI server are left alive.
+   * Longer timeout: the server does SIGTERM, waits, then SIGKILL survivors.
+   */
+  killAll: () => request('/api/system/kill-all', { method: 'POST', timeout: 15000 }),
 }

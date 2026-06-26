@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Braces, Check, Copy, Terminal } from 'lucide-react'
 import { usePopover } from '../../../hooks/usePopover'
+import { PopoverPanel } from '../../../components/ui'
 import { ros2Command } from './goal'
 
 /**
@@ -36,8 +37,7 @@ export function CopyTaskMenu({ goal, disabled }) {
       </button>
 
       {open && (
-        <div className="absolute bottom-full right-0 mb-2 w-60 z-50 p-1.5 rounded-xl
-          bg-app-800 border border-app-border shadow-xl shadow-black/50 animate-fade-in">
+        <PopoverPanel placement="top" width="w-60">
           <p className="px-2.5 pt-1.5 pb-1 text-[11px] text-slate-600 uppercase tracking-wide">
             Copy task
           </p>
@@ -55,7 +55,7 @@ export function CopyTaskMenu({ goal, disabled }) {
               <span className="block text-[10px] text-slate-600">hardcode in an app</span>
             </span>
           </button>
-        </div>
+        </PopoverPanel>
       )}
     </div>
   )

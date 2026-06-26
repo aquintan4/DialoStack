@@ -25,9 +25,9 @@ export const DEFAULT_CONFIG = {
     max_timeouts: 2,
     max_unclear: 3,
     max_attempts: 3,
-    timeout_prompt: '¿Sigues ahí?',
+    timeout_prompt: '',
     history_max_turns: 200,
-    ack_phrases: ['Anotado.', 'Hecho.', 'Perfecto.', 'Entendido.', 'De acuerdo.'],
+    ack_phrases: [],
     silent_mode: false,
     conversation_log_path: '/tmp/dialog_conversations.log',
     conversation_log_max_mb: 10.0,
@@ -50,9 +50,22 @@ export const DEFAULT_CONFIG = {
     sample_rate: 22050,
     audio_device: 'default',
   },
+  // Audio routing ("flavour"): where speech is captured and played.
+  //   local -> this machine's mic/speaker (sounddevice)
+  //   topic -> AudioChunk over ROS (a robot, the audio_bridge_node, or any
+  //            producer/consumer of the contract) via in_topic / out_topic.
+  audio: {
+    mode: 'local',
+    in_topic: '/audio_in',
+    out_topic: '/audio_out',
+    topic_latency_pad: 0.3,
+  },
   // Prompt overrides: { <key>: template }. Only contains the prompts the user
   // has modified; the rest always come from prompts.yaml (the defaults).
   prompts: {},
+  // Per-language canned-phrase overrides: { <language>: { <key>: str | ack: [] } }.
+  // Edited in the Strategies page; only modified phrases are stored.
+  phrases: {},
 }
 
 const LS_KEY = STORAGE.config

@@ -1,6 +1,6 @@
 /** Left navigation rail: page links plus engine and connection status. */
 import { NavLink } from 'react-router-dom'
-import { Activity, Layers, Loader2, MessageSquareText, Play, SlidersHorizontal, Square } from 'lucide-react'
+import { Activity, Layers, Loader2, MessageSquareText, Play, SlidersHorizontal, Square, Workflow } from 'lucide-react'
 import { ConnectionBadge } from './ConnectionBadge'
 import { useConfig } from '../contexts/ConfigContext'
 import { useEngine } from '../contexts/EngineContext'
@@ -12,6 +12,7 @@ const PAGES = [
   { path: '/monitor', label: 'Monitor',       icon: Activity          },
   { path: '/builder', label: 'Frame Builder', icon: Layers            },
   { path: '/prompts', label: 'Prompts',       icon: MessageSquareText },
+  { path: '/strategies', label: 'Strategies', icon: Workflow          },
   { path: '/config',  label: 'Configuration', icon: SlidersHorizontal },
 ]
 

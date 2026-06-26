@@ -1,16 +1,31 @@
 /** Chat bubbles and timeline separators for the Dialogue Monitor (user, robot, task start/end, session). */
 import { memo } from 'react'
-import { User, Zap } from 'lucide-react'
+import { Trash2, User, VolumeX, Zap } from 'lucide-react'
+import { formatMs, formatTime } from '../../lib/formatters'
 
-function formatTime(timestamp) {
-  return new Date(timestamp).toLocaleTimeString('es-ES', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  })
-}
-
-function formatMs(ms) {
-  if (ms == null) return null
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
+/** Hover-revealed per-bubble controls: toggle "noise" and delete. */
+function BubbleActions({ event, onDelete, onToggleNoise }) {
+  if (!onDelete && !onToggleNoise) return null
+  return (
+    <div className="self-center flex items-center gap-0.5 opacity-0 group-hover:opacity-100
+      focus-within:opacity-100 transition-opacity flex-shrink-0">
+      {onToggleNoise && (
+        <button onClick={() => onToggleNoise(event.id)}
+          title={event.noise ? 'Unmark as noise' : 'Mark as noise'}
+          className={`p-1 rounded hover:bg-app-700 transition-colors ${
+            event.noise ? 'text-amber-400' : 'text-slate-600 hover:text-amber-400'}`}>
+          <VolumeX size={13} />
+        </button>
+      )}
+      {onDelete && (
+        <button onClick={() => onDelete(event.id)}
+          title="Delete bubble"
+          className="p-1 rounded text-slate-600 hover:text-red-400 hover:bg-app-700 transition-colors">
+          <Trash2 size={13} />
+        </button>
+      )}
+    </div>
+  )
 }
 
 /** Animated equalizer bars - used in the bubble that is currently speaking. */
@@ -49,26 +64,36 @@ export function UserAvatar() {
   )
 }
 
-export const UserBubble = memo(function UserBubble({ event, tags }) {
+export const UserBubble = memo(function UserBubble({ event, tags, onDelete, onToggleNoise }) {
   const show = (k) => tags?.[k] !== false   // no config: everything visible
-  const showBarge = show('interruptions') && event.bargeIn
-  const showTime = show('time')
-  const transcriptionLabel = show('transcription') ? formatMs(event.transcriptionMs) : null
+  const noise = event.noise
+  const showBarge = !noise && show('interruptions') && event.bargeIn
+  const showTime = !noise && show('time')
+  const transcriptionLabel = !noise && show('transcription') ? formatMs(event.transcriptionMs) : null
+
+  const bubbleCls = noise
+    ? 'bg-app-800/40 border border-app-border/60'
+    : event.bargeIn
+      ? 'bg-red-900/40 border border-red-500/50'
+      : 'bg-gradient-to-br from-brand-600 to-brand-700 border border-brand-500/40'
 
   return (
-    <div className="flex justify-end gap-2 animate-slide-up">
+    <div className={`group flex justify-end gap-2 animate-slide-up ${
+      noise ? 'opacity-40 hover:opacity-80 transition-opacity' : ''}`}>
+      <BubbleActions event={event} onDelete={onDelete} onToggleNoise={onToggleNoise} />
       <div className="max-w-[70%] space-y-1">
-        <div className={`relative px-4 py-3 rounded-2xl rounded-tr-sm
-          ${event.bargeIn
-            ? 'bg-red-900/40 border border-red-500/50'
-            : 'bg-gradient-to-br from-brand-600 to-brand-700 border border-brand-500/40'}`}>
+        <div className={`relative px-4 py-3 rounded-2xl rounded-tr-sm ${bubbleCls}`}>
           {showBarge && (
             <div className="flex items-center gap-1 mb-1.5">
               <Zap size={11} className="text-red-400" />
               <span className="text-xs text-red-400 font-medium">Barge-in</span>
             </div>
           )}
-          <p className="text-sm text-slate-50 leading-relaxed break-words whitespace-pre-wrap">{event.text}</p>
+          <p className={`leading-relaxed break-words whitespace-pre-wrap ${
+            noise ? 'flex items-center gap-1.5 text-xs text-slate-400' : 'text-sm text-slate-50'}`}>
+            {noise && <VolumeX size={11} className="text-slate-500 flex-shrink-0" />}
+            {event.text}
+          </p>
         </div>
         {(showTime || transcriptionLabel) && (
           <div className="flex items-center justify-end gap-2 pr-1">
@@ -88,25 +113,29 @@ export const UserBubble = memo(function UserBubble({ event, tags }) {
   )
 })
 
-export const RobotBubble = memo(function RobotBubble({ event, speaking = false, tags }) {
+export const RobotBubble = memo(function RobotBubble({ event, speaking = false, tags, onDelete, onToggleNoise }) {
   const show = (k) => tags?.[k] !== false   // no config: everything visible
-  const processingLabel = show('inference') ? formatMs(event.processingMs) : null
-  const speakLabel = show('speech') ? formatMs(event.speakDurationMs) : null
+  const noise = event.noise
+  const processingLabel = !noise && show('inference') ? formatMs(event.processingMs) : null
+  const speakLabel = !noise && show('speech') ? formatMs(event.speakDurationMs) : null
   const interruptedAtLabel = formatMs(event.interruptedAtMs)
-  const showInterrupted = show('interruptions') && event.interrupted
-  const showCutOff = show('speech') && event.interrupted && interruptedAtLabel
-  const showTime = show('time')
+  const showInterrupted = !noise && show('interruptions') && event.interrupted
+  const showCutOff = !noise && show('speech') && event.interrupted && interruptedAtLabel
+  const showTime = !noise && show('time')
   const showMetaRow =
     showTime || processingLabel || (speakLabel && !speaking) || showCutOff || speaking
 
-  const bubbleCls = event.interrupted
-    ? 'bg-red-900/20 border-red-700/40'
-    : speaking
-      ? 'bg-app-800 border-brand-500/50 shadow-[0_0_16px_rgba(15,165,202,0.18)]'
-      : 'bg-app-800 border-app-border'
+  const bubbleCls = noise
+    ? 'bg-app-800/40 border-app-border/60'
+    : event.interrupted
+      ? 'bg-red-900/20 border-red-700/40'
+      : speaking
+        ? 'bg-app-800 border-brand-500/50 shadow-[0_0_16px_rgba(15,165,202,0.18)]'
+        : 'bg-app-800 border-app-border'
 
   return (
-    <div className="flex justify-start gap-2 animate-slide-up">
+    <div className={`group flex justify-start gap-2 animate-slide-up ${
+      noise ? 'opacity-40 hover:opacity-80 transition-opacity' : ''}`}>
       <RobotAvatar />
       <div className="max-w-[70%] space-y-1">
         <div className={`px-4 py-3 rounded-2xl rounded-tl-sm border transition-all duration-300 ${bubbleCls}`}>
@@ -118,7 +147,10 @@ export const RobotBubble = memo(function RobotBubble({ event, speaking = false, 
               </span>
             </div>
           )}
-          <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${event.interrupted ? 'text-slate-300' : 'text-slate-200'}`}>
+          <p className={`leading-relaxed break-words whitespace-pre-wrap ${
+            noise ? 'flex items-center gap-1.5 text-xs text-slate-400'
+                  : `text-sm ${event.interrupted ? 'text-slate-300' : 'text-slate-200'}`}`}>
+            {noise && <VolumeX size={11} className="text-slate-500 flex-shrink-0" />}
             {event.text}
           </p>
         </div>
@@ -153,6 +185,7 @@ export const RobotBubble = memo(function RobotBubble({ event, speaking = false, 
           </div>
         )}
       </div>
+      <BubbleActions event={event} onDelete={onDelete} onToggleNoise={onToggleNoise} />
     </div>
   )
 })

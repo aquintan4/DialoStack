@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useConfig } from '../../contexts/ConfigContext'
 import { usePersistentState } from '../../hooks/usePersistentState'
+import { useFlash } from '../../hooks/useFlash'
 import { validateOverride, placeholders, groupPrompts } from '../../lib/prompts'
 import { downloadFile, fileStamp } from '../../lib/download'
 import { STORAGE } from '../../lib/storageKeys'
@@ -29,7 +30,7 @@ export function PromptsEditor() {
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('')
   const [profiles, setProfiles] = usePersistentState(STORAGE.promptProfiles, [])
-  const [toast, setToast] = useState(null)
+  const { message: toast, flash } = useFlash()
 
   const isOverridden = (key) => typeof overrides[key] === 'string'
   const overrideCount = Object.values(overrides).filter((v) => typeof v === 'string').length
@@ -43,7 +44,6 @@ export function PromptsEditor() {
     return out
   }, [overrides, defaults])
 
-  const flash = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500) }
   // Refreshes the editor with a prompt's effective value (override or default).
   const loadDraft = (key, map = overrides) =>
     setDraft(typeof map[key] === 'string' ? map[key] : (defaults[key] ?? ''))
@@ -84,20 +84,38 @@ export function PromptsEditor() {
     }
   }
 
+  // Imports a prompts file (YAML or JSON). The server parses it (PyYAML) and
+  // returns the {key: template} mapping; here we keep ONLY the keys that match a
+  // known prompt, differ from its default and validate, then MERGE them in - the
+  // overrides already set for other prompts are left untouched. Importing a full
+  // file therefore brings in just the prompts that were actually changed.
   async function importFile(file) {
-    let data
-    try { data = JSON.parse(await file.text()) } catch { flash('Invalid JSON'); return }
-    if (!data || typeof data !== 'object' || Array.isArray(data)) { flash('Unexpected format'); return }
-    const merge = {}
-    let ok = 0, skip = 0
-    for (const [k, v] of Object.entries(data)) {
-      if (typeof v === 'string' && defaults[k] != null && validateOverride(v, defaults[k]) === null) {
-        merge[k] = v; ok += 1
-      } else { skip += 1 }
+    let mapping
+    try {
+      mapping = (await api.promptsParse(await file.text()))?.prompts
+    } catch { flash('Could not read the file'); return }
+    if (!mapping || typeof mapping !== 'object' || !Object.keys(mapping).length) {
+      flash('No prompts found in the file'); return
     }
+
+    const merge = {}
+    let ok = 0, unknown = 0, invalid = 0, same = 0
+    for (const [k, v] of Object.entries(mapping)) {
+      if (typeof v !== 'string') continue
+      if (defaults[k] == null) { unknown += 1; continue }       // not a known prompt
+      if (v === defaults[k]) { same += 1; continue }            // identical to default
+      if (validateOverride(v, defaults[k]) !== null) { invalid += 1; continue }
+      merge[k] = v; ok += 1
+    }
+
+    const skipped = [
+      unknown && `${unknown} unknown`, invalid && `${invalid} invalid`, same && `${same} unchanged`,
+    ].filter(Boolean).join(', ')
+
+    if (ok === 0) { flash(`Nothing imported${skipped ? ` (${skipped})` : ''}`); return }
     updateSection('prompts', merge)
     if (selected && typeof merge[selected] === 'string') setDraft(merge[selected])
-    flash(`Imported ${ok}${skip ? `, ${skip} discarded` : ''}`)
+    flash(`Imported ${ok}${skipped ? `; skipped ${skipped}` : ''}`)
   }
 
   // Load the engine default templates once.

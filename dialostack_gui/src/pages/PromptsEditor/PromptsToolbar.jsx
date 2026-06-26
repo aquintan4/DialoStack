@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import {
   Bookmark, BookmarkPlus, Braces, Download, FileCode, FileText,
   FolderOpen, Trash2, Upload,
 } from 'lucide-react'
 import { usePopover } from '../../hooks/usePopover'
+import { FileImportButton } from '../../components/FileImportButton'
+import { PopoverPanel } from '../../components/ui'
 
 const iconBtn = (active) =>
   `flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
@@ -30,8 +32,7 @@ function ProfilesMenu({ profiles, count, onSave, onLoad, onDelete }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 z-50 p-1.5 rounded-xl
-          bg-app-800 border border-app-border shadow-xl shadow-black/50 animate-fade-in">
+        <PopoverPanel width="w-64">
           <div className="flex gap-2 p-1.5">
             <input
               value={name}
@@ -78,7 +79,7 @@ function ProfilesMenu({ profiles, count, onSave, onLoad, onDelete }) {
               Save the set of modified prompts under a name to reuse it.
             </p>
           )}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   )
@@ -97,8 +98,7 @@ function ExportMenu({ count, onExportJson, onExportYaml }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 z-50 p-1.5 rounded-xl
-          bg-app-800 border border-app-border shadow-xl shadow-black/50 animate-fade-in">
+        <PopoverPanel width="w-64">
           <p className="px-2.5 pt-1.5 pb-1 text-[11px] text-slate-600 uppercase tracking-wide">Export</p>
           <button onClick={() => { onExportYaml('full'); setOpen(false) }} className={`${row} text-slate-200 hover:bg-app-700`}>
             <FileCode size={14} className="text-slate-500 flex-shrink-0" />
@@ -121,33 +121,9 @@ function ExportMenu({ count, onExportJson, onExportYaml }) {
               <span className="block text-[10px] text-slate-600">backup / share / import</span>
             </span>
           </button>
-        </div>
+        </PopoverPanel>
       )}
     </div>
-  )
-}
-
-/** Standalone import button: opens the file picker directly. */
-function ImportButton({ onImportFile }) {
-  const fileRef = useRef(null)
-  return (
-    <>
-      <button onClick={() => fileRef.current?.click()} className={iconBtn(false)} title="Import overrides from a JSON">
-        <Upload size={13} />
-        Import
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onImportFile(f)
-          e.target.value = ''
-        }}
-      />
-    </>
   )
 }
 
@@ -170,7 +146,11 @@ export function PromptsToolbar(props) {
         onExportJson={props.onExportJson}
         onExportYaml={props.onExportYaml}
       />
-      <ImportButton onImportFile={props.onImportFile} />
+      <FileImportButton onFile={props.onImportFile} className={iconBtn(false)}
+        title="Import prompts from a YAML or JSON file. Only the prompts present in the file that match a known one (and differ from the default) are merged in.">
+        <Upload size={13} />
+        Import
+      </FileImportButton>
     </div>
   )
 }

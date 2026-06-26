@@ -1,7 +1,7 @@
 import { DIALOG_ACTION, DIALOG_ACTION_TYPE } from '../../../lib/ros'
 
 /** Initial draft of the launch form. */
-export const LAUNCH_DEFAULT = { task_description: '', dialog_mode: '', domain: '', max_turns: 10 }
+export const LAUNCH_DEFAULT = { task_description: '', dialog_mode: '', domain: '', max_turns: 10, skip_intro: false }
 
 export const MODES = [
   { value: '',             label: 'Auto-detect' },
@@ -31,6 +31,35 @@ export function jsonFieldError(text, expected) {
     return 'Must be a JSON array'
   }
   return null
+}
+
+/**
+ * Resources payload for a goal. Quiz mode packs the question bank into a single
+ * "questions" resource; the other modes pass the raw resources JSON. Pure, so it
+ * is shared by the launch (send) and the copy (ros2 command / JSON) paths.
+ */
+export function buildResourcesJson({ form, resources, quizQuestions }) {
+  if (form.dialog_mode === 'quiz') {
+    const items = (quizQuestions || []).filter((q) => q.question.trim() && q.answer.trim())
+    return items.length
+      ? JSON.stringify([{ name: 'questions', description: 'Quiz question bank', content: JSON.stringify(items) }])
+      : ''
+  }
+  return (resources || '').trim()
+}
+
+/** The DialogTask goal built from the launch-form draft (single source). */
+export function buildGoal({ form, frameSchema, resources, quizQuestions }) {
+  return {
+    task_description: form.task_description.trim(),
+    frame_schema_json: (frameSchema || '').trim(),
+    initial_frame_json: '',
+    max_turns: Number(form.max_turns) || 10,
+    dialog_mode: form.dialog_mode,
+    resources_json: buildResourcesJson({ form, resources, quizQuestions }),
+    domain: form.domain.trim(),
+    skip_intro: Boolean(form.skip_intro),
+  }
 }
 
 /**

@@ -22,9 +22,13 @@ class ExplanationStrategy(BaseDialogStrategy):
         self._completed = False
         self._history: list[dict] = []
         self._log = logging.getLogger("ExplanationStrategy")
+        self._skip_intro: bool = bool(getattr(request, "skip_intro", False)) if request else False
 
     def on_init(self, task: str) -> str:
-        explanation = self._llm.generate_explanation(task, self._ctx)
+        if self._skip_intro:
+            explanation = self._llm.generate_explanation_direct(task, self._ctx)
+        else:
+            explanation = self._llm.generate_explanation(task, self._ctx)
         check = self._llm.ask_understanding_check(task, self._ctx)
         opening = f"{explanation} {check}"
         self._history.append({"role": "assistant", "content": opening})

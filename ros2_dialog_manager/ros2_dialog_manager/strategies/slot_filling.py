@@ -25,6 +25,7 @@ class SlotFillingStrategy(BaseDialogStrategy):
         self._initial_json = (
             (getattr(request, "initial_frame_json", "") or "").strip() if request else ""
         )
+        self._skip_intro: bool = bool(getattr(request, "skip_intro", False)) if request else False
         self._frame: DialogFrame | None = None
         self._phase = "gathering"
         self._confirmed = False
@@ -79,6 +80,8 @@ class SlotFillingStrategy(BaseDialogStrategy):
             return self._llm.get_resume_opening(
                 task, self._frame, self._frame.next_slot(), self._ctx
             )
+        if self._skip_intro:
+            return self._llm.get_opening_direct(task, self._frame, self._ctx)
         return self._llm.get_opening(task, self._frame, self._ctx)
 
     def _seed_from_initial_json(self) -> int:

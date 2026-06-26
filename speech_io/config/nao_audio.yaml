@@ -1,0 +1,36 @@
+# nao_audio.yaml
+#
+# Enruta la voz por el MICRÓFONO y ALTAVOZ del robot (NAO u otro) en vez de por
+# el portátil, usando el CONTRATO de DialoStack (mensaje AudioChunk). El STT
+# (Whisper) y el TTS (Piper) siguen corriendo en el PORTÁTIL; el robot solo
+# ejecuta el audio_bridge_node ligero de este mismo paquete.
+#
+# Ya NO se depende de audio_common ni del overlay ws_rodrigo: el audio viaja en
+# ros2_dialog_interfaces/AudioChunk por /audio_in (micro -> STT) y /audio_out
+# (TTS -> altavoz).
+#
+# Uso: pásalo DESPUÉS de params.yaml a los nodos de voz, para que estos valores
+# tengan precedencia. Ejemplo en un launch:
+#     parameters=[params, nao_audio]
+#
+# En el robot, arranca el bridge (con su audio_bridge.yaml, ajustando los
+# devices ALSA y el MISMO capture_sample_rate=16000):
+#     ros2 launch speech_io audio_bridge.launch.py
+#
+# Sabores alternativos:
+#   - Todo local: no uses este fichero (audio_source=microphone, audio_sink=speaker).
+#   - Driver propio del robot: que publique/consuma AudioChunk en /audio_in y
+#     /audio_out directamente; en ese caso el bridge no hace falta.
+
+speech_to_text_node:
+  ros__parameters:
+    audio_source: topic
+    audio_topic: /audio_in
+    sample_rate: 16000          # DEBE coincidir con capture_sample_rate del bridge
+
+text_to_speech_node:
+  ros__parameters:
+    audio_sink: topic
+    audio_topic: /audio_out
+    # sample_rate sigue siendo 22050 (lo que produce Piper); el bridge abre su
+    # salida a esa frecuencia automáticamente (la lee del propio AudioChunk).

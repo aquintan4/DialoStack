@@ -12,6 +12,13 @@ Topics consumed:
 Action server:
   /dialog/execute_task (ros2_dialog_interfaces/action/DialogTask)
 
+Topics published:
+  /robot_utterance (String) — each robot line, as it is sent to TTS.
+  /barge_in        (BargeIn) — authoritative notice that the user cut an
+                              ongoing utterance short (true barge-in). The
+                              Monitor GUI consumes this instead of inferring
+                              barge-in from the timing of unrelated topics.
+
 Downstream clients:
   /llm/inference         (LlmInference)
   /llm/session/create    (CreateSession service)
@@ -36,12 +43,13 @@ from std_msgs.msg import Bool, String
 from ros2_llm_interfaces.action import LlmInference
 from ros2_llm_interfaces.srv import CreateSession, DeleteSession
 from ros2_dialog_interfaces.action import DialogTask, SpeakText
+from ros2_dialog_interfaces.msg import BargeIn
 
 from .audio_io import RosAudioIO
 from .dialog_context import DialogContext, Resource, UserState
 from .dialog_fsm import DialogFSM
 from .strategies import BaseDialogStrategy, FSMConfig, available_modes, build_strategy
-from .llm_client import LLMDialogClient
+from .llm_client import LLMDialogClient, default_ack_phrases, default_timeout_prompt
 from .prompt_builder import PromptBuilder
 from .utils import clean_user_input
 
@@ -105,6 +113,10 @@ class DialogManagerNode(Node):
         self._robot_utterance_pub = self.create_publisher(
             String, "/robot_utterance", 10
         )
+        # Reliable QoS (default depth 10): the barge-in notice is the GUI's only
+        # source of truth, so it must not be dropped the way a best-effort signal
+        # could be.
+        self._barge_in_pub = self.create_publisher(BargeIn, "/barge_in", 10)
 
         self._log("Dialog Manager ready (single-dialog mode).")
 
@@ -149,13 +161,43 @@ class DialogManagerNode(Node):
         self._llm_provider = p("llm_provider").value
         self._llm_model = p("llm_model").value
         self._silent = p("silent_mode").value
-        self._timeout_prompt = p("timeout_prompt").value
         self._conversation_log_path = p("conversation_log_path").value
         self._conversation_log_max_mb = p("conversation_log_max_mb").value
         self._language = p("language").value
         self._history_max_turns = p("history_max_turns").value
-        raw_ack = p("ack_phrases").value or []
-        self._ack_phrases = tuple(s for s in raw_ack if s.strip())
+
+        # Canned-phrase overrides from the Strategies editor (params under
+        # "phrases.*"). 'ack' (list) and 'timeout' (str) feed the FSM; the rest
+        # are NLG fallbacks layered over the language defaults in LLMDialogClient.
+        phrases = self._load_phrase_overrides()
+        ack_ovr = phrases.pop("ack", None)
+        timeout_ovr = phrases.pop("timeout", None)
+        self._phrase_overrides = phrases
+
+        # Precedence for ack / timeout: phrases.* override > legacy dedicated
+        # param > language-aware default. Empty everywhere => follows `language`.
+        legacy_ack = tuple(s for s in (p("ack_phrases").value or []) if s.strip())
+        ack_ovr = tuple(s for s in (ack_ovr or []) if s and s.strip())
+        self._ack_phrases = ack_ovr or legacy_ack or default_ack_phrases(self._language)
+
+        legacy_timeout = (p("timeout_prompt").value or "").strip()
+        self._timeout_prompt = (
+            (timeout_ovr or "").strip() or legacy_timeout or default_timeout_prompt(self._language)
+        )
+
+    def _load_phrase_overrides(self) -> dict:
+        """Read non-empty 'phrases.*' params (auto-declared from the params file)."""
+        out: dict = {}
+        for name, param in self.get_parameters_by_prefix("phrases").items():
+            val = param.value
+            if val is None:
+                continue
+            if isinstance(val, str):
+                if val.strip():
+                    out[name] = val
+            else:  # 'ack' arrives as a string list
+                out[name] = val
+        return out
 
     def _configure_logging(self) -> None:
         level = logging.WARNING if self._silent else logging.INFO
@@ -304,6 +346,7 @@ class DialogManagerNode(Node):
             pb,
             language=self._language,
             history_max_turns=self._history_max_turns,
+            phrase_overrides=self._phrase_overrides,
         )
         config = FSMConfig(
             max_turns=req.max_turns,
@@ -525,15 +568,31 @@ class DialogManagerNode(Node):
         _ts = time.monotonic()
         self.get_logger().info(f"[TRACE] tts_start chars={len(text)} | t={_ts:.4f}")
         # /TRACE
+        # Record whether the playback ended because the user barged in (the
+        # interrupt event fired) rather than finishing or timing out. This is the
+        # authoritative barge-in detection: only here does the robot know for
+        # certain that the user cut it off mid-utterance.
+        barged_in = False
+
+        def cancel_if_interrupted() -> bool:
+            nonlocal barged_in
+            if interrupt_event.is_set():
+                barged_in = True
+                return True
+            return False
+
         self._action_call_sync(
             client=self._tts_client,
             goal=SpeakText.Goal(text=text, speed=1.0),
             timeout_secs=self._tts_timeout,
-            external_cancel=interrupt_event.is_set,
+            external_cancel=cancel_if_interrupted,
         )
+        if barged_in:
+            spoken_ms = int((time.monotonic() - _ts) * 1000)
+            self._barge_in_pub.publish(BargeIn(utterance=text, spoken_ms=spoken_ms))
         # TRACE
         self.get_logger().info(
-            f"[TRACE] tts_end elapsed={time.monotonic()-_ts:.3f}s | t={time.monotonic():.4f}"
+            f"[TRACE] tts_end barged_in={barged_in} elapsed={time.monotonic()-_ts:.3f}s | t={time.monotonic():.4f}"
         )
         # /TRACE
 

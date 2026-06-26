@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ros2Command, jsonFieldError } from './goal'
+import { ros2Command, jsonFieldError, buildGoal, buildResourcesJson } from './goal'
 
 describe('ros2Command', () => {
   const goal = { task_description: 'order coffee', dialog_mode: 'slot_filling', max_turns: 10 }
@@ -34,5 +34,46 @@ describe('jsonFieldError', () => {
     expect(jsonFieldError('{}', 'array')).toMatch(/array/i)
     expect(jsonFieldError('{"slots":[]}', 'object')).toBeNull()
     expect(jsonFieldError('[{"name":"x"}]', 'array')).toBeNull()
+  })
+})
+
+describe('buildResourcesJson', () => {
+  const form = (mode) => ({ dialog_mode: mode })
+
+  it('packs the quiz question bank into a single "questions" resource', () => {
+    const out = buildResourcesJson({
+      form: form('quiz'),
+      quizQuestions: [{ question: 'Q1', answer: 'A1' }, { question: ' ', answer: '' }],
+    })
+    const parsed = JSON.parse(out)
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0].name).toBe('questions')
+    expect(JSON.parse(parsed[0].content)).toEqual([{ question: 'Q1', answer: 'A1' }]) // blanks dropped
+  })
+
+  it('returns "" for quiz with no complete questions, and the raw resources otherwise', () => {
+    expect(buildResourcesJson({ form: form('quiz'), quizQuestions: [] })).toBe('')
+    expect(buildResourcesJson({ form: form('slot_filling'), resources: '  [{"name":"x"}] ' }))
+      .toBe('[{"name":"x"}]')
+  })
+})
+
+describe('buildGoal', () => {
+  it('trims and normalises the draft into a DialogTask goal', () => {
+    const goal = buildGoal({
+      form: { task_description: '  order coffee ', dialog_mode: 'slot_filling', domain: ' cafe ', max_turns: 0, skip_intro: true },
+      frameSchema: ' {"slots":[]} ',
+      resources: '',
+      quizQuestions: [],
+    })
+    expect(goal).toMatchObject({
+      task_description: 'order coffee',
+      dialog_mode: 'slot_filling',
+      domain: 'cafe',
+      frame_schema_json: '{"slots":[]}',
+      max_turns: 10,            // 0 -> default 10
+      skip_intro: true,
+      initial_frame_json: '',
+    })
   })
 })

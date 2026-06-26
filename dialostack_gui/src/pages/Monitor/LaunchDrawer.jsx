@@ -10,10 +10,27 @@ import {
   readHandoff, writeHandoff, clearHandoff,
 } from '../../lib/frames'
 import { STORAGE } from '../../lib/storageKeys'
-import { LAUNCH_DEFAULT, MODES, jsonFieldError } from './launch/goal'
+import { api } from '../../lib/api'
+import { LAUNCH_DEFAULT, MODES, jsonFieldError, buildGoal } from './launch/goal'
 import { PresetsSection } from './launch/PresetsSection'
 import { CopyTaskMenu } from './launch/CopyTaskMenu'
+import { ImportTaskMenu } from './launch/ImportTaskMenu'
 import { JsonDisclosure, EditInBuilderLink } from './launch/JsonDisclosure'
+
+/** Pull quiz questions out of a resources_json string (inverse of the quiz packing). */
+function parseQuizFromResources(resJson) {
+  try {
+    const arr = JSON.parse(resJson)
+    const bank = Array.isArray(arr) ? arr.find((r) => r?.name === 'questions') : null
+    const items = bank ? JSON.parse(bank.content) : []
+    return Array.isArray(items)
+      ? items.filter((x) => x && (x.question || x.answer))
+          .map((x) => ({ ...emptyQuestion(), question: x.question || '', answer: x.answer || '' }))
+      : []
+  } catch {
+    return []
+  }
+}
 
 /**
  * Side panel to configure and launch a dialogue task.
@@ -60,35 +77,12 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
 
   if (!open) return null
 
-  function buildResourcesJson() {
-    if (isQuiz) {
-      const items = quizQuestions.filter((q) => q.question.trim() && q.answer.trim())
-      if (items.length === 0) return ''
-      return JSON.stringify([{
-        name: 'questions',
-        description: 'Quiz question bank',
-        content: JSON.stringify(items),
-      }])
-    }
-    return resources.trim()
-  }
-
-  // Action goal from the current draft. Shared by the send and the copy
-  // (ros2 command / JSON), so they do not diverge.
-  function buildGoal() {
-    return {
-      task_description: form.task_description.trim(),
-      frame_schema_json: frameSchema.trim(),
-      initial_frame_json: '',
-      max_turns: Number(form.max_turns) || 10,
-      dialog_mode: form.dialog_mode,
-      resources_json: buildResourcesJson(),
-      domain: form.domain.trim(),
-    }
-  }
+  // Action goal from the current draft (built by the pure helper in ./launch/goal).
+  // Shared by the send and the copy (ros2 command / JSON) so they cannot diverge.
+  const goal = buildGoal({ form, frameSchema, resources, quizQuestions })
 
   function handleSend() {
-    onSend(buildGoal())
+    onSend(goal)
     onClose()
   }
 
@@ -136,6 +130,42 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
         setResourcesOpen(true)
       }
     }
+  }
+
+  // Fills the form from an imported goal (the inverse of buildGoal), so a task
+  // copied or exported elsewhere round-trips back into the drawer.
+  function applyGoal(goal) {
+    setForm((f) => ({
+      ...f,
+      task_description: typeof goal.task_description === 'string' ? goal.task_description : f.task_description,
+      dialog_mode: typeof goal.dialog_mode === 'string' ? goal.dialog_mode : f.dialog_mode,
+      domain: typeof goal.domain === 'string' ? goal.domain : f.domain,
+      max_turns: Number(goal.max_turns) > 0 ? Number(goal.max_turns) : f.max_turns,
+      skip_intro: typeof goal.skip_intro === 'boolean' ? goal.skip_intro : f.skip_intro,
+    }))
+    const schema = typeof goal.frame_schema_json === 'string' ? goal.frame_schema_json.trim() : ''
+    if (schema) { setFrameSchema(schema); setSchemaOpen(true) }
+    const res = typeof goal.resources_json === 'string' ? goal.resources_json.trim() : ''
+    if (goal.dialog_mode === 'quiz') {
+      const qs = parseQuizFromResources(res)
+      if (qs.length) setQuizQuestions(qs)
+    } else if (res && res !== '[]') {
+      setResources(res)
+      setResourcesOpen(true)
+    }
+  }
+
+  // Parses pasted/loaded text (the server handles JSON, YAML and ros2 commands)
+  // and applies it. Returns true on success so the menu can close.
+  async function handleImport(text) {
+    try {
+      const { goal } = await api.taskParse(text)
+      if (goal && (goal.task_description || goal.dialog_mode || goal.frame_schema_json || goal.resources_json)) {
+        applyGoal(goal)
+        return true
+      }
+    } catch { /* parse or network failure: the menu shows an error */ }
+    return false
   }
 
   // Handoff to the Builder: rebuilds the frame state from the launcher fields
@@ -250,6 +280,23 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
             />
           </div>
 
+          <label className="flex items-start gap-2.5 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={Boolean(form.skip_intro)}
+              onChange={(e) => setForm((f) => ({ ...f, skip_intro: e.target.checked }))}
+              className="mt-0.5 accent-brand-500 w-3.5 h-3.5 flex-shrink-0"
+            />
+            <span className="text-xs leading-snug">
+              <span className="text-slate-300 font-medium group-hover:text-slate-100 transition-colors">
+                Skip intro
+              </span>
+              <span className="text-slate-600 ml-1">
+                — don't greet or present the task; go straight to the first question. Useful when chaining behaviours.
+              </span>
+            </span>
+          </label>
+
           {library.length > 0 && (
             <Field label="Use saved frame" hint="Fills the mode and payload from the Frame Builder library">
               <Select
@@ -321,7 +368,8 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
             <Send size={14} />
             Launch task
           </button>
-          <CopyTaskMenu goal={buildGoal()} disabled={form.task_description.trim().length === 0} />
+          <CopyTaskMenu goal={goal} disabled={form.task_description.trim().length === 0} />
+          <ImportTaskMenu onImport={handleImport} />
           <button
             onClick={clearDraft}
             title="Clear draft"

@@ -1,6 +1,6 @@
 /** ROS 2 stack start/stop control with an integrated log viewer. */
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, Loader2, Play, RefreshCw, Square } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2, Play, RefreshCw, Skull, Square } from 'lucide-react'
 import { useConfig } from '../../contexts/ConfigContext'
 import { useEngine } from '../../contexts/EngineContext'
 import { ENGINE_STATUS } from '../../lib/status'
@@ -8,13 +8,35 @@ import { api } from '../../lib/api'
 
 const LOG_POLL_MS = 3000
 
+const KILL_CONFIRM =
+  'This kills ALL DialoStack processes (engine, LLM, audio, vision, NAO) ' +
+  'across every terminal, not just the GUI-launched engine.\n\n' +
+  'rosbridge and the GUI itself keep running. Continue?'
+
 export function EnginePanel() {
   const { config } = useConfig()
-  const { engineState, lastError, startEngine, stopEngine } = useEngine()
+  const { engineState, lastError, startEngine, stopEngine, killAll } = useEngine()
   const { state, pid } = engineState
   const s = ENGINE_STATUS[state] ?? ENGINE_STATUS.stopped
   const [logOpen, setLogOpen] = useState(false)
   const [logText, setLogText] = useState('')
+  const [killing, setKilling] = useState(false)
+  const [killMsg, setKillMsg] = useState(null)
+
+  async function handleKillAll() {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(KILL_CONFIRM)) return
+    setKilling(true)
+    setKillMsg(null)
+    try {
+      const r = await killAll()
+      setKillMsg(r?.ok === false
+        ? (r.error || 'Could not kill the processes')
+        : `${r?.count ?? 0} DialoStack process(es) terminated`)
+    } finally {
+      setKilling(false)
+    }
+  }
 
   useEffect(() => {
     if (!logOpen) return
@@ -65,6 +87,14 @@ export function EnginePanel() {
                 : <><Play size={13} /> Start engine</>}
             </button>
           )}
+          <button onClick={handleKillAll} disabled={killing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm
+              bg-red-950/40 border border-red-800/50 text-red-400/90 hover:bg-red-900/50
+              hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Kill every DialoStack process across all terminals (engine, LLM, audio, vision, NAO). Leaves rosbridge and the GUI alive.">
+            {killing ? <Loader2 size={13} className="animate-spin" /> : <Skull size={13} />}
+            Kill all
+          </button>
           <button onClick={() => setLogOpen(o => !o)}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-400 hover:bg-app-700 transition-colors"
             title="View log">
@@ -72,6 +102,12 @@ export function EnginePanel() {
           </button>
         </div>
       </div>
+
+      {killMsg && (
+        <p className="px-5 pb-3 text-xs text-slate-500 border-t border-app-border/60 pt-2.5">
+          {killMsg}
+        </p>
+      )}
 
       {state === 'running' && !logOpen && (
         <p className="px-5 pb-3 text-xs text-slate-600 border-t border-green-700/20 pt-2.5">

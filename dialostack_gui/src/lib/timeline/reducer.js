@@ -27,7 +27,13 @@ export const initialTimelineState = {
   currentFrame: null,
   taskTurns: 0,
   taskRunning: false,
+  // Goal ownership (decoupled from the volatile action-client state so it
+  // survives tab switches): activeGoalId is the running goal's ROS UUID
+  // (stringified), ownGoalId is the one this GUI launched. They match => "own".
+  activeGoalId: null,
+  ownGoalId: null,
   // internal
+  _pendingOwn: false,      // a GUI launch is awaiting its first feedback/status
   _nextId: 0,
   _wasTalking: false,
   _wasVad: false,
@@ -69,27 +75,20 @@ function talkingPatch(s) {
   return { userTalking: talking, _wasTalking: talking, _wasVad: s._vadActive, transcribing }
 }
 
-/**
- * If the user speaks while the robot is talking, marks its last bubble as
- * interrupted (with the cut-off time). Returns a patch or null.
- */
-function bargeInPatch(s, now) {
-  const robotId = s._lastRobotId
-  if (!robotId || !s.isSpeaking || s._interruptedMarked === robotId) return null
-  const at = s._speakStartAt != null ? now - s._speakStartAt : null
-  return {
-    _interruptedMarked: robotId,
-    _bargeInPending: true,
-    events: s.events.map((e) => (e.id === robotId ? { ...e, interrupted: true, interruptedAtMs: at } : e)),
-  }
-}
-
-const withBargeIn = (s, now) => {
-  const patch = bargeInPatch(s, now)
-  return patch ? { ...s, ...patch } : s
-}
-
 const taskRunning = (seen, ended) => seen.some((g) => !ended.includes(g))
+
+// The currently-running goal (last seen one not yet ended), or null. The engine
+// is single-dialog, so there is at most one at a time.
+const activeGoalOf = (seen, ended) => {
+  for (let i = seen.length - 1; i >= 0; i--) if (!ended.includes(seen[i])) return seen[i]
+  return null
+}
+
+// First feedback/status of a goal: if a GUI launch is pending, claim it as ours.
+const claimOwn = (s, goalId, isNew) =>
+  isNew && s._pendingOwn
+    ? { ownGoalId: goalId, _pendingOwn: false }
+    : { ownGoalId: s.ownGoalId, _pendingOwn: s._pendingOwn }
 
 // ==== TRANSITIONS ====
 
@@ -98,14 +97,17 @@ function reduceTranscription(s, { text, now }) {
   if (s._localEcho && s._localEcho.text === text && now < s._localEcho.until) {
     return { ...s, _localEcho: null }
   }
-  const bargeIn = s._bargeInPending || s.isSpeaking
-  let st = withBargeIn({ ...s, _bargeInPending: false }, now)
-  const id = `e${st._nextId + 1}`
-  const transcriptionMs = st._lastVoiceAt != null ? now - st._lastVoiceAt : null
-  st = {
-    ...st,
-    _nextId: st._nextId + 1,
-    events: [...st.events, { id, kind: 'user', text, timestamp: now, bargeIn, transcriptionMs }],
+  // Barge-in is decided by the backend (the /barge_in event sets _bargeInPending
+  // on the robot turn it cut). A transcription is a barge-in iff it consumes that
+  // pending flag - never inferred from isSpeaking, which raced with topic order.
+  const bargeIn = s._bargeInPending
+  const id = `e${s._nextId + 1}`
+  const transcriptionMs = s._lastVoiceAt != null ? now - s._lastVoiceAt : null
+  const st = {
+    ...s,
+    _bargeInPending: false,
+    _nextId: s._nextId + 1,
+    events: [...s.events, { id, kind: 'user', text, timestamp: now, bargeIn, transcriptionMs }],
     _lastUserAt: now,
     _lastVoiceAt: null,
     _vadActive: false,
@@ -119,7 +121,7 @@ function reduceTranscription(s, { text, now }) {
 function reduceVad(s, { value, now }) {
   if (value < 0.5) return s
   const base = { ...s, _vadActive: true, _lastVoiceAt: now }
-  return withBargeIn({ ...base, ...talkingPatch(base) }, now)
+  return { ...base, ...talkingPatch(base) }
 }
 
 function reduceVadDecay(s) {
@@ -129,8 +131,29 @@ function reduceVadDecay(s) {
 
 function reduceUserSpeaking(s, { value, now }) {
   const base = { ...s, _boolActive: value, _lastVoiceAt: value ? now : s._lastVoiceAt }
-  const st = { ...base, ...talkingPatch(base) }
-  return value ? withBargeIn(st, now) : st
+  return { ...base, ...talkingPatch(base) }
+}
+
+/**
+ * Authoritative barge-in from the backend: the robot reports it was cut off
+ * mid-utterance and how long (spokenMs) it had spoken. Marks its last bubble as
+ * interrupted and arms _bargeInPending so the user turn that follows is tagged.
+ * Robust to topic ordering: it does not depend on isSpeaking still being true.
+ */
+function reduceBargeIn(s, { spokenMs }) {
+  const robotId = s._lastRobotId
+  if (!robotId || s._interruptedMarked === robotId) {
+    // No robot to mark (or already marked for this utterance): still arm the
+    // flag so the upcoming user transcription is tagged as the barge-in.
+    return { ...s, _bargeInPending: true }
+  }
+  const at = spokenMs != null ? spokenMs : null
+  return {
+    ...s,
+    _interruptedMarked: robotId,
+    _bargeInPending: true,
+    events: s.events.map((e) => (e.id === robotId ? { ...e, interrupted: true, interruptedAtMs: at } : e)),
+  }
 }
 
 function reduceEmotion(s, { data }) {
@@ -150,6 +173,9 @@ function reduceRobotUtterance(s, { text, now }) {
     ...s,
     _nextId: s._nextId + 1,
     _lastRobotId: id,
+    // A fresh robot turn invalidates any barge-in that was never consumed by a
+    // user transcription, so it cannot leak onto a later, unrelated turn.
+    _bargeInPending: false,
     events: [...s.events, { id, kind: 'robot', text, timestamp: now, processingMs, speakDurationMs: null, interrupted: false }],
   }
 }
@@ -177,7 +203,8 @@ function reduceFeedback(s, { goalId, fbState, turns, frameJson, now }) {
     nextId += 1
     events = [...events, { id: `e${nextId}`, kind: 'task_start', timestamp: now }]
   }
-  const seen = s._seenGoals.includes(goalId) ? s._seenGoals : [...s._seenGoals, goalId]
+  const isNew = !s._seenGoals.includes(goalId)
+  const seen = isNew ? [...s._seenGoals, goalId] : s._seenGoals
   let currentFrame = s.currentFrame
   try {
     const parsed = JSON.parse(frameJson)
@@ -185,6 +212,7 @@ function reduceFeedback(s, { goalId, fbState, turns, frameJson, now }) {
   } catch { /* frame incomplete mid-turn */ }
   return {
     ...s,
+    ...claimOwn(s, goalId, isNew),
     events,
     _nextId: nextId,
     _lastGoalId: goalId,
@@ -194,6 +222,7 @@ function reduceFeedback(s, { goalId, fbState, turns, frameJson, now }) {
     _turns: turns,
     currentFrame,
     taskRunning: taskRunning(seen, s._endedGoals),
+    activeGoalId: activeGoalOf(seen, s._endedGoals),
   }
 }
 
@@ -201,6 +230,7 @@ function reduceStatus(s, { items, now }) {
   let events = s.events
   let nextId = s._nextId
   let fsmState = s.fsmState
+  let own = { ownGoalId: s.ownGoalId, _pendingOwn: s._pendingOwn }
   const seen = s._seenGoals.slice()
   const ended = s._endedGoals.slice()
 
@@ -208,7 +238,10 @@ function reduceStatus(s, { items, now }) {
     const { goalId, status } = it
     if (status < 4) {
       // Live goal (1/2/3): "in progress" even if feedback has not arrived yet.
-      if (!ended.includes(goalId) && !seen.includes(goalId)) seen.push(goalId)
+      if (!ended.includes(goalId) && !seen.includes(goalId)) {
+        own = claimOwn({ ...s, ...own }, goalId, true)
+        seen.push(goalId)
+      }
       continue
     }
     // Terminal (4/5/6): end bar only for goals we are tracking.
@@ -225,21 +258,25 @@ function reduceStatus(s, { items, now }) {
     }]
     if (goalId === s._lastGoalId) fsmState = null
   }
-  return { ...s, events, _nextId: nextId, _seenGoals: seen, _endedGoals: ended, fsmState, taskRunning: taskRunning(seen, ended) }
+  return {
+    ...s, ...own, events, _nextId: nextId, _seenGoals: seen, _endedGoals: ended, fsmState,
+    taskRunning: taskRunning(seen, ended),
+    activeGoalId: activeGoalOf(seen, ended),
+  }
 }
 
 function reduceLocalUserMessage(s, { text, now }) {
-  const bargeIn = s._bargeInPending || s.isSpeaking
-  const st = withBargeIn({ ...s, _bargeInPending: false }, now)
-  const id = `e${st._nextId + 1}`
+  const bargeIn = s._bargeInPending
+  const id = `e${s._nextId + 1}`
   return {
-    ...st,
-    _nextId: st._nextId + 1,
+    ...s,
+    _bargeInPending: false,
+    _nextId: s._nextId + 1,
     transcribing: false,
     _lastVoiceAt: null,
     _lastUserAt: now,
     _localEcho: { text, until: now + 3000 },
-    events: [...st.events, { id, kind: 'user', text, timestamp: now, bargeIn }],
+    events: [...s.events, { id, kind: 'user', text, timestamp: now, bargeIn }],
   }
 }
 
@@ -258,14 +295,34 @@ function reduceClear(s) {
     _lastUserAt: null,
     _lastRobotId: null,
     _lastGoalId: null,
+    _bargeInPending: false,
+    _interruptedMarked: null,
+    // activeGoalId / ownGoalId / _seenGoals are intentionally kept: clearing the
+    // chat must not make a still-running (own) task look external.
   }
 }
+
+// A GUI launch is about to be sent: claim the next new goal as our own.
+const reduceOwnLaunch = (s) => ({ ...s, _pendingOwn: true })
+
+// Manual chat curation: drop a bubble entirely, or flag it as noise (a bad
+// transcription, echo, cough...) so it renders subtly and is excluded from the
+// export and the metrics. Noise is reversible.
+const reduceDeleteEvent = (s, { id }) => ({ ...s, events: s.events.filter((e) => e.id !== id) })
+const reduceToggleNoise = (s, { id }) => ({
+  ...s,
+  events: s.events.map((e) => (e.id === id ? { ...e, noise: !e.noise } : e)),
+})
 
 const HANDLERS = {
   transcription: reduceTranscription,
   vad: reduceVad,
   vadDecay: reduceVadDecay,
   userSpeaking: reduceUserSpeaking,
+  bargeIn: reduceBargeIn,
+  ownLaunch: reduceOwnLaunch,
+  deleteEvent: reduceDeleteEvent,
+  toggleNoise: reduceToggleNoise,
   transcribeTimeout: (s) => ({ ...s, transcribing: false, _lastVoiceAt: null }),
   emotion: reduceEmotion,
   robotUtterance: reduceRobotUtterance,

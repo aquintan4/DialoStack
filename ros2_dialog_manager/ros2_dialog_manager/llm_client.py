@@ -43,6 +43,7 @@ _LANG_FALLBACKS: dict[str, dict[str, str]] = {
         "cancel_no": "Perfecto, continuamos.",
         "quiz_correct": "¡Correcto!",
         "quiz_wrong": "No, la respuesta era {expected}.",
+        "timeout": "¿Sigues ahí?",
     },
     "English": {
         "opening": "Hello, how can I help you?",
@@ -62,8 +63,37 @@ _LANG_FALLBACKS: dict[str, dict[str, str]] = {
         "cancel_no": "OK, let's continue.",
         "quiz_correct": "Correct!",
         "quiz_wrong": "No, the answer was {expected}.",
+        "timeout": "Are you still there?",
     },
 }
+
+# Acknowledgment phrases injected by slot-filling after extracting a slot. Kept
+# apart from _LANG_FALLBACKS because it is a LIST per language (the rest are
+# single strings). Same language keys, so both switch with the `language` param.
+_LANG_ACK_PHRASES: dict[str, tuple[str, ...]] = {
+    "Spanish": ("Anotado.", "Hecho.", "Perfecto.", "Entendido.", "De acuerdo."),
+    "English": ("Noted.", "Done.", "Got it.", "Understood.", "Alright."),
+}
+
+
+def default_ack_phrases(language: str) -> tuple[str, ...]:
+    """Language-aware acknowledgment phrases, used when no explicit override."""
+    return _LANG_ACK_PHRASES.get(language, _LANG_ACK_PHRASES["English"])
+
+
+def default_timeout_prompt(language: str) -> str:
+    """Language-aware "are you still there?" line, used when no explicit override."""
+    return _LANG_FALLBACKS.get(language, _LANG_FALLBACKS["English"])["timeout"]
+
+
+def default_phrases(language: str) -> dict[str, str]:
+    """The full canned-phrase set for a language (the Strategies editor's defaults)."""
+    return dict(_LANG_FALLBACKS.get(language, _LANG_FALLBACKS["English"]))
+
+
+def phrase_languages() -> list[str]:
+    """Languages that ship with a built-in phrase set."""
+    return list(_LANG_FALLBACKS.keys())
 
 
 class _ListOp:
@@ -90,13 +120,17 @@ class LLMDialogClient:
         prompt_builder: PromptBuilder,
         language: str = "Spanish",
         history_max_turns: int = 200,
+        phrase_overrides: dict[str, str] | None = None,
     ):
         self._nlu_sid = nlu_session_id
         self._nlg_sid = nlg_session_id
         self._infer = infer_fn
         self._pb = prompt_builder
         self._log = logging.getLogger("LLMDialogClient")
-        self._fb = _LANG_FALLBACKS.get(language, _LANG_FALLBACKS["English"])
+        # Language defaults, with operator overrides (from the Strategies editor)
+        # layered on top so only the edited phrases change.
+        base = _LANG_FALLBACKS.get(language, _LANG_FALLBACKS["English"])
+        self._fb = {**base, **(phrase_overrides or {})}
         self._history_max_turns = history_max_turns
 
     @property
@@ -225,6 +259,11 @@ class LLMDialogClient:
         res = self._call_nlg(prompt, max_tokens=100)
         return self._clean(res) or self._fb["opening"]
 
+    def get_opening_direct(self, task: str, frame: DialogFrame, ctx: DialogContext | None = None) -> str:
+        prompt = self._pb.opening_direct(task, frame, ctx)
+        res = self._call_nlg(prompt, max_tokens=100)
+        return self._clean(res) or self._fb["opening"]
+
     def get_resume_opening(
         self, task: str, frame: DialogFrame, next_slot: str | None, ctx: DialogContext | None = None
     ) -> str:
@@ -335,6 +374,11 @@ class LLMDialogClient:
 
     def generate_explanation(self, task: str, ctx: DialogContext | None = None) -> str:
         prompt = self._pb.explanation_opening(task, ctx)
+        res = self._call_nlg(prompt, max_tokens=300)
+        return self._clean(res) or self._fb["explain_open"]
+
+    def generate_explanation_direct(self, task: str, ctx: DialogContext | None = None) -> str:
+        prompt = self._pb.explanation_opening_direct(task, ctx)
         res = self._call_nlg(prompt, max_tokens=300)
         return self._clean(res) or self._fb["explain_open"]
 

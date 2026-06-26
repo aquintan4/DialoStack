@@ -9,6 +9,7 @@ import { EngineNotices } from './components/EngineNotices'
 import { Monitor } from './pages/Monitor'
 import { FrameBuilder } from './pages/FrameBuilder'
 import { PromptsEditor } from './pages/PromptsEditor'
+import { StrategiesEditor } from './pages/StrategiesEditor'
 import { ConfigEditor } from './pages/ConfigEditor'
 import { useDialogTimeline } from './hooks/useDialogTimeline'
 
@@ -54,6 +55,7 @@ export default function App() {
             />
             <Route path="/builder" element={<FrameBuilder />} />
             <Route path="/prompts" element={<PromptsEditor />} />
+            <Route path="/strategies" element={<StrategiesEditor />} />
             <Route path="/config" element={<ConfigEditor />} />
           </Routes>
         </div>

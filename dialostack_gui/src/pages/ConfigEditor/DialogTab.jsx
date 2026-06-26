@@ -5,43 +5,23 @@ import { Field, NumberField, SectionCard, Select, SliderField, ToggleField, inpu
 const LANGUAGES = ['Spanish', 'English', 'French', 'German', 'Portuguese', 'Catalan', 'Italian']
 
 export function DialogTab({ dialog, update }) {
-  const acksText = Array.isArray(dialog.ack_phrases) ? dialog.ack_phrases.join('\n') : ''
-
-  function handleAcks(text) {
-    const phrases = text.split('\n').filter(s => s.trim())
-    update({ ack_phrases: phrases.length > 0 ? phrases : [''] })
-  }
-
   return (
     <div className="space-y-4">
       <SectionCard
         icon={Languages}
-        title="Language and phrases"
-        description="How the robot speaks during the conversation"
+        title="Language"
+        description="The language the robot speaks and reasons in"
       >
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Dialogue language">
-            <Select value={dialog.language} onChange={e => update({ language: e.target.value })}>
-              {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-            </Select>
-          </Field>
-          <Field label="Timeout prompt"
-            hint="What the robot says when the user has gone a while without responding">
-            <input type="text" value={dialog.timeout_prompt}
-              onChange={e => update({ timeout_prompt: e.target.value })}
-              placeholder="Are you still there?" className={inputCls} />
-          </Field>
-        </div>
-        <Field label="Acknowledgment phrases"
-          hint="One per line. The robot says a random one after successfully extracting a slot">
-          <textarea
-            value={acksText}
-            onChange={e => handleAcks(e.target.value)}
-            rows={5}
-            spellCheck={false}
-            className={`${inputCls} resize-none font-mono text-xs leading-relaxed`}
-          />
+        <Field label="Dialogue language">
+          <Select value={dialog.language} onChange={e => update({ language: e.target.value })}>
+            {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+          </Select>
         </Field>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          The canned phrases each strategy falls back to (greetings, acknowledgments,
+          timeout, quiz feedback…) are edited in the <span className="text-slate-300">Strategies</span> page,
+          per language.
+        </p>
       </SectionCard>
 
       <SectionCard

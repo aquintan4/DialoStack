@@ -93,12 +93,34 @@ export function EngineProvider({ children }) {
     }
   }, [])
 
+  // Panic button: kill every DialoStack process (engine, LLM, speech, vision,
+  // NAO) across terminals, not just the GUI-launched engine. Returns the server
+  // report ({ ok, count, ... }) so the caller can surface how many were killed.
+  const killAll = useCallback(async () => {
+    busyRef.current = true
+    setAutoStopped(false)
+    try {
+      const data = await api.killAll()
+      setEngineState((prev) => ({ ...prev, state: 'stopped', pid: null }))
+      prevStateRef.current = 'stopped'
+      if (data && data.ok === false) setLastError(data.error || 'Could not kill the processes')
+      return data
+    } catch (err) {
+      setLastError(err?.kind === 'timeout'
+        ? 'The GUI server is not responding (timeout)'
+        : 'No connection to the GUI server')
+      return { ok: false }
+    } finally {
+      busyRef.current = false
+    }
+  }, [])
+
   const dismissAutoStop = useCallback(() => setAutoStopped(false), [])
   const clearError = useCallback(() => setLastError(null), [])
 
   return (
     <EngineContext.Provider
-      value={{ engineState, lastError, clearError, autoStopped, dismissAutoStop, startEngine, stopEngine }}
+      value={{ engineState, lastError, clearError, autoStopped, dismissAutoStop, startEngine, stopEngine, killAll }}
     >
       {children}
     </EngineContext.Provider>

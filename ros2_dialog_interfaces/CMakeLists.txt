@@ -10,6 +10,8 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(action_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/AudioChunk.msg"
+  "msg/BargeIn.msg"
   "action/DialogTask.action"
   "action/SpeakText.action"
   DEPENDENCIES action_msgs
