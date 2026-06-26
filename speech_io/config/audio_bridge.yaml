@@ -1,0 +1,29 @@
+# audio_bridge.yaml
+#
+# Parameters for the audio_bridge_node — DialoStack's own audio I/O bridge.
+# Run this node ON THE ROBOT (or any device with an ALSA-accessible mic/speaker)
+# to capture/play sound over the AudioChunk contract, while the heavy speech
+# nodes (Whisper STT, Piper TTS) run elsewhere in "topic" mode (see nao_audio.yaml).
+#
+# It replaces audio_common's audio_capture/audio_play — no third-party audio
+# stack and no ws_rodrigo overlay needed.
+
+audio_bridge_node:
+  ros__parameters:
+    # capture | play | both
+    mode: both
+
+    # Contract topics (must match the speech nodes' audio_topic settings).
+    capture_topic: /audio_in     # mic  -> STT
+    play_topic: /audio_out       # TTS  -> speaker
+
+    # MUST match the STT node's sample_rate (Silero VAD expects 16000).
+    capture_sample_rate: 16000
+
+    # ALSA device names/indices. Empty string = system default. On the robot,
+    # set these to the head's capture/playback devices (see `arecord -l`).
+    input_device: ''
+    output_device: ''
+
+    # Mic chunk size in samples (512 mirrors the STT VAD frame).
+    blocksize: 512

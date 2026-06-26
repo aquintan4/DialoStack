@@ -18,6 +18,10 @@ _speeds:
   gentle_negation: 0.03
   hand_to_chest: 0.03
   thoughtful_captured: 0.03
+  rehab_flexion_90:    0.02
+  rehab_abduccion_90:  0.02
+  rehab_elevacion_v:   0.02
+  rehab_codos_doblados: 0.02
 
 # ---------------------------------------------------------------------------
 # Idle / listening poses
@@ -210,6 +214,83 @@ point_forward:
   RHand: 0.5
   RShoulderPitch: 0.1
   RShoulderRoll: -0.1
+  RWristYaw: 0.0
+
+# ---------------------------------------------------------------------------
+# Rehabilitation exercise poses — upper body physiotherapy series
+#
+# Joint convention reminder:
+#   LShoulderPitch:  0 = arm horizontal forward,  +π/2 = arm down,  -π/2 = arm up
+#   LShoulderRoll:   0 = sagittal plane,  positive = left arm abducts to the LEFT
+#   LElbowRoll:      -0.03 = straight,  -1.54 = fully bent (left arm, always negative)
+# ---------------------------------------------------------------------------
+
+# Exercise 1 — Shoulder anterior flexion 90°
+# Both arms pointing straight forward at shoulder height, elbows extended.
+# Works: anterior deltoid, clavicular pectoralis.
+rehab_flexion_90:
+  LElbowRoll: -0.1
+  LElbowYaw: -1.2
+  LHand: 0.5
+  LShoulderPitch: 0.0
+  LShoulderRoll: 0.0
+  LWristYaw: 0.0
+  RElbowRoll: 0.1
+  RElbowYaw: 1.2
+  RHand: 0.5
+  RShoulderPitch: 0.0
+  RShoulderRoll: 0.0
+  RWristYaw: 0.0
+
+# Exercise 2 — Shoulder bilateral abduction 90° (T-shape)
+# Both arms extended laterally at shoulder height.
+# Works: lateral deltoid, supraspinatus.
+rehab_abduccion_90:
+  LElbowRoll: -0.1
+  LElbowYaw: -0.5
+  LHand: 0.5
+  LShoulderPitch: 0.2
+  LShoulderRoll: 1.2
+  LWristYaw: 0.0
+  RElbowRoll: 0.1
+  RElbowYaw: 0.5
+  RHand: 0.5
+  RShoulderPitch: 0.2
+  RShoulderRoll: -1.2
+  RWristYaw: 0.0
+
+# Exercise 3 — Shoulder elevation in V (combined flexion + abduction above horizontal)
+# Arms raised ~30° above horizontal, spread ~30° to each side — V shape.
+# Works: anterior + lateral deltoid, upper trapezius, supraspinatus.
+rehab_elevacion_v:
+  LElbowRoll: -0.2
+  LElbowYaw: -0.9
+  LHand: 0.5
+  LShoulderPitch: -0.5
+  LShoulderRoll: 0.5
+  LWristYaw: 0.0
+  RElbowRoll: 0.2
+  RElbowYaw: 0.9
+  RHand: 0.5
+  RShoulderPitch: -0.5
+  RShoulderRoll: -0.5
+  RWristYaw: 0.0
+
+# Exercise 4 — Bilateral elbow flexion at 90° (arms slightly forward and spread)
+# Upper arms at ~15° below horizontal, elbows bent ~85°, forearms angled upward.
+# Works: biceps brachii, brachialis, brachioradialis.
+rehab_codos_doblados:
+  LElbowRoll: -1.4
+  LElbowYaw: -0.4
+  LHand: 0.6
+  LShoulderPitch: 0.3
+  LShoulderRoll: 0.4
+  LWristYaw: 0.0
+  RElbowRoll: 1.4
+  RElbowYaw: 0.4
+  RHand: 0.6
+  RShoulderPitch: 0.3
+  RShoulderRoll: -0.4
   RWristYaw: 0.0
 
 shoulder_shrug:

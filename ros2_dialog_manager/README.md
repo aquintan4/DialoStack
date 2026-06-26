@@ -1,4 +1,4 @@
-# ros2_dialog_manager — task-driven spoken dialog orchestrator
+# ros2_dialog_manager: task-driven spoken dialog orchestrator
 
 The central node of the stack. It receives a high-level task, drives a turn-by-turn
 spoken conversation through a finite-state machine (FSM) plus pluggable dialog
@@ -33,10 +33,10 @@ See [../docs/architecture.md](../docs/architecture.md) for the full design.
 | --- | --- | --- |
 | `slot_filling` | Collects structured slot values into a `DialogFrame`, then confirms. | Yes (default fallback) |
 | `explanation` | Explains a topic and verifies the user understood it, re-phrasing if not. | Yes |
-| `quiz` | Asks scored questions from `resources_json` and reports results. | No — must be set explicitly in the goal (needs a question bank) |
+| `quiz` | Asks scored questions from `resources_json` and reports results. | No. Must be set explicitly in the goal (needs a question bank) |
 
-The mode comes from the goal's `dialog_mode` field; when empty, the node asks the LLM
-to classify between `slot_filling` and `explanation`.
+The mode comes from the goal's `dialog_mode` field. When it is empty, the node asks the
+LLM to classify between `slot_filling` and `explanation`.
 
 ## Usage
 

@@ -17,6 +17,12 @@ def generate_launch_description():
         if not os.path.isfile(f):
             raise FileNotFoundError(f"Config not found: {f}")
 
+    # When launched from the GUI, DIALOSTACK_GUI_PARAMS points to a temporary
+    # YAML file generated from the Config Editor. It is applied after app_params
+    # so its values take precedence (ROS 2 applies params files in order).
+    gui_override = os.environ.get("DIALOSTACK_GUI_PARAMS", "")
+    extra = [gui_override] if gui_override and os.path.isfile(gui_override) else []
+
     return LaunchDescription(
         [
             Node(
@@ -24,28 +30,28 @@ def generate_launch_description():
                 executable="speech_to_text_node",
                 name="speech_to_text_node",
                 output="screen",
-                parameters=[app_params],
+                parameters=[app_params] + extra,
             ),
             Node(
                 package="speech_io",
                 executable="text_to_speech_node",
                 name="text_to_speech_node",
                 output="screen",
-                parameters=[app_params],
+                parameters=[app_params] + extra,
             ),
             Node(
                 package="ros2_llm_manager",
                 executable="llm_manager_node",
                 name="llm_manager_node",
                 output="screen",
-                parameters=[app_params],
+                parameters=[app_params] + extra,
             ),
             Node(
                 package="ros2_dialog_manager",
                 executable="dialog_manager_node",
                 name="dialog_manager_node",
                 output="screen",
-                parameters=[app_params, prompts],
+                parameters=[app_params, prompts] + extra,
             ),
         ]
     )

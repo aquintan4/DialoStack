@@ -22,6 +22,7 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 
 from ros2_llm_interfaces.action import LlmInference
+from ros2_llm_interfaces.msg import LlmError
 from ros2_llm_interfaces.srv import CreateSession, DeleteSession, ListSessions
 
 from .session_manager import SessionManager
@@ -73,6 +74,11 @@ class LLMManagerNode(Node):
         self.create_service(
             ListSessions, "/llm/session/list", self._on_list_sessions, callback_group=cb
         )
+
+        # Surfaces inference failures (provider/model/code/message) so a GUI can
+        # show why the dialog dropped to its deterministic fallback. Reliable QoS
+        # (default depth 10): an error must not be silently dropped.
+        self._error_pub = self.create_publisher(LlmError, "/llm/error", 10)
 
         self._log(f"LLM Manager ready. Active providers: {list(self._providers.keys())}")
 
@@ -186,6 +192,14 @@ class LLMManagerNode(Node):
 
         if not result.success:
             self.get_logger().error(f"[{session.provider}] Inference error: {result.error}")
+            self._error_pub.publish(LlmError(
+                provider=session.provider or "",
+                model=session.model or "",
+                session_id=req.session_id or "",
+                code=int(result.status_code or 0),
+                error_type=result.error_type or "unknown",
+                message=result.error or "",
+            ))
             goal_handle.abort()
             return LlmInference.Result(
                 success=False, status="error", answer=result.error, total_time=elapsed

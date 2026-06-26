@@ -17,6 +17,9 @@ string resources_json       # JSON array of {name, description, content} objects
 string domain               # Free-text hint injected into every prompt as context
                             # (e.g. "hospital", "coffee shop", "university helpdesk").
                             # Helps the LLM use domain-appropriate tone and vocabulary.
+bool   skip_intro           # If true, skip the opening greeting and go directly to the
+                            # first question / explanation content. Use when chaining
+                            # dialogs so the robot does not re-greet the user each time.
 ---
 # Result
 bool   success

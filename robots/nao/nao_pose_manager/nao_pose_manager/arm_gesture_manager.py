@@ -78,6 +78,8 @@ class ArmGestureManagerNode(Node):
         self.is_speaking = False
         self.override_pose = ""
         self.stiffness_value = self.get_parameter("stiffness").value
+        self._configured_stiffness = self.stiffness_value
+        self._gestures_enabled = True
 
         qos_transient = QoSProfile(
             history=HistoryPolicy.KEEP_LAST,
@@ -151,11 +153,24 @@ class ArmGestureManagerNode(Node):
 
     def _target_pose_cb(self, msg: String):
         name = msg.data
-        if name == "AUTO":
+        if name == "FREE":
+            # Disable all gesticulation: joints go limp (stiffness 0) so the robot
+            # can be moved externally (e.g. during guided exercises) without fighting
+            # the gesture manager. Position publishing also stops.
+            self._gestures_enabled = False
+            self.override_pose = ""
+            self.stiffness_value = 0.0
+            self.get_logger().info("Gestures DISABLED — arm joints free")
+        elif name == "AUTO":
+            self._gestures_enabled = True
+            self.stiffness_value = self._configured_stiffness
             self.override_pose = ""
             self._hold_start = None
             self._set_target("natural_rest")
+            self.get_logger().info("Gestures ENABLED — returning to AUTO mode")
         elif name in self.poses:
+            self._gestures_enabled = True
+            self.stiffness_value = self._configured_stiffness
             self.override_pose = name
             self._hold_start = None
             self._set_target(name)
@@ -179,7 +194,7 @@ class ArmGestureManagerNode(Node):
         return random.choice(available) if available else None
 
     def _idle_behavior_loop(self):
-        if self.override_pose or self.is_speaking:
+        if not self._gestures_enabled or self.override_pose or self.is_speaking:
             return
         if random.random() > 0.7:
             candidates = [p for p in IDLE_POSES if p in self.poses]
@@ -190,6 +205,9 @@ class ArmGestureManagerNode(Node):
     # ==== INTERPOLATION AND PUBLISH LOOP (20 Hz) ====
 
     def _interpolation_loop(self):
+        if not self._gestures_enabled:
+            return
+
         arrived = True
 
         for joint in ARM_JOINT_INDEXES:

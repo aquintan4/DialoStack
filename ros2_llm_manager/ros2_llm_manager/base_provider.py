@@ -26,6 +26,11 @@ class GenerateResult:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     error: str = ""
+    # Failure classification, surfaced to operators via /llm/error. status_code is
+    # the HTTP/API code when known (else 0); error_type is one of
+    # "http" | "timeout" | "connection" | "api" | "unknown" ("" on success).
+    status_code: int = 0
+    error_type: str = ""
 
 
 class BaseProvider(ABC):

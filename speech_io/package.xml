@@ -16,13 +16,13 @@
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
+  <!-- Provides the AudioChunk message: DialoStack's own audio contract used by
+       the topic mode and the audio_bridge_node. No third-party audio stack. -->
   <depend>ros2_dialog_interfaces</depend>
 
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-sounddevice</exec_depend>
   <exec_depend>python3-torch</exec_depend>
-  
-  <exec_depend>python3-numpy</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

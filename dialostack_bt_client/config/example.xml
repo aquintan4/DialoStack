@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Minimal example: collect a coffee order through a DialoStack slot-filling
+     dialogue, then carry on. final_frame_json lands on the {order} blackboard
+     key so later nodes can read the collected slots. -->
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Sequence>
+      <ExecuteDialog
+        task_description="Take a coffee order: drink type, size and customer name"
+        dialog_mode="slot_filling"
+        domain="coffee shop"
+        final_frame_json="{order}"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

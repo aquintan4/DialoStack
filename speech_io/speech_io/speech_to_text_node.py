@@ -54,11 +54,18 @@ class SpeechToTextNode(Node):
         self._load_asr_model()
         self._configure_ros_interfaces()
 
-        threading.Thread(target=self._capture_loop, daemon=True).start()
+        # Feed audio either from the local microphone (default) or from a ROS
+        # topic. Both paths push fixed 512-sample float32 frames onto _raw_q,
+        # so the VAD and inference loops below are identical in either mode.
+        if self._audio_source == "topic":
+            self._start_topic_input()
+        else:
+            threading.Thread(target=self._capture_loop, daemon=True).start()
+
         threading.Thread(target=self._vad_loop, daemon=True).start()
         threading.Thread(target=self._inference_loop, daemon=True).start()
 
-        self._log("Ready.")
+        self._log(f"Ready. (audio_source={self._audio_source})")
 
     # ==== PARAMETER HANDLING ====
 
@@ -67,6 +74,11 @@ class SpeechToTextNode(Node):
         self.declare_parameter("is_speaking_topic", "/is_speaking")
         self.declare_parameter("vad_topic", "/user_vad")
         self.declare_parameter("input_device", "")
+        # Audio input source: "microphone" (local, default) or "topic" (raw
+        # S16LE PCM received as AudioChunk from the audio_bridge_node, a robot
+        # driver, or any producer of the contract).
+        self.declare_parameter("audio_source", "microphone")
+        self.declare_parameter("audio_topic", "/audio_in")
         self.declare_parameter("model_size", "base")
         self.declare_parameter("sample_rate", 16000)
         self.declare_parameter("language", "es")
@@ -88,8 +100,17 @@ class SpeechToTextNode(Node):
         self.max_phrase_secs = p("max_phrase_secs").value
         self.silent_mode = p("silent_mode").value
 
-        input_dev = p("input_device").value
-        self._input_dev = input_dev if input_dev else sd.default.device[0]
+        self._audio_source = p("audio_source").value
+        self._audio_topic = p("audio_topic").value
+
+        # Only the microphone path touches the local audio hardware. In topic
+        # mode we avoid querying sounddevice so the node can run on machines
+        # without an input device.
+        if self._audio_source == "microphone":
+            input_dev = p("input_device").value
+            self._input_dev = input_dev if input_dev else sd.default.device[0]
+        else:
+            self._input_dev = None
 
     # ==== MODEL LOADING ====
 
@@ -211,6 +232,80 @@ class SpeechToTextNode(Node):
             except Exception as exc:
                 self._log_error(f"Audio hardware error: {exc}. Retrying...")
                 sd.sleep(2000)
+
+    # ==== AUDIO INPUT FROM ROS TOPIC ====
+
+    def _start_topic_input(self) -> None:
+        """
+        Subscribe to an AudioChunk topic carrying raw S16LE PCM mono audio, as
+        published by DialoStack's audio_bridge_node, a robot's own audio driver,
+        or any producer of the contract. Incoming bytes are converted to float32
+        in [-1, 1] and re-chunked into fixed 512-sample frames so the VAD loop
+        behaves exactly as it does with the microphone. The chunk sample_rate
+        MUST match the 'sample_rate' parameter (16000 for Silero VAD).
+        """
+        from ros2_dialog_interfaces.msg import AudioChunk  # lazy: topic mode only
+
+        self._chunk_samples = 512
+        self._pcm_residual = np.zeros(0, dtype=np.float32)
+        self._rate_warned = False
+
+        audio_qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST,
+            depth=20,
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            durability=DurabilityPolicy.VOLATILE,
+        )
+
+        self.create_subscription(
+            AudioChunk,
+            self._audio_topic,
+            self._on_audio_msg,
+            audio_qos,
+        )
+        self._log(f"Listening for audio on topic '{self._audio_topic}'")
+
+    def _on_audio_msg(self, msg) -> None:
+        with self._mute_lock:
+            muted = self._muted
+
+        if muted:
+            # Drop audio and any partial frame while TTS is speaking, mirroring
+            # the microphone callback's self-listening protection.
+            self._pcm_residual = np.zeros(0, dtype=np.float32)
+            return
+
+        # Warn once if the producer's rate disagrees with what the VAD expects;
+        # mismatched rates make speech sound sped up/slowed down to the VAD.
+        if (
+            not self._rate_warned
+            and getattr(msg, "sample_rate", 0)
+            and msg.sample_rate != self.sample_rate
+        ):
+            self._log_warn(
+                f"AudioChunk sample_rate ({msg.sample_rate}) != expected "
+                f"{self.sample_rate}; transcription may degrade."
+            )
+            self._rate_warned = True
+
+        samples = (
+            np.frombuffer(bytes(msg.data), dtype=np.int16).astype(np.float32) / 32768.0
+        )
+        if samples.size == 0:
+            return
+
+        buf = np.concatenate((self._pcm_residual, samples))
+        n = self._chunk_samples
+        full = (buf.size // n) * n
+
+        for start in range(0, full, n):
+            frame = buf[start:start + n].reshape(-1, 1)
+            try:
+                self._raw_q.put_nowait(frame)
+            except queue.Full:
+                pass
+
+        self._pcm_residual = buf[full:]
 
     # ==== VOICE ACTIVITY DETECTION ====
 

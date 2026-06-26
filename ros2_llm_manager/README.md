@@ -1,4 +1,4 @@
-# ros2_llm_manager — multi-provider LLM inference for ROS 2
+# ros2_llm_manager: multi-provider LLM inference for ROS 2
 
 Wraps LLM inference behind a single ROS 2 action plus session-management services.
 Supports local models via Ollama and cloud models via Google Gemini, with optional

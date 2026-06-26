@@ -37,6 +37,7 @@ setup(
         "console_scripts": [
             "speech_to_text_node = speech_io.speech_to_text_node:main",
             "text_to_speech_node = speech_io.text_to_speech_node:main",
+            "audio_bridge_node = speech_io.audio_bridge_node:main",
             "test_audio_node = speech_io.test_audio:main",
         ],
     },

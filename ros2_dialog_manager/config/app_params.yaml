@@ -5,8 +5,8 @@ speech_to_text_node:
     input_device: ''
     model_size: small
     language: es
-    device: cuda
-    compute_type: float16
+    device: cpu
+    compute_type: int8
     cpu_threads: 4
     sample_rate: 16000
     vad_threshold: 0.5
@@ -18,7 +18,10 @@ text_to_speech_node:
   ros__parameters:
     action_name: /speak
     is_speaking_topic: /is_speaking
-    model_path: models/es_ES-sharvard-medium.onnx
+    # Piper voice filename, resolved under DIALOSTACK_MODELS_DIR
+    # (default ~/.local/share/dialostack/models; run scripts/download_models.sh).
+    # An absolute path is also accepted.
+    model_path: es_ES-sharvard-medium.onnx
     sample_rate: 22050
     audio_device: default
 
@@ -60,20 +63,18 @@ dialog_manager_node:
     history_max_turns: 200
 
     # Acknowledgment phrases injected by the system (not the LLM) after each
-    # successful slot extraction. Set to [""] to disable acknowledgments.
-    ack_phrases:
-      - "Anotado."
-      - "Hecho."
-      - "Perfecto."
-      - "Entendido."
-      - "De acuerdo."
+    # successful slot extraction (slot-filling only).
+    # Leave empty ([""]) to use the language-aware defaults that follow
+    # `language` above; set an explicit list here to override them.
+    ack_phrases: [""]
 
     # Timing.
     wait_timeout: 20.0
     llm_timeout: 120.0
     tts_timeout: 60.0
     # Prompt spoken when the user doesn't respond within wait_timeout seconds.
-    timeout_prompt: "¿Sigues ahí?"
+    # Empty = language-aware default (follows `language`); set to override.
+    timeout_prompt: ""
 
     # FSM limits.
     max_timeouts: 2

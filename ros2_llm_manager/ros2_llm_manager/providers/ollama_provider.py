@@ -99,16 +99,25 @@ class OllamaProvider(BaseProvider):
                 return self._stream(payload, stream_callback)
             return self._blocking(payload)
         except httpx.TimeoutException:
-            return GenerateResult(success=False, error=f"Timeout after {self._timeout}s")
+            return GenerateResult(
+                success=False, error=f"Timeout after {self._timeout}s", error_type="timeout"
+            )
         except httpx.ConnectError:
-            return GenerateResult(success=False, error="Lost connection to Ollama")
+            return GenerateResult(
+                success=False, error="Lost connection to Ollama", error_type="connection"
+            )
         except Exception as exc:
-            return GenerateResult(success=False, error=f"Unexpected error: {exc}")
+            return GenerateResult(
+                success=False, error=f"Unexpected error: {exc}", error_type="unknown"
+            )
 
     def _blocking(self, payload: dict) -> GenerateResult:
         r = self._http.post("/api/chat", json=payload)
         if r.status_code != 200:
-            return GenerateResult(success=False, error=f"HTTP {r.status_code}")
+            return GenerateResult(
+                success=False, error=f"HTTP {r.status_code}",
+                status_code=r.status_code, error_type="http",
+            )
 
         data = r.json()
         return GenerateResult(
@@ -127,7 +136,10 @@ class OllamaProvider(BaseProvider):
         # if we return early due to cancellation — no resource leak.
         with self._http.stream("POST", "/api/chat", json=payload) as r:
             if r.status_code != 200:
-                return GenerateResult(success=False, error=f"HTTP {r.status_code}")
+                return GenerateResult(
+                    success=False, error=f"HTTP {r.status_code}",
+                    status_code=r.status_code, error_type="http",
+                )
 
             for raw_line in r.iter_lines():
                 if not raw_line:

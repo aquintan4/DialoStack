@@ -140,6 +140,20 @@ dialog_manager_node:
           semantics. ONE question.
         - ONE sentence. Direct.
 
+      opening_direct: |
+        Generate the FIRST question for a conversation already in progress.
+
+        TASK: "{task}"
+        Slots to collect:
+        {slots}
+
+        Rules:
+        - {language} only. No markdown. Return only the raw sentence.
+        - Do NOT greet. Do NOT introduce yourself or the task. Ask the first
+          missing slot directly, as if the conversation were already flowing.
+        - ONE direct question. Do NOT enumerate options or resources.
+        - Do NOT ask multiple things at once.
+
       # ==== Quiz strategy ====
 
       quiz_opening: |
@@ -458,6 +472,21 @@ dialog_manager_node:
           by TTS and symbols become audible noise. For step sequences use
           plain prose (e.g. "first …, then …, finally …" or the equivalent
           in {language}).
+        - Use resources in [CONTEXT] as ground truth.
+        - Max 4 sentences. Plain spoken language, no jargon.
+        - End BEFORE the comprehension check (the check is appended separately).
+        - Return only the raw text.
+
+      explanation_opening_direct: |
+        Continue with an explanation of: "{task}"
+
+        Rules:
+        - {language} only. No markdown of any kind — the output is read aloud
+          by TTS and symbols become audible noise. For step sequences use
+          plain prose (e.g. "first …, then …, finally …" or the equivalent
+          in {language}).
+        - Do NOT greet. Do NOT re-introduce yourself. Begin the explanation
+          directly, as if continuing a flowing conversation.
         - Use resources in [CONTEXT] as ground truth.
         - Max 4 sentences. Plain spoken language, no jargon.
         - End BEFORE the comprehension check (the check is appended separately).

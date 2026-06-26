@@ -35,9 +35,9 @@ one listed, and any divergence between code and YAML is called out in the
 | `robots/nao/nao_pose_manager/launch/arm_gesture_manager.launch.py` | launch arguments (no YAML) | `arm_gesture_manager`, `eye_led_feedback` |
 
 When the speech and LLM nodes are started through `main.launch.py` they take
-their values from `app_params.yaml`; when started through their own packages'
+their values from `app_params.yaml`. When started through their own packages'
 launch files they take their values from the package's `params.yaml`. The two
-files do not always agree — see the discrepancies section.
+files do not always agree, so check the discrepancies section.
 
 ## dialog_manager_node
 
@@ -52,7 +52,7 @@ created with `automatically_declare_parameters_from_overrides=True`, so the
 | `user_emotion_topic` | string | `/user_emotion` | Topic carrying detected user emotion (JSON payload). |
 | `user_speaking_topic` | string | `/user_speaking` | Topic carrying the user-speaking signal for barge-in. Set to `""` to disable barge-in. |
 | `language` | string | `Spanish` | Language used for LLM generation and fallback phrases. Any language name is accepted. |
-| `history_max_turns` | int | `200` | Maximum turns kept in the dialog history buffer; the oldest half is dropped when exceeded. |
+| `history_max_turns` | int | `200` | Maximum turns kept in the dialog history buffer. The oldest half is dropped when exceeded. |
 | `ack_phrases` | string[] | `["Anotado.", "Hecho.", "Perfecto.", "Entendido.", "De acuerdo."]` | Acknowledgment phrases injected by the system after each successful slot extraction. Set to `[""]` to disable. |
 | `wait_timeout` | float | `20.0` | Seconds to wait for a user reply before prompting again. |
 | `llm_timeout` | float | `120.0` | Seconds to wait for an LLM Manager response. |
@@ -101,7 +101,7 @@ The templates, grouped by purpose:
 
 ## llm_manager_node
 
-Declared in `ros2_llm_manager/ros2_llm_manager/llm_manager_node.py`; shipped
+Declared in `ros2_llm_manager/ros2_llm_manager/llm_manager_node.py`. Shipped
 values from `ros2_llm_manager/config/params.yaml`. The Gemini provider reads its
 API key from the `GEMINI_API_KEY` environment variable when `gemini.api_key` is
 left empty (the recommended setup).
@@ -124,14 +124,14 @@ left empty (the recommended setup).
 
 ## speech_to_text_node
 
-Declared in `speech_io/speech_io/speech_to_text_node.py`; shipped values from
+Declared in `speech_io/speech_io/speech_to_text_node.py`. Shipped values from
 `speech_io/config/params.yaml`. Uses `faster-whisper` for transcription and
 Silero VAD for voice activity detection.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `output_topic` | string | `/transcription` | Topic where final transcriptions are published. |
-| `is_speaking_topic` | string | `/is_speaking` | TTS playback signal; while true, STT mutes itself to avoid transcribing the robot. |
+| `is_speaking_topic` | string | `/is_speaking` | TTS playback signal. While true, STT mutes itself to avoid transcribing the robot. |
 | `vad_topic` | string | `/user_vad` | Topic where the raw VAD probability is published as `Float32` in `[0, 1]`. |
 | `input_device` | string | `''` | Microphone input device. Empty string uses the default system input. |
 | `model_size` | string | `base` | faster-whisper model size (`tiny`, `base`, `small`, `medium`, `large-v3`, …). |
@@ -147,20 +147,20 @@ Silero VAD for voice activity detection.
 
 ## text_to_speech_node
 
-Declared in `speech_io/speech_io/text_to_speech_node.py`; shipped values from
+Declared in `speech_io/speech_io/text_to_speech_node.py`. Shipped values from
 `speech_io/config/params.yaml`. Uses Piper for speech synthesis.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `action_name` | string | `/speak` | `SpeakText` action server name used to request synthesis. |
-| `is_speaking_topic` | string | `/is_speaking` | Topic publishing whether TTS is currently playing; STT uses it to mute itself. |
+| `is_speaking_topic` | string | `/is_speaking` | Topic publishing whether TTS is currently playing. STT uses it to mute itself. |
 | `model_path` | string | `models/es_ES-sharvard-medium.onnx` | Piper voice model used for synthesis. |
 | `sample_rate` | int | `22050` | Output sample rate expected by the selected Piper model. |
 | `audio_device` | string | `default` | Audio output device. `default` uses the system default output. |
 
 ## emotion_detector
 
-Declared in `vision_io/vision_io/emotion_detector.py`; shipped values from
+Declared in `vision_io/vision_io/emotion_detector.py`. Shipped values from
 `vision_io/config/params.yaml`.
 
 | Parameter | Type | Default | Description |
@@ -172,7 +172,7 @@ Declared in `vision_io/vision_io/emotion_detector.py`; shipped values from
 
 ## lip_activity_detector_node
 
-Declared in `vision_io/vision_io/lip_activity_detector.py`; shipped values from
+Declared in `vision_io/vision_io/lip_activity_detector.py`. Shipped values from
 `vision_io/config/lip_activity_params.yaml`. Detects user speech by combining
 MediaPipe lip movement analysis with the audio VAD signal. The YAML node key
 must exactly match the launch `name=` (`lip_activity_detector_node`).
@@ -197,7 +197,7 @@ must exactly match the launch `name=` (`lip_activity_detector_node`).
 Declared in
 `robots/nao/nao_pose_manager/nao_pose_manager/gesture_manager.py`. This node
 publishes `JointState` for RViz/simulation visualisation. It has no dedicated
-YAML file; the defaults below are the in-code `declare_parameter` defaults.
+YAML file. The defaults below are the in-code `declare_parameter` defaults.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -212,7 +212,7 @@ YAML file; the defaults below are the in-code `declare_parameter` defaults.
 Declared in
 `robots/nao/nao_pose_manager/nao_pose_manager/arm_gesture_manager.py`. This node
 drives the real NAO arms. Defaults below are the in-code `declare_parameter`
-defaults; values supplied through `arm_gesture_manager.launch.py` launch
+defaults. Values supplied through `arm_gesture_manager.launch.py` launch
 arguments are noted where they differ.
 
 | Parameter | Type | Default | Description |
@@ -245,7 +245,7 @@ The following differences exist between the hard-coded `declare_parameter`
 defaults and the shipped YAML values. They are reported here as-is and are not
 modified by this document.
 
-**Speech-to-text — `app_params.yaml` vs. code / `speech_io/params.yaml`:**
+**Speech-to-text, `app_params.yaml` vs. code and `speech_io/params.yaml`:**
 `app_params.yaml` ships `model_size: small`, `device: cuda`, and
 `compute_type: float16`, whereas the node defaults (and `speech_io/params.yaml`)
 use `base`, `cpu`, and `int8`. As a result the STT node runs with different
@@ -253,21 +253,21 @@ inference settings depending on which launch file starts it. Additionally,
 `app_params.yaml` does not include `vad_topic`, so under `main.launch.py` the
 node falls back to its code default `/user_vad`.
 
-**LLM Manager — code vs. YAML:**
-- `default_provider`: code default `""`; both YAML files ship `gemini`.
-- `ollama.enable`: code default `false`; `ros2_llm_manager/params.yaml` ships
+**LLM Manager, code vs. YAML:**
+- `default_provider`: code default `""`. Both YAML files ship `gemini`.
+- `ollama.enable`: code default `false`. `ros2_llm_manager/params.yaml` ships
   `true`, while `app_params.yaml` ships `false`.
-- `gemini.enable`: code default `false`; both YAML files ship `true`.
-- `ollama.model`: code default `llama3.2:3b`; `app_params.yaml` ships
+- `gemini.enable`: code default `false`. Both YAML files ship `true`.
+- `ollama.model`: code default `llama3.2:3b`. `app_params.yaml` ships
   `qwen2.5`, while `ros2_llm_manager/params.yaml` ships `llama3.2:3b`.
-- `gemini.model`: code default `gemini-2.0-flash`; both YAML files ship
+- `gemini.model`: code default `gemini-2.0-flash`. Both YAML files ship
   `gemini-2.5-flash`.
 
-**Dialog Manager — code vs. `app_params.yaml`:**
-- `timeout_prompt`: code default `""`; YAML ships `¿Sigues ahí?`.
-- `ack_phrases`: code default `[""]` (disabled); YAML ships five phrases.
+**Dialog Manager, code vs. `app_params.yaml`:**
+- `timeout_prompt`: code default `""`. YAML ships `¿Sigues ahí?`.
+- `ack_phrases`: code default `[""]` (disabled). YAML ships five phrases.
 
-**Arm gesture manager — code vs. launch:**
+**Arm gesture manager, code vs. launch:**
 `transition_speed` has an in-code default of `0.03` but the launch file passes
 `0.05`. The `poses_file` in-code default is empty (`""`) while the launch file
 supplies the package's `config/nao_saved_poses.yaml`.

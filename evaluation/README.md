@@ -1,6 +1,6 @@
-# Evaluation Suite — DialoStack
+# DialoStack Evaluation Suite
 
-A battery of statistical benchmarks for the dialog system. Runs **without ROS** — it imports the production modules directly.
+Statistical benchmarks for the dialog system. They run **without ROS** by importing the production modules directly.
 
 ## Structure
 
@@ -78,7 +78,7 @@ Recommended minimum for statistical rigor:
 ## How to interpret the results
 
 - **F1 ≥ 0.90**: excellent, production-ready
-- **F1 0.80–0.89**: good, acceptable for most deployments
+- **F1 0.80 to 0.89**: good, acceptable for most deployments
 - **F1 < 0.80**: review the prompts or the dataset
 
 FPs in `quiz` are more serious than FNs: they mean the system rewards incorrect answers.
