@@ -56,3 +56,33 @@ export function classifyImageType(type) {
   if (type.endsWith('/Image') || type === 'sensor_msgs/Image') return 'raw'
   return null
 }
+
+// ==== GOAL UUIDS ====
+// rosbridge encodes uint8 arrays (the 16-byte goal UUID included) as a base64
+// string, but some paths hand over a plain array or an index-keyed object. The
+// timeline stores whatever arrived, JSON-stringified; this turns it back into
+// the byte list that call_service needs. Returns null if it is not a UUID.
+export function uuidBytes(goalIdStr) {
+  let parsed
+  try {
+    parsed = JSON.parse(goalIdStr)
+  } catch {
+    return null
+  }
+  let bytes
+  if (typeof parsed === 'string') {
+    try {
+      bytes = Array.from(atob(parsed), (c) => c.charCodeAt(0))
+    } catch {
+      return null
+    }
+  } else if (Array.isArray(parsed)) {
+    bytes = parsed
+  } else if (parsed && typeof parsed === 'object') {
+    bytes = Object.values(parsed)
+  } else {
+    return null
+  }
+  const ok = bytes.length === 16 && bytes.every((b) => Number.isInteger(b) && b >= 0 && b <= 255)
+  return ok ? bytes : null
+}

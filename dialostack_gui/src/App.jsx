@@ -23,7 +23,9 @@ export default function App() {
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-hidden relative">
-        {/* Watermark: the logo mark, huge and nearly invisible */}
+        {/* Watermark: the logo mark, large and desaturated to a faint gray so it
+            brands every page without competing with the content (.watermark in
+            index.css adapts it to the theme) */}
         <div
           aria-hidden
           className="absolute inset-0 flex flex-col items-center justify-center gap-6
@@ -32,12 +34,12 @@ export default function App() {
           <img
             src="/logo-mark.png"
             alt=""
-            className="w-[60%] max-w-[560px] opacity-[0.035]"
+            className="watermark w-[60%] max-w-[560px]"
           />
           <img
-            src="/logo-wordmark-cyan.png"
+            src="/logo-wordmark-white.png"
             alt=""
-            className="w-[38%] max-w-[360px] opacity-[0.035]"
+            className="watermark w-[38%] max-w-[360px]"
           />
         </div>
         <div className="relative h-full">

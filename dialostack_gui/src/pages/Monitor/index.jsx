@@ -1,6 +1,6 @@
 /** Dialogue Monitor page: chat timeline, task state, frame sidebar, and the launch drawer. */
-import { useEffect, useRef } from 'react'
-import { Image as ImageIcon, Trash2, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Image as ImageIcon, Trash2 } from 'lucide-react'
 import { useActionClient } from '../../hooks/useActionClient'
 import { useLlmError } from '../../hooks/useLlmError'
 import { useROS } from '../../contexts/ROSContext'
@@ -14,11 +14,15 @@ import { Composer } from './Composer'
 import { TagFilter, DEFAULT_TAGS } from './TagFilter'
 import { ExportMenu } from './ExportMenu'
 import { ImageViewer } from './ImageViewer'
-import { ContextBanner, EmptyState, NewTaskButton } from './MonitorChrome'
+import { ContextBanner, EmptyState, TaskButton } from './MonitorChrome'
 import { LlmErrorBanner } from './LlmErrorBanner'
 import { usePersistentState } from '../../hooks/usePersistentState'
 import { readHandoff, INJECT_TO_LAUNCH } from '../../lib/frames'
 import { STORAGE } from '../../lib/storageKeys'
+
+// If the engine has not confirmed the cancel after this long, re-enable the
+// Stop button so the user can retry (e.g. the request was lost on a reconnect).
+const CANCEL_RETRY_MS = 5000
 
 const BUBBLES = {
   user: UserBubble,
@@ -59,10 +63,20 @@ export function Monitor({ timeline, launchOpen, setLaunchOpen }) {
   }
   // Prefer cancelling by UUID (works after a tab switch); fall back to the
   // action-client cancel for the brief window before the UUID is known.
+  // `cancelling` keeps the button in "Stopping" until the status topic reports
+  // the goal as terminal, so a slow confirmation never looks like a dead click.
+  const [cancelling, setCancelling] = useState(false)
   function handleCancel() {
+    setCancelling(true)
     if (activeGoalId) cancelByUuid(activeGoalId)
     else cancelGoal()
   }
+  useEffect(() => {
+    if (!isActive) { setCancelling(false); return }
+    if (!cancelling) return
+    const id = setTimeout(() => setCancelling(false), CANCEL_RETRY_MS)
+    return () => clearTimeout(id)
+  }, [isActive, cancelling])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -80,17 +94,17 @@ export function Monitor({ timeline, launchOpen, setLaunchOpen }) {
     <div className="flex flex-col h-full">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-app-border bg-app-900 flex-shrink-0">
+      <div className="h-12 flex items-center justify-between px-6 border-b border-app-border bg-app-900 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div>
             <h1 className="text-sm font-semibold text-slate-100">Dialogue Monitor</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="font-mono text-[11px] text-slate-500 mt-0.5">
               {messageCount === 0 ? 'No activity' : `${messageCount} messages`}
             </p>
           </div>
           {isActive && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full
-              bg-brand-glow border border-brand-600/40 text-xs text-brand-400 font-medium">
+            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded
+              border border-app-border font-mono text-[11px] text-brand-400">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
               {externalActive ? 'Active task (external)' : 'Active task'}
             </span>
@@ -103,7 +117,7 @@ export function Monitor({ timeline, launchOpen, setLaunchOpen }) {
             title={imageOpen ? 'Hide image viewer' : 'Show image viewer (preview an image topic)'}
             className={`flex items-center gap-1.5 text-xs px-2.5 py-2 rounded-lg border transition-all ${
               imageOpen
-                ? 'text-brand-400 bg-brand-glow border-brand-600/40'
+                ? 'text-slate-200 bg-app-700 border-app-border'
                 : 'text-slate-500 hover:text-slate-300 hover:bg-app-700 border-transparent hover:border-app-border'
             }`}
           >
@@ -122,17 +136,6 @@ export function Monitor({ timeline, launchOpen, setLaunchOpen }) {
             >
               <Trash2 size={13} />
               Clear
-            </button>
-          )}
-          {ownActive && (
-            <button
-              onClick={handleCancel}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-900/30
-                border border-red-700/50 text-red-400 text-xs font-medium
-                hover:bg-red-900/50 transition-colors"
-            >
-              <X size={13} />
-              Cancel task
             </button>
           )}
         </div>
@@ -180,9 +183,11 @@ export function Monitor({ timeline, launchOpen, setLaunchOpen }) {
             )}
           </div>
 
-          <NewTaskButton
+          <TaskButton
             isActive={isActive}
             externalActive={externalActive}
+            cancelling={cancelling}
+            onStop={handleCancel}
             engineRunning={engineState.state === 'running'}
             onLaunch={() => setLaunchOpen(true)}
           />

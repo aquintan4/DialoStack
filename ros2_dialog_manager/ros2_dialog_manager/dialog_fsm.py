@@ -100,7 +100,7 @@ class DialogFSM:
             self._log.info(f"[TRACE] turn_start n={self._turns + 1} | t={time.monotonic():.4f}")
             # /TRACE
             user_text = self._listen()
-            if user_text is None:
+            if user_text is None or self._cancelled():
                 continue
 
             self._turns += 1
@@ -154,7 +154,9 @@ class DialogFSM:
 
     def _say(self, text: str) -> None:
         """Publish feedback, log, then speak. Feedback first so action clients
-        see each utterance before TTS blocks."""
+        see each utterance before TTS blocks. Silent once the task is cancelled."""
+        if self._cancelled():
+            return
         self._feedback(
             self.strategy.current_phase(),
             json.dumps(self.strategy.current_data(), ensure_ascii=False),
@@ -179,6 +181,8 @@ class DialogFSM:
         self._log.info(f"[TRACE] listen_start | t={_tl:.4f}")
         # /TRACE
         text = self.audio.listen()
+        if self._cancelled():
+            return None
         if text is None:
             # TRACE
             self._log.info(

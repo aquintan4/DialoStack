@@ -68,7 +68,7 @@ export function FrameLibrary({ library, onSave, onLoad, onDelete, suggestedName 
             <div
               key={f.id}
               className={`group flex items-center gap-2 px-3.5 py-2 border-b border-app-border/40
-                last:border-b-0 transition-colors ${loadedId === f.id ? 'bg-brand-glow' : 'hover:bg-app-700/50'}`}
+                last:border-b-0 transition-colors ${loadedId === f.id ? 'bg-app-700' : 'hover:bg-app-700/50'}`}
             >
               <button
                 onClick={() => handleLoad(f)}

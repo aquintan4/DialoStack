@@ -99,13 +99,19 @@ export function ConfigProvider({ children }) {
     })
   }, [])
 
+  // Replace the whole config at once (applying a configuration profile).
+  const replaceConfig = useCallback((next) => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(next)) } catch {}
+    setConfig(next)
+  }, [])
+
   const resetConfig = useCallback(() => {
     try { localStorage.removeItem(LS_KEY) } catch {}
     setConfig(DEFAULT_CONFIG)
   }, [])
 
   return (
-    <ConfigContext.Provider value={{ config, updateSection, resetConfig }}>
+    <ConfigContext.Provider value={{ config, updateSection, replaceConfig, resetConfig }}>
       {children}
     </ConfigContext.Provider>
   )

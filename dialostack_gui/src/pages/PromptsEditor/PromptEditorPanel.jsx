@@ -12,12 +12,12 @@ export function PromptEditorPanel({ selected, draft, onDraftChange, error, allow
     <div className="flex-1 flex flex-col overflow-hidden bg-app-950/60">
       {selected && (
         <>
-          <div className="px-5 py-4 border-b border-app-border bg-app-900 flex-shrink-0">
+          <div className="px-5 py-3 border-b border-app-border bg-app-900 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 <h2 className="text-sm font-mono font-semibold text-slate-100 truncate">{selected}</h2>
                 {modified && (
-                  <span className="text-[10px] text-brand-400 bg-brand-glow border border-brand-600/40 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                  <span className="text-[10px] font-mono text-amber-500/90 border border-amber-800/50 px-1.5 py-0.5 rounded-sm flex-shrink-0">
                     modified
                   </span>
                 )}

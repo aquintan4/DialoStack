@@ -71,7 +71,7 @@ export function LLMTab({ llm, update }) {
             <NumberField label="Port" min={1} max={65535}
               value={llm.ollama_port} onChange={v => update({ ollama_port: v })} />
           </div>
-          <div className="px-3 py-2.5 bg-brand-glow border border-brand-600/30 rounded-lg">
+          <div className="px-3 py-2.5 bg-app-950 border border-app-border rounded">
             <p className="text-xs text-brand-300/80">
               Ollama must be running at{' '}
               <span className="font-mono text-brand-400">{llm.ollama_host}:{llm.ollama_port}</span>{' '}

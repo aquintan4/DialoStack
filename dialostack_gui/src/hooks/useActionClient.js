@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useROS } from '../contexts/ROSContext'
 import { useTopic } from './useTopic'
+import { uuidBytes } from '../lib/ros'
 
 let goalCounter = 0
 
@@ -21,6 +22,7 @@ export function useActionClient(serverName, actionName) {
   const [result, setResult] = useState(null)
   const activeRef = useRef(false)
   const goalIdRef = useRef(null)
+  const cancelRequestedRef = useRef(false)
   const cleanupListenerRef = useRef(null)
 
   useTopic(
@@ -56,6 +58,7 @@ export function useActionClient(serverName, actionName) {
     const id = `send_action_goal:${serverName}:${++goalCounter}`
     goalIdRef.current = id
     activeRef.current = true
+    cancelRequestedRef.current = false
     setGoalStatus('active')
     setFeedback(null)
     setResult(null)
@@ -79,7 +82,7 @@ export function useActionClient(serverName, actionName) {
       goalIdRef.current = null
 
       setResult(msg.values ?? {})
-      setGoalStatus(msg.result ? 'succeeded' : 'failed')
+      setGoalStatus(msg.result ? 'succeeded' : cancelRequestedRef.current ? 'cancelled' : 'failed')
     }
 
     socket.addEventListener('message', onRawMessage)
@@ -95,10 +98,13 @@ export function useActionClient(serverName, actionName) {
     })
   }, [ros, status, serverName, actionName])
 
+  // Neither cancel resets the local state: the goal stays 'active' until the
+  // server confirms (action_result / status topic), so the UI can show a
+  // "stopping" state instead of pretending the task already ended.
   const cancelGoal = useCallback(() => {
     if (!ros.current) return
     const id = goalIdRef.current
-    resetActive('cancelled')
+    cancelRequestedRef.current = true
     if (id) {
       ros.current.callOnConnection({
         op: 'cancel_action_goal',
@@ -106,33 +112,31 @@ export function useActionClient(serverName, actionName) {
         action: serverName,
       })
     }
-  }, [ros, serverName, resetActive])
+  }, [ros, serverName])
 
   /**
    * Cancel a goal by its ROS 2 UUID via the action's cancel_goal service.
    * Unlike cancelGoal (which needs the client-side request id from this very
    * mount), this works for any goal whose UUID we know - so a GUI-launched task
    * stays cancellable after a tab switch. `goalIdStr` is the stringified uuid
-   * array as the timeline stores it (JSON.stringify(msg.goal_id.uuid)).
+   * uuid as the timeline stores it (JSON.stringify(msg.goal_id.uuid)); see
+   * uuidBytes in lib/ros.js for the accepted encodings.
    */
   const cancelByUuid = useCallback((goalIdStr) => {
     if (!ros.current || !goalIdStr) return
-    let uuid
-    try {
-      const parsed = JSON.parse(goalIdStr)
-      uuid = Array.isArray(parsed) ? parsed : Object.values(parsed)
-    } catch {
+    const uuid = uuidBytes(goalIdStr)
+    if (!uuid) {
+      console.warn('[DialoStack] cannot cancel: unrecognised goal id', goalIdStr)
       return
     }
-    if (!uuid?.length) return
-    resetActive('cancelled')
+    cancelRequestedRef.current = true
     ros.current.callOnConnection({
       op: 'call_service',
       service: `${serverName}/_action/cancel_goal`,
       type: 'action_msgs/srv/CancelGoal',
       args: { goal_info: { goal_id: { uuid }, stamp: { sec: 0, nanosec: 0 } } },
     })
-  }, [ros, serverName, resetActive])
+  }, [ros, serverName])
 
   return { sendGoal, cancelGoal, cancelByUuid, goalStatus, feedback, result }
 }

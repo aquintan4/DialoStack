@@ -95,7 +95,7 @@ export function StrategiesEditor() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-app-border bg-app-900 flex-shrink-0">
+      <div className="h-12 flex items-center justify-between px-6 border-b border-app-border bg-app-900 flex-shrink-0">
         <div>
           <h1 className="text-sm font-semibold text-slate-100">Strategies</h1>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -128,7 +128,7 @@ export function StrategiesEditor() {
             <p className="text-xs text-slate-400">
               Editing phrases for <span className="font-medium text-slate-200">{language}</span>
               {modifiedCount > 0 && <span className="text-brand-400"> · {modifiedCount} overridden</span>}.
-              {' '}Change the language in <span className="text-slate-300">Configuration → Dialogue</span>.
+              {' '}Change the language in <span className="text-slate-300">Configuration &gt; Dialogue</span>.
               {' '}Empty fields fall back to the engine default in this language.
             </p>
           </div>

@@ -6,16 +6,12 @@ import { useConfig } from '../contexts/ConfigContext'
 
 function NoticeCard({ tone, icon: Icon, title, children, actions, onDismiss }) {
   const border = tone === 'error' ? 'border-red-700/50' : 'border-yellow-700/50'
-  const iconBox = tone === 'error'
-    ? 'bg-red-900/30 border-red-700/40 text-red-400'
-    : 'bg-yellow-900/30 border-yellow-700/40 text-yellow-400'
+  const iconTone = tone === 'error' ? 'text-red-400' : 'text-yellow-400'
 
   return (
-    <div className={`bg-app-900 border ${border} rounded-xl shadow-2xl shadow-black/50 overflow-hidden`}>
+    <div className={`bg-app-900 border ${border} rounded shadow-lg shadow-black/40 overflow-hidden`}>
       <div className="flex items-start gap-3 p-4">
-        <div className={`w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 ${iconBox}`}>
-          <Icon size={16} />
-        </div>
+        <Icon size={15} className={`flex-shrink-0 mt-0.5 ${iconTone}`} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-200">{title}</p>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">{children}</p>
@@ -33,9 +29,9 @@ function NoticeCard({ tone, icon: Icon, title, children, actions, onDismiss }) {
   )
 }
 
-const primaryBtn = `flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700
+const primaryBtn = `flex items-center gap-2 px-3 py-1.5 rounded bg-brand-600 hover:bg-brand-700
   text-white text-xs font-medium transition-colors`
-const ghostBtn = `px-4 py-2 rounded-lg text-xs text-slate-500 hover:text-slate-300
+const ghostBtn = `px-3 py-1.5 rounded text-xs text-slate-500 hover:text-slate-300
   hover:bg-app-700 transition-colors`
 
 /**
@@ -51,7 +47,7 @@ export function EngineNotices() {
   if (!autoStopped && !lastError) return null
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 w-96 space-y-3 animate-pop-in">
+    <div className="fixed bottom-5 right-5 z-50 w-96 space-y-3 animate-fade-in">
       {lastError && (
         <NoticeCard
           tone="error"

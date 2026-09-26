@@ -73,15 +73,15 @@ export function EnginePanel() {
           )}
           {state === 'running' && (
             <button onClick={stopEngine}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm
                 bg-red-900/30 border border-red-700/50 text-red-400 hover:bg-red-900/50 transition-colors">
               <Square size={13} /> Stop engine
             </button>
           )}
           {(state === 'stopped' || state === 'error') && (
             <button onClick={() => startEngine(config)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm
-                bg-brand-600 hover:bg-brand-700 text-white font-medium transition-colors glow-blue">
+              className="flex items-center gap-2 px-3 py-1.5 rounded text-sm
+                bg-brand-600 hover:bg-brand-700 text-white font-medium transition-colors">
               {state === 'error'
                 ? <><RefreshCw size={13} /> Retry</>
                 : <><Play size={13} /> Start engine</>}

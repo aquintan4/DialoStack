@@ -112,7 +112,7 @@ export function FrameBuilder() {
       {/* Left panel - mode editors */}
       <div className="flex flex-col w-[55%] border-r border-app-border overflow-hidden">
 
-        <div className="px-6 py-4 border-b border-app-border bg-app-900 flex-shrink-0 space-y-3">
+        <div className="px-6 py-3 border-b border-app-border bg-app-900 flex-shrink-0 space-y-3">
           <div>
             <h1 className="text-sm font-semibold text-slate-100">Frame Builder</h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -176,8 +176,8 @@ export function FrameBuilder() {
           <button
             onClick={useInLaunch}
             title="Bring this frame to the launch form"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700
-              text-white text-sm font-medium transition-colors glow-blue"
+            className="flex items-center gap-2 px-3 py-1.5 rounded bg-brand-600 hover:bg-brand-700
+              text-white text-sm font-medium transition-colors"
           >
             <Rocket size={14} />
             Use in launch

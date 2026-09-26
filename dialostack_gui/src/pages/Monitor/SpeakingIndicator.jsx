@@ -8,9 +8,9 @@ export function UserSpeakingIndicator({ isActive }) {
 
   return (
     <div className="flex justify-end gap-2 animate-fade-in">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl rounded-tr-sm
-        bg-gradient-to-br from-brand-600/30 to-brand-700/30 border border-brand-500/40">
-        <span className="text-xs text-brand-300 font-medium">Speaking...</span>
+      <div className="flex items-center gap-2.5 px-3.5 py-2 rounded
+        bg-app-700 border border-brand-600">
+        <span className="font-mono text-[11px] text-slate-300">speaking</span>
         <SpeakingBars />
       </div>
       <UserAvatar />
@@ -26,14 +26,14 @@ export function UserTranscribingIndicator({ isActive }) {
 
   return (
     <div className="flex justify-end gap-2 animate-fade-in">
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl rounded-tr-sm
-        bg-app-800 border border-brand-500/30">
-        <span className="text-xs text-brand-300/90 font-medium">Transcribing</span>
+      <div className="flex items-center gap-2 px-3.5 py-2 rounded
+        bg-app-800 border border-app-border">
+        <span className="font-mono text-[11px] text-slate-400">transcribing</span>
         <span className="flex items-center gap-1">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="w-1 h-1 rounded-full bg-brand-400 animate-pulse"
+              className="w-1 h-1 bg-slate-400 animate-pulse"
               style={{ animationDelay: `${i * 0.2}s` }}
             />
           ))}
@@ -50,12 +50,12 @@ export function SpeakingIndicator({ isActive }) {
   return (
     <div className="flex justify-start gap-2 animate-fade-in">
       <RobotAvatar />
-      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl rounded-tl-sm bg-app-800 border border-brand-600/30">
+      <div className="flex items-center gap-2.5 px-3.5 py-2 rounded bg-app-900 border border-brand-600">
         <div className="flex items-end gap-0.5 h-4">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="w-0.5 bg-brand-400 rounded-full animate-pulse-slow"
+              className="w-0.5 bg-brand-400 animate-pulse-slow"
               style={{
                 height: `${[12, 16, 10][i]}px`,
                 animationDelay: `${i * 0.15}s`,
@@ -63,7 +63,7 @@ export function SpeakingIndicator({ isActive }) {
             />
           ))}
         </div>
-        <span className="text-xs text-brand-400 font-medium">Speaking...</span>
+        <span className="font-mono text-[11px] text-brand-400">speaking</span>
       </div>
     </div>
   )

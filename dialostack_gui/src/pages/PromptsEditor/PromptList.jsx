@@ -13,7 +13,7 @@ export function PromptList({
 
   return (
     <div className="flex flex-col w-[38%] border-r border-app-border overflow-hidden">
-      <div className="px-5 py-4 border-b border-app-border bg-app-900 flex-shrink-0">
+      <div className="px-5 py-3 border-b border-app-border bg-app-900 flex-shrink-0">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-sm font-semibold text-slate-100 flex-shrink-0">Prompts</h1>
           {toolbar}
@@ -57,7 +57,7 @@ export function PromptList({
                     className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg
                       text-xs font-mono transition-colors ${
                         selected === key
-                          ? 'bg-brand-glow border border-brand-600/40 text-brand-300'
+                          ? 'bg-app-700 border border-app-border text-slate-100'
                           : 'text-slate-400 hover:bg-app-700 hover:text-slate-200 border border-transparent'
                       }`}
                   >

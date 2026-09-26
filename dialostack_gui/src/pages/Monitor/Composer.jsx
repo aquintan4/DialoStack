@@ -122,11 +122,11 @@ export function Composer({ rosStatus, onLocalMessage }) {
             ? 'Type to speak as the user · /say <text> to test the TTS'
             : 'No connection with the engine'}
           disabled={!connected}
-          className={`w-full bg-app-800 border rounded-lg px-3 py-2 pr-32 text-sm text-slate-200
+          className={`w-full bg-app-950 border rounded px-3 py-2 pr-32 text-sm text-slate-200
             placeholder-slate-600 focus:outline-none transition-colors
             disabled:opacity-50 disabled:cursor-not-allowed ${
               sayMode
-                ? 'border-emerald-500/60'
+                ? 'border-emerald-700'
                 : speakingRef.current && text.trim()
                 ? 'border-brand-500/60'
                 : 'border-app-border focus:border-brand-600'
@@ -134,13 +134,13 @@ export function Composer({ rosStatus, onLocalMessage }) {
         />
         {sayMode ? (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5
-            text-[10px] text-emerald-400 font-medium pointer-events-none">
+            font-mono text-[10px] text-emerald-500 pointer-events-none">
             <Volume2 size={11} />
             TTS test
           </span>
         ) : text.trim() && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5
-            text-[10px] text-brand-400 font-medium pointer-events-none">
+            font-mono text-[10px] text-brand-400 pointer-events-none">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
             counting as voice
           </span>
@@ -150,8 +150,8 @@ export function Composer({ rosStatus, onLocalMessage }) {
         onClick={send}
         disabled={!connected || !text.trim()}
         title="Send (Enter)"
-        className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600
-          hover:bg-brand-700 text-white transition-colors
+        className="flex items-center justify-center w-9 h-9 rounded border border-app-border
+          bg-app-800 hover:bg-app-700 text-slate-300 transition-colors
           disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
       >
         <Send size={14} />

@@ -38,8 +38,8 @@ function EngineControl() {
         <button
           onClick={stopEngine}
           title="Stop engine"
-          className="p-2 rounded-lg bg-red-900/30 border border-red-700/50 text-red-400
-            hover:bg-red-900/50 transition-colors flex-shrink-0"
+          className="p-2 rounded border border-app-border text-slate-400
+            hover:text-red-400 hover:border-red-800/60 transition-colors flex-shrink-0"
         >
           <Square size={13} />
         </button>
@@ -48,8 +48,8 @@ function EngineControl() {
         <button
           onClick={() => startEngine(config)}
           title="Start engine"
-          className="p-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white
-            transition-colors flex-shrink-0"
+          className="p-2 rounded border border-app-border text-slate-300
+            hover:bg-app-700 hover:text-slate-100 transition-colors flex-shrink-0"
         >
           <Play size={13} />
         </button>
@@ -60,41 +60,42 @@ function EngineControl() {
 
 export function Sidebar() {
   return (
-    <aside className="w-56 flex-shrink-0 h-screen flex flex-col bg-app-900 border-r border-app-border">
+    <aside className="w-60 flex-shrink-0 h-screen flex flex-col bg-app-900 border-r border-app-border">
 
-      {/* Brand - symbol and wordmark derived from the official logo
-          (public/logo-mark.png and public/logo-wordmark-white.png) */}
-      <div className="px-4 py-5 border-b border-app-border">
+      {/* Brand - symbol and wordmark from the official logo. The white
+          wordmark is for the dark theme, the cyan one for the light theme. */}
+      <div className="px-4 pt-6 pb-5 border-b border-app-border">
         <div className="flex flex-col items-center gap-3">
           <img src="/logo-mark.png" alt="" className="w-24 h-24" />
-          <img src="/logo-wordmark-white.png" alt="DialoStack" className="h-[22px] w-auto" />
-          <p className="text-[10px] text-slate-500 -mt-1">GUI · v1.0</p>
+          <img src="/logo-wordmark-white.png" alt="DialoStack" className="h-[22px] w-auto light:hidden" />
+          <img src="/logo-wordmark-cyan.png" alt="DialoStack" className="hidden light:block h-[22px] w-auto" />
+          <p className="text-[10px] font-mono text-slate-500 -mt-1">GUI · v1.0</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 py-3 overflow-y-auto">
         {PAGES.map(({ path, label, icon: Icon }) => (
           <NavLink
             key={path}
             to={path}
             className={({ isActive }) =>
-              `group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
+              `group flex items-center gap-3.5 px-5 py-3.5 border-l-[3px] transition-colors ${
                 isActive
-                  ? 'bg-brand-glow border border-brand-600/40 text-brand-400'
-                  : 'text-slate-400 hover:bg-app-700 hover:text-slate-200 border border-transparent'
+                  ? 'bg-app-800 border-brand-500 text-slate-100'
+                  : 'text-slate-400 hover:bg-app-800/60 hover:text-slate-200 border-transparent'
               }`
             }
           >
             {({ isActive }) => (
               <>
                 <Icon
-                  size={16}
+                  size={19}
                   className={`flex-shrink-0 transition-colors ${
-                    isActive ? 'text-brand-400' : 'text-slate-500 group-hover:text-slate-300'
+                    isActive ? 'text-slate-300' : 'text-slate-500 group-hover:text-slate-400'
                   }`}
                 />
-                <span className="text-sm font-medium truncate">{label}</span>
+                <span className="text-[15px] font-medium truncate">{label}</span>
               </>
             )}
           </NavLink>

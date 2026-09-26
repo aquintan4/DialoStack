@@ -8,6 +8,14 @@
  */
 export const STORAGE = {
   config: 'dialostack_gui_config',
+  // UI theme ('light' | 'dark'). index.html reads this same key before React
+  // mounts to avoid a flash of the wrong theme - keep both in sync.
+  theme: 'dialostack_theme',
+
+  // Configuration profiles (named snapshots of the whole config) and the id of
+  // the one currently applied
+  configProfiles: 'dialostack_config_profiles',
+  configActiveProfile: 'dialostack_config_active_profile',
   monitorTags: 'dialostack_monitor_tags',
 
   // Monitor image viewer (debug peek at an image topic)
