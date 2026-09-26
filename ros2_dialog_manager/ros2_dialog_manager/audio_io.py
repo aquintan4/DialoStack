@@ -7,6 +7,8 @@ RosAudioIO — concrete implementation that bridges ROS topics to the AudioIO co
 Listening: blocks on a threading.Event signalled by /transcription messages.
 Speaking:  delegates to the TTS action client via the node; supports barge-in
            through /user_speaking (the interrupt event is checked mid-playback).
+Cancel:    cancel() wakes a blocked listen() and stops the current utterance at
+           once, so a cancelled goal ends in well under a second.
 """
 
 import threading
@@ -29,6 +31,13 @@ class AudioIO(ABC):
     @abstractmethod
     def clear_buffer(self) -> None: ...
 
+    def cancel(self) -> None:
+        """Abort any blocking listen/speak. Default: no-op."""
+
+    @property
+    def cancelled(self) -> bool:
+        return False
+
 
 class RosAudioIO(AudioIO):
     """
@@ -46,6 +55,7 @@ class RosAudioIO(AudioIO):
         self._event = threading.Event()
         self._lock = threading.Lock()
         self._interrupt_speech = threading.Event()
+        self._cancel = threading.Event()
 
     # ==== TOPIC CALLBACKS (called from ROS executor threads) ====
 
@@ -67,14 +77,30 @@ class RosAudioIO(AudioIO):
             self._text = None
             self._event.clear()
 
+    def cancel(self) -> None:
+        # Called from the action server's cancel callback (executor thread).
+        # Setting _event wakes a blocked listen(); _speak_sync polls _cancel.
+        self._cancel.set()
+        self._event.set()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancel.is_set()
+
     def listen(self) -> str | None:
+        if self.cancelled:
+            return None
         self.clear_buffer()
         got_input = self._event.wait(timeout=self._timeout)
         with self._lock:
+            if self.cancelled:
+                return None
             return self._text if got_input else None
 
     def speak(self, text: str) -> None:
+        if self.cancelled:
+            return
         # Reset barge-in flag before speaking. If the user barged in during TTS,
         # their transcription stays in the buffer for the next listen() call.
         self._interrupt_speech.clear()
-        self._node._speak_sync(text, self._interrupt_speech)
+        self._node._speak_sync(text, self._interrupt_speech, self._cancel)

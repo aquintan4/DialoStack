@@ -35,7 +35,7 @@ export function ExportMenu({ events }) {
         title={disabled ? 'No activity to export' : 'Export the session (CSV / JSON / Markdown)'}
         className={`flex items-center gap-1.5 text-xs px-2.5 py-2 rounded-lg border transition-all ${
           open
-            ? 'text-brand-400 bg-brand-glow border-brand-600/40'
+            ? 'text-slate-200 bg-app-700 border-app-border'
             : 'text-slate-500 hover:text-slate-300 hover:bg-app-700 border-transparent hover:border-app-border'
         } disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent`}
       >

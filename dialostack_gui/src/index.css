@@ -7,20 +7,15 @@
 
   body {
     @apply text-slate-200 antialiased font-sans;
-    /* Halo azul sutil arriba a la derecha sobre el fondo base */
-    background:
-      radial-gradient(1100px 700px at 75% -10%, rgba(15, 165, 202, 0.07), transparent 60%),
-      radial-gradient(900px 600px at -10% 110%, rgba(37, 99, 235, 0.05), transparent 60%),
-      #07091a;
-    background-attachment: fixed;
+    background: rgb(var(--c-app-950));
   }
 
-  ::selection { background: rgba(15, 165, 202, 0.35); }
+  ::selection { background: rgb(var(--c-brand-500) / 0.35); }
 
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb {
-    @apply bg-app-600 rounded-full;
+    @apply bg-app-600;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
@@ -28,9 +23,12 @@
 }
 
 @layer utilities {
-  .glow-blue {
-    box-shadow: 0 0 20px rgba(15, 165, 202, 0.2);
-  }
+  /* Background logo watermark: faint light gray on dark, faint dark gray on light */
+  .watermark { opacity: 0.05; filter: grayscale(1) brightness(2); }
+  [data-theme="light"] .watermark { opacity: 0.06; filter: grayscale(1) brightness(0); }
+
+  /* Kept as a no-op so old class names do not break */
+  .glow-blue { box-shadow: none; }
 
   /* Oculta los spinners nativos de los <input type="number"> —
      NumberField pinta sus propios botones. */
@@ -45,9 +43,9 @@
   }
 }
 
-/* ─── Slider personalizado (SliderField) ────────────────────────────────────
-   El relleno de la pista se controla con la variable --fill (% completado),
-   que SliderField calcula en JS. */
+/* ==== SLIDER (SliderField) ====
+   The track fill is driven by the --fill variable (% complete),
+   computed in JS by SliderField. */
 .slider {
   -webkit-appearance: none;
   appearance: none;
@@ -59,13 +57,13 @@
 
 .slider::-webkit-slider-runnable-track {
   height: 4px;
-  border-radius: 9999px;
+  border-radius: 1px;
   background: linear-gradient(
     to right,
-    #0fa5ca 0%,
-    #0fa5ca var(--fill, 50%),
-    #14203f var(--fill, 50%),
-    #14203f 100%
+    rgb(var(--c-brand-500)) 0%,
+    rgb(var(--c-brand-500)) var(--fill, 50%),
+    rgb(var(--c-app-600)) var(--fill, 50%),
+    rgb(var(--c-app-600)) 100%
   );
 }
 .slider::-webkit-slider-thumb {
@@ -73,29 +71,26 @@
   width: 14px;
   height: 14px;
   margin-top: -5px;
-  border-radius: 9999px;
-  background: #fff;
-  border: 2px solid #0fa5ca;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  transition: transform 0.1s ease;
+  border-radius: 2px;
+  background: rgb(var(--c-slate-300));
+  border: 1px solid rgb(var(--c-app-950));
 }
-.slider:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.slider:hover::-webkit-slider-thumb { background: rgb(var(--c-slate-100)); }
 
 .slider::-moz-range-track {
   height: 4px;
-  border-radius: 9999px;
-  background: #14203f;
+  border-radius: 1px;
+  background: rgb(var(--c-app-600));
 }
 .slider::-moz-range-progress {
   height: 4px;
-  border-radius: 9999px;
-  background: #0fa5ca;
+  border-radius: 1px;
+  background: rgb(var(--c-brand-500));
 }
 .slider::-moz-range-thumb {
   width: 10px;
   height: 10px;
-  border-radius: 9999px;
-  background: #fff;
-  border: 2px solid #0fa5ca;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+  background: rgb(var(--c-slate-300));
+  border: 1px solid rgb(var(--c-app-950));
 }

@@ -42,9 +42,9 @@ function EmotionMeter({ emotion }) {
             </span>
             <span className="text-xs text-slate-400 font-mono">{pct}%</span>
           </div>
-          <div className="h-1.5 bg-app-700 rounded-full overflow-hidden">
+          <div className="h-1 bg-app-700 overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${cfg.bar}`}
+              className={`h-full transition-all duration-500 ${cfg.bar}`}
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -146,7 +146,7 @@ export function FrameSidebar({ frame, fsmState, turns, emotion }) {
           <p className="text-xs text-slate-600 text-center py-4">Empty frame</p>
         ) : (
           entries.map(([key, value]) => (
-            <div key={key} className="bg-app-800 border border-app-border rounded-lg px-3 py-2">
+            <div key={key} className="bg-app-900 border border-app-border rounded px-3 py-2">
               <div className="flex items-center justify-between gap-1">
                 <span className="text-xs font-mono text-slate-400 truncate">{key}</span>
                 <span className={`text-xs flex-shrink-0 ${value != null ? 'text-green-400' : 'text-slate-600'}`}>

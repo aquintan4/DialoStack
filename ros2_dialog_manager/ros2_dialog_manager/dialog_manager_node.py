@@ -106,7 +106,7 @@ class DialogManagerNode(Node):
             "/dialog/execute_task",
             execute_callback=self._on_execute,
             goal_callback=self._on_goal_request,
-            cancel_callback=lambda _: CancelResponse.ACCEPT,
+            cancel_callback=self._on_cancel_request,
             callback_group=self._cb,
         )
 
@@ -255,6 +255,16 @@ class DialogManagerNode(Node):
                 return GoalResponse.REJECT
             return GoalResponse.ACCEPT
 
+    def _on_cancel_request(self, _goal_handle) -> CancelResponse:
+        # Wake the running dialog right away instead of letting it notice on
+        # the next loop iteration (which could be a full wait_timeout later).
+        with self._active_lock:
+            audio = self._active_audio
+        if audio is not None:
+            audio.cancel()
+        self._log("Cancel requested: stopping the current dialog.")
+        return CancelResponse.ACCEPT
+
     # ==== ACTION EXECUTION ====
 
     def _on_execute(self, goal_handle) -> DialogTask.Result:
@@ -303,7 +313,9 @@ class DialogManagerNode(Node):
                 on_feedback=lambda phase, frame_json, utterance, turns: self._publish_feedback(
                     goal_handle, phase, frame_json, utterance, turns
                 ),
-                is_cancelled=lambda: goal_handle.is_cancel_requested,
+                # audio.cancelled flips inside the cancel callback, before the
+                # goal handle reaches CANCELING: checking both avoids a race.
+                is_cancelled=lambda: goal_handle.is_cancel_requested or audio.cancelled,
                 timeout_prompt=self._timeout_prompt,
                 log_path=self._conversation_log_path,
                 log_max_mb=self._conversation_log_max_mb,
@@ -560,7 +572,12 @@ class DialogManagerNode(Node):
 
     # ==== TTS WRAPPER ====
 
-    def _speak_sync(self, text: str, interrupt_event: threading.Event) -> None:
+    def _speak_sync(
+        self,
+        text: str,
+        interrupt_event: threading.Event,
+        cancel_event: threading.Event | None = None,
+    ) -> None:
         if not text or not self._tts_client.wait_for_server(timeout_sec=5.0):
             return
         self._robot_utterance_pub.publish(String(data=text))
@@ -576,6 +593,9 @@ class DialogManagerNode(Node):
 
         def cancel_if_interrupted() -> bool:
             nonlocal barged_in
+            # A cancelled task stops the voice too, but it is not a barge-in.
+            if cancel_event is not None and cancel_event.is_set():
+                return True
             if interrupt_event.is_set():
                 barged_in = True
                 return True

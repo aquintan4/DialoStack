@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, Eraser, Rocket, Send, X } from 'lucide-react'
+import { AlertTriangle, Eraser, Send, X } from 'lucide-react'
 import { Field, NumberField, Select, inputCls } from '../../components/ui'
 import { usePersistentState } from '../../hooks/usePersistentState'
 import { QuizEditor } from '../FrameBuilder/editors/QuizEditor'
@@ -190,24 +190,20 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     <div className="fixed inset-0 z-40">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px] animate-fade-in"
+        className="absolute inset-0 bg-black/50 animate-fade-in"
         onClick={onClose}
       />
 
       {/* Panel */}
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-app-900 border-l
-        border-app-border shadow-2xl shadow-black/60 flex flex-col animate-slide-in-right">
+        border-app-border shadow-xl shadow-black/50 flex flex-col animate-slide-in-right">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-app-border flex-shrink-0">
+        <div className="h-12 flex items-center justify-between px-5 border-b border-app-border flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-glow border border-brand-600/30
-              flex items-center justify-center">
-              <Rocket size={15} className="text-brand-400" />
-            </div>
             <div>
               <h2 className="text-sm font-semibold text-slate-100 leading-none">Launch task</h2>
-              <p className="text-xs text-slate-600 mt-1">Define the dialogue objective</p>
+              <p className="text-xs text-slate-600 mt-0.5">Define the dialogue objective</p>
             </div>
           </div>
           <button
@@ -363,7 +359,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
             disabled={!canSend}
             className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg
               bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors
-              disabled:opacity-40 disabled:cursor-not-allowed glow-blue"
+              disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send size={14} />
             Launch task

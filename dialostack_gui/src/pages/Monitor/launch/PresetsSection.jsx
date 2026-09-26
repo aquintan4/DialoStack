@@ -69,7 +69,7 @@ export function PresetsSection({ presets, onSave, onLoad, onDelete, currentDescr
             <div
               key={p.id}
               className={`group flex items-center gap-2 px-3.5 py-2 border-b border-app-border/40
-                last:border-b-0 transition-colors ${loadedId === p.id ? 'bg-brand-glow' : 'hover:bg-app-700/50'}`}
+                last:border-b-0 transition-colors ${loadedId === p.id ? 'bg-app-700' : 'hover:bg-app-700/50'}`}
             >
               <button
                 onClick={() => handleLoad(p)}

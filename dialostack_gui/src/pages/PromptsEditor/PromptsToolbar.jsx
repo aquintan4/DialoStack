@@ -10,7 +10,7 @@ import { PopoverPanel } from '../../components/ui'
 const iconBtn = (active) =>
   `flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${
     active
-      ? 'text-brand-400 bg-brand-glow border-brand-600/40'
+      ? 'text-slate-200 bg-app-700 border-app-border'
       : 'text-slate-500 hover:text-slate-300 hover:bg-app-700 border-transparent hover:border-app-border'
   }`
 

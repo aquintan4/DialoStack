@@ -7,10 +7,10 @@ import { usePopover } from '../../hooks/usePopover'
 // UserBubble/RobotBubble check in ChatBubble.jsx.
 export const TAG_DEFS = [
   { key: 'time', label: 'Time', sample: '12:00:00' },
-  { key: 'transcription', label: 'Transcription', sample: '🎙️ 1.2s' },
-  { key: 'inference', label: 'Inference (LLM)', sample: '⚡ 0.8s' },
-  { key: 'speech', label: 'Speech (TTS)', sample: '🔊 2.1s' },
-  { key: 'interruptions', label: 'Interruptions', sample: '⚡ Barge-in' },
+  { key: 'transcription', label: 'Transcription', sample: 'stt 1.2s' },
+  { key: 'inference', label: 'Inference (LLM)', sample: 'llm 0.8s' },
+  { key: 'speech', label: 'Speech (TTS)', sample: 'tts 2.1s' },
+  { key: 'interruptions', label: 'Interruptions', sample: 'Barge-in' },
 ]
 
 export const DEFAULT_TAGS = Object.fromEntries(TAG_DEFS.map((t) => [t.key, true]))
@@ -30,14 +30,14 @@ export function TagFilter({ value, onChange }) {
         title="Show or hide chat tags"
         className={`flex items-center gap-1.5 text-xs px-2.5 py-2 rounded-lg border transition-all ${
           open || hidden > 0
-            ? 'text-brand-400 bg-brand-glow border-brand-600/40'
+            ? 'text-slate-200 bg-app-700 border-app-border'
             : 'text-slate-500 hover:text-slate-300 hover:bg-app-700 border-transparent hover:border-app-border'
         }`}
       >
         <Tags size={13} />
         Tags
         {hidden > 0 && (
-          <span className="text-[10px] font-semibold bg-brand-600/30 text-brand-300 rounded-full px-1.5 leading-4">
+          <span className="text-[10px] font-semibold font-mono bg-app-600 text-slate-300 rounded-sm px-1 leading-4">
             {hidden}
           </span>
         )}
@@ -52,7 +52,7 @@ export function TagFilter({ value, onChange }) {
             <div key={t.key} className="flex items-center justify-between gap-3 px-2.5 py-1.5 rounded-lg hover:bg-app-700">
               <div className="min-w-0">
                 <span className="text-sm text-slate-300">{t.label}</span>
-                <span className="block text-[11px] text-slate-600 truncate">{t.sample}</span>
+                <span className="block font-mono text-[11px] text-slate-600 truncate">{t.sample}</span>
               </div>
               <Toggle
                 value={value?.[t.key] !== false}

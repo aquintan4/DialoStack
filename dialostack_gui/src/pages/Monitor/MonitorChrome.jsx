@@ -1,5 +1,5 @@
-/** Monitor chrome: context banner, empty-state placeholder, and the floating new-task button. */
-import { Info, Plus, SlidersHorizontal } from 'lucide-react'
+/** Monitor chrome: context banner, empty-state placeholder, and the floating task button (new / stop). */
+import { Info, Loader2, Plus, SlidersHorizontal, Square } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useEngine } from '../../contexts/EngineContext'
 
@@ -17,18 +17,18 @@ export function ContextBanner({ isActive, onLaunch }) {
   const engineDown = engineState.state !== 'running'
 
   return (
-    <div className="flex items-center justify-center gap-2 px-6 py-1.5 border-b
-      border-app-border/60 bg-app-900/60 flex-shrink-0 text-xs text-slate-600">
+    <div className="flex items-center gap-2 px-6 py-1.5 border-b
+      border-app-border bg-app-950 flex-shrink-0 text-xs text-slate-500">
       <Info size={12} className="flex-shrink-0" />
       {engineDown ? (
         <>
           The engine is not running.
           <button
             onClick={() => navigate('/config')}
-            className="flex items-center gap-1 text-brand-500 hover:text-brand-400 font-medium transition-colors"
+            className="flex items-center gap-1 text-slate-300 hover:text-slate-100 underline underline-offset-2 decoration-slate-600 transition-colors"
           >
             <SlidersHorizontal size={11} />
-            Go to Configuration →
+            Open Configuration
           </button>
         </>
       ) : (
@@ -36,9 +36,9 @@ export function ContextBanner({ isActive, onLaunch }) {
           No active task - the chat keeps showing transcriptions.
           <button
             onClick={onLaunch}
-            className="text-brand-500 hover:text-brand-400 font-medium transition-colors"
+            className="text-slate-300 hover:text-slate-100 underline underline-offset-2 decoration-slate-600 transition-colors"
           >
-            Launch task →
+            Launch task
           </button>
         </>
       )}
@@ -49,59 +49,68 @@ export function ContextBanner({ isActive, onLaunch }) {
 /** Empty-chat placeholder - informative, without blocking the composer or the indicators. */
 export function EmptyState() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8 opacity-80">
-      <div className="relative">
-        <div className="absolute inset-0 rounded-full bg-brand-500/15 blur-2xl scale-150" />
-        <img src="/robot-avatar.png" alt="" className="relative w-14 h-14 opacity-80" />
-      </div>
-      <p className="text-xs text-slate-600 max-w-[260px] leading-relaxed">
-        No activity yet - talk to the microphone, type below
-        or launch a task. Everything that goes through the topics will appear here.
+    <div className="flex-1 flex flex-col items-center justify-center gap-1.5 text-center p-8">
+      <p className="text-sm text-slate-500">No activity</p>
+      <p className="text-xs text-slate-600 max-w-[300px] leading-relaxed">
+        Speak to the microphone, type below or launch a task.
+        Traffic on the dialogue topics is shown here.
       </p>
     </div>
   )
 }
 
 /**
- * Floating primary action above the message bar. Disabled (subtle gray) if the
- * engine is not running or if there is already a task in progress.
+ * Floating primary action above the message bar. One button, one place:
+ * - idle: "New task" (disabled if the engine is not running)
+ * - own task running: "Stop task"; after the click it shows "Stopping" until
+ *   the engine reports the goal as finished
+ * - task launched by another application: disabled, monitor only
  */
-export function NewTaskButton({ isActive, externalActive, engineRunning, onLaunch }) {
-  const disabled = isActive || !engineRunning
-  const title = externalActive
-    ? 'There is a task in progress launched from another application'
-    : isActive
-      ? 'There is already a task in progress - cancel it to launch another'
-      : engineRunning
-        ? 'Launch a new task'
-        : 'The engine is not running - start it first'
+export function TaskButton({ isActive, externalActive, cancelling, engineRunning, onLaunch, onStop }) {
+  const ownActive = isActive && !externalActive
+
+  let label, icon, onClick, disabled, title, tone
+  if (ownActive && cancelling) {
+    label = 'Stopping'
+    icon = <Loader2 size={14} className="animate-spin" />
+    disabled = true
+    title = 'Waiting for the engine to confirm the task was cancelled'
+    tone = 'bg-app-900 border-red-900/70 text-red-400/80 cursor-wait'
+  } else if (ownActive) {
+    label = 'Stop task'
+    icon = <Square size={12} className="fill-current" />
+    onClick = onStop
+    title = 'Cancel the running task: the robot stops speaking and listening at once'
+    tone = 'bg-app-900 border-red-800 text-red-400 hover:bg-red-950/60 hover:text-red-300'
+  } else if (externalActive) {
+    label = 'Task running (external)'
+    icon = <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
+    disabled = true
+    title = 'The running task was launched from another application'
+    tone = 'bg-app-900 border-app-border text-slate-500 cursor-not-allowed'
+  } else {
+    label = 'New task'
+    icon = <Plus size={15} />
+    onClick = onLaunch
+    disabled = !engineRunning
+    title = engineRunning ? 'Launch a new task' : 'The engine is not running - start it first'
+    tone = disabled
+      ? 'bg-app-900 border-app-border text-slate-500 cursor-not-allowed'
+      : 'bg-brand-600 border-brand-500 hover:bg-brand-500 text-white'
+  }
 
   return (
     <div className="relative flex-shrink-0">
       <div className="absolute -top-14 inset-x-0 flex justify-center pointer-events-none">
         <button
-          onClick={() => !disabled && onLaunch()}
+          onClick={() => !disabled && onClick?.()}
           disabled={disabled}
           title={title}
-          className={`pointer-events-auto flex items-center gap-2 px-5 py-2.5 rounded-full
-            text-sm font-semibold transition-all shadow-xl shadow-black/40 ${
-              disabled
-                ? 'bg-app-800/90 border border-app-border text-slate-500 cursor-not-allowed'
-                : `bg-gradient-to-r from-brand-600 to-blue-600 hover:from-brand-500
-                   hover:to-blue-500 text-white glow-blue`
-            }`}
+          className={`pointer-events-auto flex items-center gap-2 px-4 py-2 rounded border
+            whitespace-nowrap text-[13px] font-medium transition-colors shadow-md shadow-black/25 ${tone}`}
         >
-          {isActive ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse" />
-              Task running…
-            </>
-          ) : (
-            <>
-              <Plus size={15} />
-              New task
-            </>
-          )}
+          {icon}
+          {label}
         </button>
       </div>
     </div>
