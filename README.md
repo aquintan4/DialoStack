@@ -21,6 +21,21 @@ DialoStack lets a robot hold **goal-driven spoken conversations**: collect struc
 
 The core design principle is **deterministic control, probabilistic understanding**. The dialogue flow (states, phases, turn limits, cancellation, confirmation) is plain, testable Python. The LLM is consulted only for what it does well: understanding what the user said and phrasing the next reply. The behavior stays predictable and debuggable, and the conversation still feels natural.
 
+## Demo
+
+<table>
+  <tr>
+    <td align="center" width="62%">
+      <a href="https://www.dropbox.com/scl/fi/w5niqwi23jtkye2zqfchh/Dialostack_promovideo.mp4?rlkey=jj4j1s0wgb9hvf9hmm2ylkvjy&st=ut60mwo6&dl=0"><img src="docs/media/promo_poster.jpg" alt="DialoStack promo video"/></a><br/>
+      <strong>Promo video</strong> (2:42): the stack and the GUI in action
+    </td>
+    <td align="center" width="38%">
+      <a href="https://www.dropbox.com/scl/fi/8m9e1r847z0sdi19mkjvc/DialoStackDemo_nao.mp4?rlkey=o7q0q24v26ibxkt071y1jh10v&st=kdo1be3j&dl=0"><img src="docs/media/demo_poster.jpg" alt="DialoStack full demo on a real NAO" width="220"/></a><br/>
+      <strong>Full demo on a real NAO</strong> (4:06): live spoken dialogue with a user
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - 🎯 **Task-oriented dialogue engine** with three pluggable strategies: **slot filling**, **explanation** and **quiz**, plus a registry to add your own.
@@ -217,6 +232,12 @@ The deterministic core is fully unit-tested and runs without ROS:
 cd ros2_dialog_manager
 python3 -m pytest test/ -q
 ```
+
+## Support & custom integrations
+
+Need DialoStack adapted to your robot, language or use case? I offer integration, custom dialogue strategies and deployment support. Get in touch at **[aquintana.camacho@proton.me](mailto:aquintana.camacho@proton.me)**.
+
+Bug reports and feature requests are welcome as [GitHub issues](https://github.com/aquintan4/DialoStack/issues).
 
 ## Citation
 
