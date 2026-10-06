@@ -235,7 +235,7 @@ python3 -m pytest test/ -q
 
 ## Support & custom integrations
 
-Need DialoStack adapted to your robot, language or use case? I offer integration, custom dialogue strategies and deployment support. Get in touch at **[dialostackupport.caress384@passmail.net](mailto:dialostackupport.caress384@passmail.net)**.
+Need DialoStack adapted to your robot, language or use case? I offer integration, custom dialogue strategies and deployment support. Get in touch at **[dialostacksupport.quotation181@passmail.net](mailto:dialostacksupport.quotation181@passmail.net)**.
 
 Bug reports and feature requests are welcome as [GitHub issues](https://github.com/aquintan4/DialoStack/issues).
 
