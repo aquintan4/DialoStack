@@ -1,7 +1,7 @@
 # ros2_llm_manager: multi-provider LLM inference for ROS 2
 
 Wraps LLM inference behind a single ROS 2 action plus session-management services.
-Supports local models via Ollama and cloud models via Google Gemini, with optional
+Supports local models via Ollama and cloud models via Google Gemini or Anthropic Claude, with optional
 stateful (history-keeping) sessions and JSON-schema-constrained output. The dialog
 manager is its main client, but any node can use it.
 
@@ -11,7 +11,7 @@ See [../docs/architecture.md](../docs/architecture.md) for the full design.
 
 | Node (ros2 run name) | Description |
 | --- | --- |
-| `llm_manager_node` | Inference action server with provider/session management (Ollama + Gemini). |
+| `llm_manager_node` | Inference action server with provider/session management (Ollama, Gemini, Claude). |
 | `llm_cli_client` | Interactive terminal client to test connectivity, sessions and streaming. |
 
 ## Interfaces
@@ -47,10 +47,12 @@ for the next session, `/list` and `/info` inspect sessions, and any other text i
 as a prompt to the active session. `/quit` closes all sessions and exits.
 
 For Gemini, set the API key via the `GEMINI_API_KEY` environment variable (preferred)
-or in the params file.
+or in the params file. For Claude, use `ANTHROPIC_API_KEY` (a Claude API key from
+console.anthropic.com; a Claude.ai subscription does not include API access) and set
+`claude.enable: true`.
 
 ## Configuration
 
-Provider selection, defaults and per-provider settings (Ollama host/model, Gemini model,
+Provider selection, defaults and per-provider settings (Ollama host/model, Gemini and Claude models,
 timeouts) live in [`config/params.yaml`](config/params.yaml). See
 [../docs/configuration.md](../docs/configuration.md).

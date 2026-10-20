@@ -87,6 +87,49 @@ def make_ollama_infer_fn(
     return infer
 
 
+def make_claude_infer_fn(
+    model: str = "claude-opus-5-5",
+    api_key: Optional[str] = None,
+    effort: str = "low",
+) -> InferFn:
+    """Uses the production ClaudeProvider, so benchmarks see the same request
+    shape (structured-output schema, effort, max_tokens floor) as the robot."""
+    import sys
+
+    llm_pkg = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "ros2_llm_manager")
+    )
+    if llm_pkg not in sys.path:
+        sys.path.insert(0, llm_pkg)
+    from ros2_llm_manager.providers.claude_provider import ClaudeProvider
+
+    provider = ClaudeProvider(
+        api_key=api_key or "", timeout=120.0, default_model=model, effort=effort
+    )
+    ok, msg = provider.connect()
+    if not ok:
+        raise ValueError(msg)
+
+    def infer(
+        session_id: str,
+        prompt: str,
+        max_tokens: Optional[int],
+        schema: Optional[dict],
+    ) -> Optional[str]:
+        result = provider.generate(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens or 0,
+            format_schema=schema,
+        )
+        if not result.success:
+            print(f"  [Claude error] {result.error}")
+            return None
+        return result.text or None
+
+    return infer
+
+
 def make_infer_fn(cfg: dict) -> InferFn:
     provider = cfg.get("llm", {}).get("provider", "gemini")
     llm_cfg = cfg.get("llm", {})
@@ -101,4 +144,10 @@ def make_infer_fn(cfg: dict) -> InferFn:
             host=llm_cfg.get("ollama_host", "127.0.0.1"),
             port=int(llm_cfg.get("ollama_port", 11434)),
         )
-    raise ValueError(f"Unknown provider '{provider}'. Use 'gemini' or 'ollama'.")
+    if provider == "claude":
+        return make_claude_infer_fn(
+            model=llm_cfg.get("model", "claude-opus-5-5"),
+            api_key=llm_cfg.get("api_key") or None,
+            effort=llm_cfg.get("effort", "low"),
+        )
+    raise ValueError(f"Unknown provider '{provider}'. Use 'gemini', 'ollama' or 'claude'.")

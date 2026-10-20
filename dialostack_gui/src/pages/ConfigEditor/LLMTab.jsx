@@ -1,12 +1,22 @@
-/** LLM tab: provider/model selection plus Gemini or Ollama connection settings. */
-import { Cloud, HardDrive, Sparkles } from 'lucide-react'
+/** LLM tab: provider/model selection plus Gemini, Claude or Ollama connection settings. */
+import { Cloud, HardDrive, KeyRound, Sparkles } from 'lucide-react'
 import { Field, NumberField, SectionCard, Select, ToggleField, inputCls } from '../../components/ui'
 
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
-const OLLAMA_MODELS = ['qwen2.5', 'qwen2.5:14b', 'llama3.1', 'llama3.1:8b', 'mistral', 'phi3.5', 'deepseek-r1']
+// Suggested models per provider; the first one is the default (same as server.py DEFAULT_LLM_MODELS).
+const MODELS = {
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+  claude: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1'],
+  ollama: ['qwen2.5', 'qwen2.5:14b', 'llama3.1', 'llama3.1:8b', 'mistral', 'phi3.5', 'deepseek-r1'],
+}
+const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
 
 export function LLMTab({ llm, update }) {
-  const modelList = llm.provider === 'gemini' ? GEMINI_MODELS : OLLAMA_MODELS
+  const modelList = MODELS[llm.provider] || MODELS.gemini
+
+  // A model name only makes sense for its own provider: switch to the new default.
+  function changeProvider(provider) {
+    update({ provider, model: (MODELS[provider] || MODELS.gemini)[0] })
+  }
 
   return (
     <div className="space-y-4">
@@ -17,15 +27,16 @@ export function LLMTab({ llm, update }) {
       >
         <div className="grid grid-cols-2 gap-4">
           <Field label="Provider">
-            <Select value={llm.provider} onChange={e => update({ provider: e.target.value })}>
+            <Select value={llm.provider} onChange={e => changeProvider(e.target.value)}>
               <option value="gemini">Gemini (Google)</option>
+              <option value="claude">Claude (Anthropic)</option>
               <option value="ollama">Ollama (local)</option>
             </Select>
           </Field>
           <Field label="Model">
             <input type="text" value={llm.model}
               onChange={e => update({ model: e.target.value })}
-              placeholder={llm.provider === 'gemini' ? 'gemini-2.5-flash' : 'qwen2.5'}
+              placeholder={modelList[0]}
               className={inputCls} list="llm-models" />
             <datalist id="llm-models">
               {modelList.map(m => <option key={m} value={m} />)}
@@ -42,7 +53,31 @@ export function LLMTab({ llm, update }) {
           value={llm.silent_mode} onChange={v => update({ silent_mode: v })} />
       </SectionCard>
 
-      {llm.provider === 'gemini' ? (
+      {llm.provider === 'claude' && (
+        <SectionCard
+          icon={KeyRound}
+          title="Claude"
+          description="Claude API credentials"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="API Key"
+              hint="A Claude API key from console.anthropic.com (a Claude.ai subscription does not include API access). If left empty the ANTHROPIC_API_KEY environment variable is used">
+              <input type="password" value={llm.claude_api_key ?? ''}
+                onChange={e => update({ claude_api_key: e.target.value })}
+                placeholder="sk-ant-…" autoComplete="off"
+                className={inputCls} />
+            </Field>
+            <Field label="Effort"
+              hint="How much the model thinks before answering. Low keeps spoken replies fast">
+              <Select value={llm.claude_effort ?? 'low'} onChange={e => update({ claude_effort: e.target.value })}>
+                {CLAUDE_EFFORTS.map(e => <option key={e} value={e}>{e}</option>)}
+              </Select>
+            </Field>
+          </div>
+        </SectionCard>
+      )}
+
+      {llm.provider === 'gemini' && (
         <SectionCard
           icon={Cloud}
           title="Gemini"
@@ -56,7 +91,9 @@ export function LLMTab({ llm, update }) {
               className={inputCls} />
           </Field>
         </SectionCard>
-      ) : (
+      )}
+
+      {llm.provider === 'ollama' && (
         <SectionCard
           icon={HardDrive}
           title="Ollama"

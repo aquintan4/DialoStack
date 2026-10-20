@@ -1,1 +1,1 @@
-"""LLM provider backends (Ollama, Gemini) implementing BaseProvider."""
+"""LLM provider backends (Ollama, Gemini, Claude) implementing BaseProvider."""

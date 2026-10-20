@@ -13,5 +13,8 @@ httpx==0.28.1
 # ── Google Gemini SDK (Gemini provider) ───────────────────────────────────────
 google-genai==1.74.0
 
+# ── Anthropic SDK (Claude provider) ───────────────────────────────────────────
+anthropic==1.15.0
+
 # ── Build / packaging (required by ament_python) ─────────────────────────────
 setuptools==79.0.1

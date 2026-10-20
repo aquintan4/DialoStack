@@ -77,11 +77,15 @@ jobs:
           docker pull ${IMAGE}:${TAG#v}
           \`\`\`
 
-          Or download \`docker-compose.yml\` below and run \`docker compose up\`,
-          then open http://localhost:5173. See the README section
-          "Run with Docker" for audio and LLM setup.
+          Or download the compose file for your system below and run it, then
+          open http://localhost:5173:
+
+          - Linux: \`docker compose up\` with \`docker-compose.yml\`
+          - Windows 11 (Docker Desktop): \`docker compose -f docker-compose.windows.yml up\`
+
+          See the README section "Run with Docker" for audio and LLM setup.
           EOF
-          gh release create "$TAG" docker-compose.yml \
+          gh release create "$TAG" docker-compose.yml docker-compose.windows.yml \
             --title "DialoStack $TAG" \
             --notes-file notes.md \
             --generate-notes

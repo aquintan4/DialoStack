@@ -157,7 +157,7 @@ The **DialogFrame** is the heart of this strategy: a typed slot store (`str`, `i
 ### Robustness layers
 
 - **ASR hygiene**: `clean_user_input()` filters hallucinated filler ("subtitles by...", stray punctuation) before it reaches the LLM.
-- **Constrained decoding**: NLU prompts ship a JSON schema. Providers that support it (Gemini) enforce it server-side, and `parse_loose_json()` tolerates the rest.
+- **Constrained decoding**: NLU prompts ship a JSON schema. Providers that support it (Gemini, Claude) enforce it server-side, and `parse_loose_json()` tolerates the rest.
 - **Bounded retries and fallbacks**: every NLU call retries on unparseable output, then falls back to a safe deterministic answer. NLG falls back to fixed phrases in the configured language.
 - **Spoken cancellation**: a fast local keyword check handles obvious cases ("stop", "cancel"). Ambiguous ones go to the LLM with a strict yes/no schema.
 - **Timeout ladder**: silence triggers a re-engagement prompt. After `max_timeouts` consecutive silences the dialogue aborts gracefully.
@@ -169,6 +169,7 @@ One node hides every provider behind `/llm/inference` (action, with token stream
 | Provider | Type | Streaming | Constrained JSON | Notes |
 |----------|------|-----------|------------------|-------|
 | Gemini (`google-genai`) | Cloud | ✅ | ✅ (`response_schema`) | Thinking disabled for predictable latency |
+| Claude (`anthropic`) | Cloud | ✅ | ✅ (`output_config.format`) | Low thinking effort for latency; refusals retried on Anthropic's fallback model |
 | Ollama | Local | ✅ | no | HTTP keep-alive pool, model pre-warming on startup |
 
 Adding a provider means implementing `BaseProvider` (`connect`, `ensure_model_ready`, `generate`) and registering it in the node's startup. Nothing else in the stack changes.
