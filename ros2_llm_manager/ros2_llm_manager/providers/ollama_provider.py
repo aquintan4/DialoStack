@@ -82,6 +82,7 @@ class OllamaProvider(BaseProvider):
         max_tokens: int = 0,
         format_schema: Optional[dict] = None,
         stream_callback: Optional[Callable[[str], bool]] = None,
+        cache_prefix_len: int = 0,
     ) -> GenerateResult:
         payload: dict = {
             "model": model,

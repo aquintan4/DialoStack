@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/ROS%202-Jazzy-blue" alt="ROS 2 Jazzy"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/>
-  <img src="https://img.shields.io/badge/LLM-Gemini%20%7C%20Claude%20%7C%20Ollama-orange" alt="LLM providers"/>
+  <img src="https://img.shields.io/badge/LLM-Gemini%20%7C%20Claude%20%7C%20OpenAI%20%7C%20Ollama-orange" alt="LLM providers"/>
   <img src="https://img.shields.io/badge/code%20style-black-000000" alt="Code style: black"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/>
 </p>
@@ -40,7 +40,7 @@ The core design principle is **deterministic control, probabilistic understandin
 
 - 🎯 **Task-oriented dialogue engine** with three pluggable strategies: **slot filling**, **explanation** and **quiz**, plus a registry to add your own.
 - 🗣️ **Full speech pipeline**: faster-whisper + Silero VAD for STT, Piper for streaming TTS, with automatic self-muting so the robot never transcribes its own voice.
-- 🧠 **Provider-agnostic LLM backend**: Google Gemini or Anthropic Claude (cloud), or Ollama (local), behind one ROS interface, with isolated NLU/NLG sessions per dialogue.
+- 🧠 **Provider-agnostic LLM backend**: Google Gemini, Anthropic Claude or OpenAI (cloud), or Ollama (local), behind one ROS interface, with isolated NLU/NLG sessions per dialogue.
 - 👀 **Multimodal perception**: facial emotion recognition and lip-activity detection feed live user state into the dialogue context.
 - 🤖 **Robot embodiment layer**: gestures, posture and eye-LED feedback for the SoftBank NAO, in simulation (RViz) and on the real robot. Other robots can slot in.
 - 📊 **Evaluation suite**: five statistical benchmarks (precision/recall/F1, confusion matrices, end-to-end task completion) that run without ROS, against hand-annotated datasets.
@@ -56,7 +56,7 @@ flowchart TB
 
     subgraph core ["Dialogue core"]
         DM["dialog_manager_node<br/>FSM + strategies"]
-        LLM["llm_manager_node<br/>Gemini / Claude / Ollama"]
+        LLM["llm_manager_node<br/>Gemini / Claude / OpenAI / Ollama"]
     end
 
     subgraph io ["Speech & perception"]
@@ -117,7 +117,7 @@ Requires [Docker](https://docs.docker.com/engine/install/) and the Compose plugi
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.yml
-export GEMINI_API_KEY="your-key"   # or ANTHROPIC_API_KEY for Claude; or put it in a .env file next to docker-compose.yml
+export GEMINI_API_KEY="your-key"   # or ANTHROPIC_API_KEY / OPENAI_API_KEY; or put it in a .env file next to docker-compose.yml
 docker compose up
 ```
 
@@ -136,7 +136,7 @@ Requires [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-
 
 ```powershell
 curl.exe -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.windows.yml
-$env:GEMINI_API_KEY = "your-key"   # or ANTHROPIC_API_KEY; or put it in a .env file next to the compose file
+$env:GEMINI_API_KEY = "your-key"   # or ANTHROPIC_API_KEY / OPENAI_API_KEY; or put it in a .env file next to the compose file
 docker compose -f docker-compose.windows.yml up
 ```
 
@@ -152,7 +152,7 @@ Open **http://localhost:5173** and press **Start engine**.
 
 - Ubuntu 24.04 with [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html)
 - Python ≥ 3.10
-- An LLM provider: a [Gemini API key](https://aistudio.google.com/apikey) (the free tier works), a [Claude API key](https://console.anthropic.com) (a Claude.ai subscription does not include API access) **or** a local [Ollama](https://ollama.com) install
+- An LLM provider: a [Gemini API key](https://aistudio.google.com/apikey) (the free tier works), a [Claude API key](https://console.anthropic.com) (a Claude.ai subscription does not include API access), an [OpenAI API key](https://platform.openai.com/api-keys) **or** a local [Ollama](https://ollama.com) install
 - A microphone and speakers (any ALSA device)
 
 #### Install & build
@@ -186,7 +186,7 @@ It downloads into `~/.local/share/dialostack/models` (override with `DIALOSTACK_
 #### Run the stack
 
 ```bash
-export GEMINI_API_KEY="your-key"   # or ANTHROPIC_API_KEY + claude.enable, or enable Ollama in the config
+export GEMINI_API_KEY="your-key"   # or ANTHROPIC_API_KEY + claude.enable, OPENAI_API_KEY + openai.enable, or enable Ollama in the config
 ros2 launch ros2_dialog_manager main.launch.py
 ```
 

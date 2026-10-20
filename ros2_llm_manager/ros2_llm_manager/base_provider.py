@@ -25,6 +25,8 @@ class GenerateResult:
     text: str = ""
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    # Part of prompt_tokens served from the provider's prompt cache.
+    cached_tokens: int = 0
     error: str = ""
     # Failure classification, surfaced to operators via /llm/error. status_code is
     # the HTTP/API code when known (else 0); error_type is one of
@@ -62,6 +64,7 @@ class BaseProvider(ABC):
         max_tokens: int = 0,
         format_schema: Optional[dict] = None,
         stream_callback: Optional[Callable[[str], bool]] = None,
+        cache_prefix_len: int = 0,
     ) -> GenerateResult:
         """
         Run inference.
@@ -70,5 +73,9 @@ class BaseProvider(ABC):
         arrives. Returning False from the callback signals cancellation;
         the provider should stop generation and return a result with
         error="cancelled".
+
+        cache_prefix_len is a hint: the first N characters of the last user
+        message repeat across calls. Providers with explicit prompt caching
+        mark them cacheable; the rest may ignore it.
         """
         pass

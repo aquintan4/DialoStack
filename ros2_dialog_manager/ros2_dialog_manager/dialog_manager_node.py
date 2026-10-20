@@ -542,6 +542,7 @@ class DialogManagerNode(Node):
             prompt=prompt,
             max_tokens=max_tokens or 0,
             format_schema=json.dumps(schema) if schema else "",
+            cache_prefix_len=getattr(prompt, "cache_prefix_len", 0),
         )
         # TRACE
         _ti = time.monotonic()

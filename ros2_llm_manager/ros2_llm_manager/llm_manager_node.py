@@ -29,6 +29,7 @@ from .session_manager import SessionManager
 from .providers.ollama_provider import OllamaProvider
 from .providers.gemini_provider import GeminiProvider
 from .providers.claude_provider import ClaudeProvider
+from .providers.openai_provider import OpenAIProvider
 
 
 class LLMManagerNode(Node):
@@ -104,9 +105,16 @@ class LLMManagerNode(Node):
 
         self.declare_parameter("claude.enable", False)
         self.declare_parameter("claude.api_key", "")
-        self.declare_parameter("claude.model", "claude-opus-5-5")
+        self.declare_parameter("claude.model", "claude-haiku-5-5")
         self.declare_parameter("claude.timeout", 60.0)
         self.declare_parameter("claude.effort", "low")
+
+        self.declare_parameter("openai.enable", False)
+        self.declare_parameter("openai.api_key", "")
+        self.declare_parameter("openai.model", "gpt-6-luna")
+        self.declare_parameter("openai.timeout", 60.0)
+        self.declare_parameter("openai.reasoning_effort", "none")
+        self.declare_parameter("openai.base_url", "")
 
     def _read_parameters(self) -> None:
         p = self.get_parameter
@@ -163,6 +171,20 @@ class LLMManagerNode(Node):
             if ok:
                 self._providers["claude"] = claude
 
+        if p("openai.enable").value:
+            oai = OpenAIProvider(
+                api_key=p("openai.api_key").value,
+                timeout=p("openai.timeout").value,
+                default_model=p("openai.model").value,
+                reasoning_effort=p("openai.reasoning_effort").value,
+                base_url=p("openai.base_url").value,
+            )
+            ok, msg = oai.connect()
+            self._log(f"[openai] {msg}") if ok else self.get_logger().warning(f"[openai] {msg}")
+
+            if ok:
+                self._providers["openai"] = oai
+
     # ==== INFERENCE ACTION ====
 
     def _on_inference(self, goal_handle) -> LlmInference.Result:
@@ -202,6 +224,7 @@ class LLMManagerNode(Node):
             max_tokens=req.max_tokens,
             format_schema=format_schema,
             stream_callback=stream_cb,
+            cache_prefix_len=req.cache_prefix_len,
         )
 
         elapsed = time.monotonic() - t0
@@ -227,10 +250,11 @@ class LLMManagerNode(Node):
 
         session.commit_turn(req.prompt, result.text)
 
+        cached = f" ({result.cached_tokens} cached)" if result.cached_tokens else ""
         self._log(
             f"[{session.provider}/{session.model}] "
             f"session={req.session_id} "
-            f"tokens={result.prompt_tokens}+{result.completion_tokens} "
+            f"tokens={result.prompt_tokens}{cached}+{result.completion_tokens} "
             f"time={elapsed:.2f}s"
         )
 

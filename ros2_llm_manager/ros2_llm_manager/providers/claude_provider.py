@@ -71,6 +71,27 @@ def split_messages(messages: list[dict]) -> tuple[str, list[dict]]:
     return "\n\n".join(system_parts), turns
 
 
+def mark_cache_prefix(turns: list[dict], prefix_len: int) -> None:
+    """Split the last user turn at `prefix_len` into two text blocks and mark
+    the first cacheable, so repeated instructions are read from the cache.
+
+    Prefixes under the model's cache minimum (512 tokens on current models)
+    are simply not cached; the API does not reject them.
+    """
+    if not turns or turns[-1]["role"] != "user":
+        return
+    text = turns[-1]["content"]
+    if not isinstance(text, str) or not 0 < prefix_len < len(text):
+        return
+    turns[-1] = {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": text[:prefix_len], "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": text[prefix_len:]},
+        ],
+    }
+
+
 class ClaudeProvider(BaseProvider):
 
     def __init__(self, api_key: str, timeout: float, default_model: str, effort: str = "low"):
@@ -127,11 +148,13 @@ class ClaudeProvider(BaseProvider):
         max_tokens: int = 0,
         format_schema: Optional[dict] = None,
         stream_callback: Optional[Callable[[str], bool]] = None,
+        cache_prefix_len: int = 0,
     ) -> GenerateResult:
         if not self._client:
             return GenerateResult(success=False, error="Client not initialised.")
 
         system, turns = split_messages(messages)
+        mark_cache_prefix(turns, cache_prefix_len)
         params = self._build_params(model, system, turns, max_tokens, format_schema)
 
         try:
@@ -193,26 +216,26 @@ class ClaudeProvider(BaseProvider):
     @staticmethod
     def _to_result(message) -> GenerateResult:
         usage = message.usage
+        # input_tokens excludes cached tokens: add them back so prompt_tokens
+        # is the full prompt size across providers.
+        cache_read = usage.cache_read_input_tokens or 0
+        tokens = {
+            "prompt_tokens": usage.input_tokens
+            + cache_read
+            + (usage.cache_creation_input_tokens or 0),
+            "completion_tokens": usage.output_tokens,
+            "cached_tokens": cache_read,
+        }
         if message.stop_reason == "refusal":
             return GenerateResult(
-                success=False,
-                error="Claude declined the request.",
-                prompt_tokens=usage.input_tokens,
-                completion_tokens=usage.output_tokens,
-                error_type="api",
+                success=False, error="Claude declined the request.", error_type="api", **tokens
             )
         text = "".join(b.text for b in message.content if b.type == "text").strip()
         if not text:
             return GenerateResult(
                 success=False,
                 error=f"Empty reply (stop_reason={message.stop_reason}).",
-                prompt_tokens=usage.input_tokens,
-                completion_tokens=usage.output_tokens,
                 error_type="api",
+                **tokens,
             )
-        return GenerateResult(
-            success=True,
-            text=text,
-            prompt_tokens=usage.input_tokens,
-            completion_tokens=usage.output_tokens,
-        )
+        return GenerateResult(success=True, text=text, **tokens)

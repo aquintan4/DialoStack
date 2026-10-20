@@ -3,6 +3,9 @@ string session_id
 string prompt
 int32  max_tokens
 string format_schema
+int32  cache_prefix_len   # Optional. Length (characters) of the leading part of `prompt`
+                          # that repeats across calls (instructions, session context).
+                          # Providers with prompt caching cache it. 0 = no hint.
 ---
 # Result
 bool    success

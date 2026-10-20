@@ -16,5 +16,8 @@ google-genai==1.74.0
 # ── Anthropic SDK (Claude provider) ───────────────────────────────────────────
 anthropic==1.15.0
 
+# ── OpenAI SDK (OpenAI provider) ──────────────────────────────────────────────
+openai==3.35.1
+
 # ── Build / packaging (required by ament_python) ─────────────────────────────
 setuptools==79.0.1

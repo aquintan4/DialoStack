@@ -2,10 +2,12 @@
 # Run: python run_eval.py --benchmark <name>
 
 llm:
-  provider: "gemini"          # "gemini" | "ollama" | "claude"
-  model: "gemini-2.5-flash"   # Model name for the chosen provider (e.g. claude-opus-5-5)
-  api_key: ""                 # Leave empty → reads GEMINI_API_KEY / ANTHROPIC_API_KEY from env
+  provider: "gemini"          # "gemini" | "ollama" | "claude" | "openai"
+  model: "gemini-2.5-flash"   # Model name for the chosen provider (e.g. claude-haiku-5-5)
+  api_key: ""                 # Leave empty → reads GEMINI_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY from env
   effort: "low"               # Claude only: thinking effort (low | medium | high | xhigh | max)
+  reasoning_effort: "none"    # OpenAI only: none | low | medium | high | xhigh | max
+  base_url: ""                # OpenAI only: OpenAI-compatible server URL (empty = api.openai.com)
   # Ollama options (only used when provider=ollama)
   ollama_host: "127.0.0.1"
   ollama_port: 11434

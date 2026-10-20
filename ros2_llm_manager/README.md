@@ -1,7 +1,7 @@
 # ros2_llm_manager: multi-provider LLM inference for ROS 2
 
 Wraps LLM inference behind a single ROS 2 action plus session-management services.
-Supports local models via Ollama and cloud models via Google Gemini or Anthropic Claude, with optional
+Supports local models via Ollama and cloud models via Google Gemini, Anthropic Claude or OpenAI, with optional
 stateful (history-keeping) sessions and JSON-schema-constrained output. The dialog
 manager is its main client, but any node can use it.
 
@@ -11,7 +11,7 @@ See [../docs/architecture.md](../docs/architecture.md) for the full design.
 
 | Node (ros2 run name) | Description |
 | --- | --- |
-| `llm_manager_node` | Inference action server with provider/session management (Ollama, Gemini, Claude). |
+| `llm_manager_node` | Inference action server with provider/session management (Ollama, Gemini, Claude, OpenAI). |
 | `llm_cli_client` | Interactive terminal client to test connectivity, sessions and streaming. |
 
 ## Interfaces
@@ -49,10 +49,14 @@ as a prompt to the active session. `/quit` closes all sessions and exits.
 For Gemini, set the API key via the `GEMINI_API_KEY` environment variable (preferred)
 or in the params file. For Claude, use `ANTHROPIC_API_KEY` (a Claude API key from
 console.anthropic.com; a Claude.ai subscription does not include API access) and set
-`claude.enable: true`.
+`claude.enable: true`. The default model is `claude-haiku-5-5`, the fastest and
+cheapest; the instruction part of each prompt is cached, so repeated turns are billed
+mostly at the cache-read rate. For OpenAI, use `OPENAI_API_KEY` and set
+`openai.enable: true`; `openai.base_url` points the same provider at any
+OpenAI-compatible server (vLLM, LM Studio, OpenRouter...).
 
 ## Configuration
 
-Provider selection, defaults and per-provider settings (Ollama host/model, Gemini and Claude models,
+Provider selection, defaults and per-provider settings (Ollama host/model, Gemini, Claude and OpenAI models,
 timeouts) live in [`config/params.yaml`](config/params.yaml). See
 [../docs/configuration.md](../docs/configuration.md).
