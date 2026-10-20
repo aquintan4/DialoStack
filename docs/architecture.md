@@ -148,7 +148,7 @@ stateDiagram-v2
     done --> [*]
 ```
 
-The **DialogFrame** is the heart of this strategy: a typed slot store (`str`, `int`, `float`, `bool`, `list_str`) supporting canonical values (normalize "venti" to "large"), conditional slots (only ask for `detail_a` when `type == A`), list operations (SET/ADD/REMOVE/REPLACE), per-slot attempt tracking and full history. On each user turn the NLU session extracts operations from the utterance, the frame applies them, and the NLG session phrases an acknowledgment plus the next question. When the frame is complete the strategy switches to **confirming**, where every utterance is classified as `confirms`, `corrects`, `question` or `unclear` and handled accordingly.
+The **DialogFrame** is the heart of this strategy: a typed slot store (`str`, `int`, `float`, `bool`, `list_str`) supporting canonical values (normalize "venti" to "large"), numeric ranges (reject an age of 150 and say why), conditional slots (only ask for `detail_a` when `type == A`, or for `pension` when `age >= 65`), list operations (SET/ADD/REMOVE/REPLACE), per-slot attempt tracking and full history. On each user turn the NLU session extracts operations from the utterance, the frame applies them, and the NLG session phrases an acknowledgment plus the next question. When the frame is complete the strategy switches to **confirming**, where every utterance is classified as `confirms`, `corrects`, `question` or `unclear` and handled accordingly. The schema format is documented in [slot_schema.md](slot_schema.md).
 
 ### Context injection
 

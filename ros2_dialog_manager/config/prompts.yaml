@@ -304,6 +304,7 @@ dialog_manager_node:
         {history}
         User just said: "{user_text}"
         Extracted this turn: {extracted_summary}
+        Rejected this turn (out of range): {rejected_summary}
         Next slot to collect: {next_slot}
         Slots with repeated failures: {attempts_exceeded}
 
@@ -330,6 +331,12 @@ dialog_manager_node:
         things at once. ONLY ask about next_slot — NEVER ask for information
         that is not listed as a slot in the schema above (e.g. dates, times,
         or preferences not listed as slots).
+
+        If "Rejected this turn" is not None: the user gave a number outside
+        the allowed range and it was NOT recorded. Say so briefly, state the
+        allowed range in plain words (e.g. "between 18 and 99", "more than
+        0"), and ask for that slot again. Max 30 words. This takes priority
+        over the subcases below.
 
         If "Extracted this turn" is None / empty:
         Nothing was recorded this turn. Go directly to one of these subcases:

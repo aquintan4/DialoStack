@@ -55,7 +55,10 @@ class _FullFakeLLM:
     def get_resume_opening(self, task, frame, next_slot, ctx):
         return "Continuamos."
 
-    def generate_response(self, task, frame, user_text, extracted_slots, attempts_exceeded, ctx):
+    def generate_response(
+        self, task, frame, user_text, extracted_slots, attempts_exceeded, ctx, rejected=None
+    ):
+        self.last_rejected = rejected
         return self._next_q
 
     def get_confirmation_question(self, task, frame, ctx):
@@ -322,3 +325,86 @@ def test_on_init_schema_combined_with_initial_frame_json():
     assert llm.create_frame_calls == 0
     assert s._frame.current_value("nombre") == "Ana"
     assert s._frame.current_value("edad") is None
+
+
+# ==== NUMERIC BOUNDS ====
+
+
+def _bounded_strategy(llm):
+    s = _make_strategy(llm)
+    s._frame = DialogFrame.from_slots_json(
+        '{"slots": [{"name": "nombre", "type": "str"},'
+        ' {"name": "edad", "type": "int", "minimum": 18, "maximum": 99}]}'
+    )
+    return s
+
+
+def test_out_of_range_value_is_rejected_and_reported():
+    llm = _FullFakeLLM(extractions=[{"slot": "edad", "value": 150, "source_span": "150"}])
+    s = _bounded_strategy(llm)
+    reply, done = s.on_user_turn("task", "tengo 150 años")
+    assert s._frame.current_value("edad") is None
+    assert llm.last_rejected == {"edad": 150}
+    assert not done
+    # Nothing applied: no acknowledgment prefix.
+    assert reply == llm._next_q
+
+
+def test_out_of_range_counts_as_failed_attempt_on_asked_slot():
+    llm = _FullFakeLLM(extractions=[{"slot": "edad", "value": 5, "source_span": "5"}])
+    s = _bounded_strategy(llm)
+    s._frame.try_update({"nombre": "Ana"})
+    s.on_user_turn("task", "tengo 5 años")
+    assert s._frame.attempts("edad") == 1
+
+
+def test_in_range_value_is_applied():
+    llm = _FullFakeLLM(extractions=[{"slot": "edad", "value": "30", "source_span": "30"}])
+    s = _bounded_strategy(llm)
+    s.on_user_turn("task", "tengo 30")
+    assert s._frame.current_value("edad") == 30
+    assert not llm.last_rejected
+
+
+class _CorrectingLLM(_FullFakeLLM):
+    def __init__(self, corrections):
+        super().__init__()
+        self._corrections = corrections
+
+    def classify_intent(self, user_text, frame, ctx):
+        return "corrects", self._corrections
+
+
+def test_out_of_range_correction_reopens_slot():
+    llm = _CorrectingLLM({"edad": 200})
+    s = _bounded_strategy(llm)
+    s._frame.try_update({"nombre": "Ana", "edad": 40})
+    s._phase = "confirming"
+    reply, done = s.on_user_turn("task", "no, tengo 200")
+    assert s._phase == "gathering"
+    assert s._frame.current_value("edad") is None
+    assert llm.last_rejected == {"edad": 200}
+    assert not done
+
+
+def test_out_of_range_seed_is_ignored():
+    llm = _FullFakeLLM()
+    schema = '{"slots": [{"name": "edad", "type": "int", "exclusive_minimum": 0}]}'
+    req = _FakeRequest(frame_schema_json=schema, initial_frame_json='{"edad": 0}')
+    s = SlotFillingStrategy(llm=llm, config=FSMConfig(), ctx=DialogContext(), request=req)
+    s.on_init("task")
+    assert s._frame.current_value("edad") is None
+    assert s._frame.pop_rejected() == {}
+
+
+def test_child_of_numeric_condition_does_not_promote_parent():
+    """A value for a child under a range condition must not invent a parent value."""
+    llm = _FullFakeLLM(extractions=[{"slot": "pension", "value": "sí", "source_span": "sí"}])
+    s = _make_strategy(llm)
+    s._frame = DialogFrame.from_slots_json(
+        '{"slots": [{"name": "edad", "type": "int"},'
+        ' {"name": "pension", "type": "str", "condition_slot": "edad", "condition_minimum": 65}]}'
+    )
+    s.on_user_turn("task", "sí cobro pensión")
+    assert s._frame.current_value("edad") is None
+    assert s._frame.missing_slots() == ["edad"]

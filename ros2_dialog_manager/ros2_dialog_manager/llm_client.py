@@ -295,9 +295,10 @@ class LLMDialogClient:
         extracted_slots: list[dict],
         attempts_exceeded: list[str],
         ctx: DialogContext | None = None,
+        rejected: dict | None = None,
     ) -> str:
         prompt = self._pb.generate_response(
-            task, frame, user_text, extracted_slots, attempts_exceeded, ctx
+            task, frame, user_text, extracted_slots, attempts_exceeded, ctx, rejected
         )
         res = self._call_nlg(prompt, max_tokens=120)
         return self._clean(res) or self._fb["unclear"]

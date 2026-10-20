@@ -3,7 +3,11 @@ DialogFrame — mutable, thread-safe schema for slot-filling dialogs.
 
 Slots are typed (str, int, float, bool, list_str) and may carry optional metadata:
   - canonical_values: closed set of allowed values (e.g. "small|medium|large").
-  - conditions: a slot becomes active only when a parent slot equals a value.
+  - conditions: a slot becomes active only when a parent slot equals a value,
+    or (numeric parents) when the parent value falls within a range.
+  - bounds (int/float only): numeric limits (minimum, maximum, exclusive_minimum,
+    exclusive_maximum). Out-of-range values are rejected and recorded so the
+    strategy can tell the user why.
 
 list_str slots accumulate items by default and support explicit operations
 (replace_list, remove_from_list, add_to_list) for natural corrections.
@@ -19,6 +23,53 @@ from .utils import parse_loose_json, to_snake_case
 
 _EMPTY_VALUES = frozenset({None, "none", "null", "", "unknown", "n/a"})
 _VALID_TYPES = frozenset({"str", "int", "float", "bool", "list_str"})
+_NUMERIC_TYPES = frozenset({"int", "float"})
+
+# Bound key -> comparison symbol. Lower bounds first, then upper bounds.
+_BOUND_OPS = {
+    "minimum": ">=",
+    "exclusive_minimum": ">",
+    "maximum": "<=",
+    "exclusive_maximum": "<",
+}
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _within(value: float, bounds: dict[str, float]) -> bool:
+    """True if value satisfies every bound in `bounds` (keys of _BOUND_OPS)."""
+    if "minimum" in bounds and value < bounds["minimum"]:
+        return False
+    if "exclusive_minimum" in bounds and value <= bounds["exclusive_minimum"]:
+        return False
+    if "maximum" in bounds and value > bounds["maximum"]:
+        return False
+    if "exclusive_maximum" in bounds and value >= bounds["exclusive_maximum"]:
+        return False
+    return True
+
+
+def _range_empty(*bound_sets: dict[str, float]) -> bool:
+    """True if no number satisfies all bound sets at once (their intersection is empty)."""
+    lo, lo_excl, hi, hi_excl = None, False, None, False
+    for b in bound_sets:
+        for key, excl in (("minimum", False), ("exclusive_minimum", True)):
+            if key in b and (lo is None or b[key] > lo or (b[key] == lo and excl)):
+                lo, lo_excl = b[key], excl
+        for key, excl in (("maximum", False), ("exclusive_maximum", True)):
+            if key in b and (hi is None or b[key] < hi or (b[key] == hi and excl)):
+                hi, hi_excl = b[key], excl
+    if lo is None or hi is None:
+        return False
+    return lo > hi or (lo == hi and (lo_excl or hi_excl))
+
+
+def _fmt_bounds(bounds: dict[str, float]) -> str:
+    """Bounds as a compact expression, e.g. '>= 18 and < 120'."""
+    return " and ".join(f"{op} {bounds[k]:g}" for k, op in _BOUND_OPS.items() if k in bounds)
+
 
 # Default history buffer size; used as the constructor default and exported
 # so tests can parameterise without hardcoding the magic number.
@@ -31,9 +82,10 @@ class DialogFrame:
         self,
         schema: dict,
         types: dict,
-        conditions: dict[str, list[tuple[str, str]]] | None = None,
+        conditions: dict[str, list[tuple[str, str | dict[str, float]]]] | None = None,
         canonical_values: dict[str, list[str]] | None = None,
         history_max_turns: int = _MAX_HISTORY,
+        bounds: dict[str, dict[str, float]] | None = None,
     ):
         self._lock = threading.RLock()
         self._keys = list(schema.keys())
@@ -41,6 +93,8 @@ class DialogFrame:
         self._types = {k: (types.get(k, "str") if types else "str") for k in schema}
         self._conditions = conditions or {}
         self._canonical_values = canonical_values or {}
+        self._bounds = bounds or {}
+        self._rejected: dict[str, Any] = {}
         self._attempts: dict[str, int] = {k: 0 for k in schema}
         self._history: list[dict] = []
         self._max_history = history_max_turns
@@ -79,8 +133,16 @@ class DialogFrame:
                 {"name": "size",   "type": "str",
                  "canonical_values": ["small", "large"]},
                 {"name": "detail", "type": "str",
-                 "condition_slot": "size", "condition_value": "large"}
+                 "condition_slot": "size", "condition_value": "large"},
+                {"name": "age", "type": "int",
+                 "minimum": 18, "exclusive_maximum": 120},
+                {"name": "pension", "type": "bool",
+                 "condition_slot": "age", "condition_minimum": 65}
               ]
+
+        A condition is either an equality (condition_value) or, for int/float
+        parents, a numeric range using the bound keys prefixed with
+        "condition_" (condition_minimum, condition_exclusive_maximum, ...).
             }
 
         Slot names are normalised to snake_case (same as the LLM path).
@@ -108,6 +170,7 @@ class DialogFrame:
         types: dict = {}
         conditions: dict = {}
         canon_vals: dict = {}
+        bounds: dict = {}
         seen: set = set()
 
         for i, s in enumerate(slots_raw):
@@ -152,22 +215,42 @@ class DialogFrame:
                 ]
                 canon_vals[name] = cleaned
 
-            # conditions — both keys must appear together or not at all
+            slot_bounds = cls._parse_bounds(name, s)
+            if slot_bounds:
+                if raw_type not in _NUMERIC_TYPES:
+                    raise ValueError(
+                        f"Slot '{name}': {sorted(slot_bounds)} only apply to int or float "
+                        f"slots, not '{raw_type}'"
+                    )
+                bounds[name] = slot_bounds
+
+            # conditions — condition_slot goes with exactly one kind of test:
+            # an equality (condition_value) or a numeric range (condition_<bound>).
+            cond_range = cls._parse_bounds(name, s, prefix="condition_")
             has_cslot = "condition_slot" in s
             has_cval = "condition_value" in s
-            if has_cslot != has_cval:
+            if has_cval and cond_range:
                 raise ValueError(
-                    f"Slot '{name}': 'condition_slot' and 'condition_value' must "
-                    "both be present or both absent"
+                    f"Slot '{name}': use 'condition_value' or a numeric condition "
+                    f"({', '.join('condition_' + k for k in cond_range)}), not both"
+                )
+            if has_cslot != (has_cval or bool(cond_range)):
+                raise ValueError(
+                    f"Slot '{name}': 'condition_slot' must come with 'condition_value' or a "
+                    "numeric condition (condition_minimum, condition_maximum, ...), and "
+                    "neither may appear without 'condition_slot'"
                 )
             if has_cslot:
                 cslot_raw = s["condition_slot"]
-                cval_raw = s["condition_value"]
                 if not cslot_raw or not str(cslot_raw).strip():
                     raise ValueError(f"Slot '{name}': 'condition_slot' must be a non-empty string")
+                cslot = to_snake_case(str(cslot_raw).strip())
+                if cond_range:
+                    conditions[name] = [(cslot, cond_range)]
+                    continue
+                cval_raw = s["condition_value"]
                 if cval_raw is None or not str(cval_raw).strip():
                     raise ValueError(f"Slot '{name}': 'condition_value' must be a non-empty string")
-                cslot = to_snake_case(str(cslot_raw).strip())
                 conditions[name] = [(cslot, str(cval_raw).strip())]
 
         # Second pass: validate cross-slot references now that all names are known.
@@ -178,8 +261,37 @@ class DialogFrame:
                     f"Slot '{child}': condition_slot '{cslot}' does not reference "
                     "any slot defined in this schema"
                 )
-            if types.get(cslot) == "list_str":
+            ptype = types.get(cslot)
+            if ptype == "list_str":
                 raise ValueError(f"Slot '{child}': cannot condition on list_str slot '{cslot}'")
+            parent_bounds = bounds.get(cslot, {})
+
+            if isinstance(cval, dict):
+                if ptype not in _NUMERIC_TYPES:
+                    raise ValueError(
+                        f"Slot '{child}': numeric condition needs an int or float parent, "
+                        f"'{cslot}' is '{ptype}'"
+                    )
+                if _range_empty(cval, parent_bounds):
+                    raise ValueError(
+                        f"Slot '{child}': condition '{cslot} {_fmt_bounds(cval)}' can never "
+                        f"hold given the parent's allowed range ({_fmt_bounds(parent_bounds)})"
+                    )
+                continue
+
+            if ptype in _NUMERIC_TYPES:
+                try:
+                    num = float(cval)
+                except ValueError:
+                    raise ValueError(
+                        f"Slot '{child}': condition_value '{cval}' is not a number but "
+                        f"'{cslot}' is '{ptype}'"
+                    ) from None
+                if not _within(num, parent_bounds):
+                    raise ValueError(
+                        f"Slot '{child}': condition_value {cval} is outside the allowed "
+                        f"range of '{cslot}' ({_fmt_bounds(parent_bounds)})"
+                    )
             parent_canon = canon_vals.get(cslot)
             if parent_canon and cval.lower().strip() not in {v.lower() for v in parent_canon}:
                 raise ValueError(
@@ -193,26 +305,70 @@ class DialogFrame:
             conditions=conditions or None,
             canonical_values=canon_vals or None,
             history_max_turns=history_max_turns,
+            bounds=bounds or None,
         )
+
+    @staticmethod
+    def _parse_bounds(name: str, s: dict, prefix: str = "") -> dict[str, float]:
+        """Validate the numeric bound keys (optionally prefixed) of one slot definition.
+        Returns them under the unprefixed names of _BOUND_OPS."""
+        found = {k: s[prefix + k] for k in _BOUND_OPS if s.get(prefix + k) is not None}
+        if not found:
+            return {}
+        for k, v in found.items():
+            if not _is_number(v):
+                raise ValueError(f"Slot '{name}': '{prefix}{k}' must be a number, got {v!r}")
+        for a, b in (("minimum", "exclusive_minimum"), ("maximum", "exclusive_maximum")):
+            if a in found and b in found:
+                raise ValueError(f"Slot '{name}': use '{prefix}{a}' or '{prefix}{b}', not both")
+        if _range_empty(found):
+            raise ValueError(f"Slot '{name}': numeric range is empty ({prefix}{found})")
+        return found
 
     # ==== SCOPE ====
 
     def _in_scope(self, slot: str) -> bool:
-        for cond_slot, cond_value in self._conditions.get(slot, []):
-            actual = self._data.get(cond_slot)
-            if actual is None or isinstance(actual, list):
+        return all(
+            self._condition_holds(self._data.get(cond_slot), cond)
+            for cond_slot, cond in self._conditions.get(slot, [])
+        )
+
+    @staticmethod
+    def _condition_holds(actual: Any, cond: str | dict[str, float]) -> bool:
+        """Equality (case-insensitive; numeric when the parent is a number) or range test."""
+        if actual is None or isinstance(actual, list):
+            return False
+        if isinstance(cond, dict):
+            return _is_number(actual) and _within(actual, cond)
+        if _is_number(actual):
+            try:
+                return float(cond) == actual
+            except ValueError:
                 return False
-            if str(actual).lower().strip() != str(cond_value).lower().strip():
-                return False
-        return True
+        return str(actual).lower().strip() == str(cond).lower().strip()
 
     def trigger_values(self, slot: str) -> list[str]:
-        """Values that, when set on this slot, activate one or more conditional children."""
+        """Values that, when set on this slot, activate one or more conditional children.
+        Numeric range conditions have no single trigger value and are not listed."""
         return list(
             dict.fromkeys(
-                cv for _, conds in self._conditions.items() for cs, cv in conds if cs == slot
+                cv
+                for _, conds in self._conditions.items()
+                for cs, cv in conds
+                if cs == slot and not isinstance(cv, dict)
             )
         )
+
+    def promotion_for(self, slot: str) -> tuple[str, str] | None:
+        """(parent, value) that would bring `slot` into scope, when its condition is an
+        unmet equality. None if already in scope or the condition is a numeric range
+        (no single value to promote)."""
+        with self._lock:
+            for cond_slot, cond in self._conditions.get(slot, []):
+                if isinstance(cond, dict) or self._condition_holds(self._data.get(cond_slot), cond):
+                    continue
+                return cond_slot, cond
+            return None
 
     # ==== LIST OPERATIONS ====
 
@@ -274,6 +430,9 @@ class DialogFrame:
                 normalized = self._normalize(v, self._types[k])
                 if normalized is None:
                     continue
+                if not self._within_bounds(k, normalized):
+                    self._rejected[k] = normalized
+                    continue
 
                 if self._types[k] == "list_str" and isinstance(normalized, list):
                     existing = self._current_list(k)
@@ -295,20 +454,14 @@ class DialogFrame:
     def _reset_conditional_children(self, changed_slot: str, old_val: Any, new_val: Any) -> None:
         """Invalidate children whose condition no longer holds after a parent change."""
         for child, conds in self._conditions.items():
-            for cond_slot, cond_value in conds:
+            for cond_slot, cond in conds:
                 if cond_slot != changed_slot:
                     continue
-                old_matched = self._scalar_equal(old_val, cond_value)
-                new_matches = self._scalar_equal(new_val, cond_value)
+                old_matched = self._condition_holds(old_val, cond)
+                new_matches = self._condition_holds(new_val, cond)
                 if old_matched and not new_matches:
                     self._data[child] = None
                     self._attempts[child] = 0
-
-    @staticmethod
-    def _scalar_equal(value: Any, target: str) -> bool:
-        if value is None or isinstance(value, list):
-            return False
-        return str(value).lower().strip() == str(target).lower().strip()
 
     # ==== ATTEMPT TRACKING ====
 
@@ -367,7 +520,7 @@ class DialogFrame:
         with self._lock:
             return self._data.get(slot)
 
-    def conditions_for(self, slot: str) -> list[tuple[str, object]]:
+    def conditions_for(self, slot: str) -> list[tuple[str, str | dict[str, float]]]:
         with self._lock:
             return list(self._conditions.get(slot, []))
 
@@ -393,6 +546,32 @@ class DialogFrame:
 
     def canonical_values(self, slot: str) -> list[str]:
         return list(self._canonical_values.get(slot, []))
+
+    # ==== NUMERIC BOUNDS ====
+
+    def bounds(self, slot: str) -> dict[str, float]:
+        return dict(self._bounds.get(slot, {}))
+
+    def _within_bounds(self, slot: str, value: Any) -> bool:
+        b = self._bounds.get(slot)
+        return not b or not _is_number(value) or _within(value, b)
+
+    def describe_bounds(self, slot: str) -> str:
+        """Bounds as a compact expression, e.g. '>= 18 and < 120'. Empty if none."""
+        return _fmt_bounds(self._bounds.get(slot, {}))
+
+    def pop_rejected(self) -> dict[str, Any]:
+        """Values refused by try_update since the last call (out of bounds)."""
+        with self._lock:
+            rejected, self._rejected = self._rejected, {}
+            return rejected
+
+    def clear_slot(self, slot: str) -> None:
+        """Empty a slot so it is asked again (used when a correction is out of bounds)."""
+        with self._lock:
+            if slot in self._data:
+                self._data[slot] = None
+                self._attempts[slot] = 0
 
     def amend_canonical_values(
         self,
@@ -437,12 +616,21 @@ class DialogFrame:
                 v = self._data[k]
                 t = self._types[k]
                 conds = self._conditions.get(k, [])
-                cond_str = f" [active when {conds[0][0]}={conds[0][1]!r}]" if conds else ""
+                cond_str = f" [active when {self._describe_condition(conds[0])}]" if conds else ""
                 val_str = f"= {v!r}" if not self._is_empty(k) else "MISSING"
                 canon = self._canonical_values.get(k, [])
                 canon_str = f" [one of: {' | '.join(repr(c) for c in canon)}]" if canon else ""
-                lines.append(f"  - {k} ({t}): {val_str}{cond_str}{canon_str}")
+                rng = self.describe_bounds(k)
+                range_str = f" [allowed range: {rng}]" if rng else ""
+                lines.append(f"  - {k} ({t}): {val_str}{cond_str}{canon_str}{range_str}")
             return "\n".join(lines) if lines else "  (no active slots)"
+
+    @staticmethod
+    def _describe_condition(cond: tuple[str, str | dict[str, float]]) -> str:
+        cond_slot, test = cond
+        if isinstance(test, dict):
+            return f"{cond_slot} {_fmt_bounds(test)}"
+        return f"{cond_slot}={test!r}"
 
     def describe_filled_for_correction(self) -> str:
         """Compact summary of filled slots for correction-extraction prompts."""
@@ -603,7 +791,8 @@ class DialogFrame:
             except (ValueError, TypeError):
                 m = re.search(r"-?\d+\.?\d*", str(v))
                 if m:
-                    return int(m.group()) if slot_type == "int" else float(m.group())
+                    # int(float(...)) so "3.5" on an int slot does not raise.
+                    return int(float(m.group())) if slot_type == "int" else float(m.group())
             return None
         return str(v).strip() or None
 

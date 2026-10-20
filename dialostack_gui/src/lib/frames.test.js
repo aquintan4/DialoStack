@@ -1,6 +1,6 @@
 /** Tests for the frames data layer: compile/parse round-trips and goal-field mapping per mode. */
 import { describe, it, expect } from 'vitest'
-import { compileFields, parseDimension, stateFromFields, kindFields } from './frames'
+import { compileFields, parseDimension, stateFromFields, kindFields, emptySlot } from './frames'
 
 const fieldByGoal = (kind, state, goalField) =>
   compileFields(kind, state).find((f) => f.field === goalField)
@@ -26,11 +26,71 @@ describe('compileFields: goal fields per mode', () => {
 describe('round-trip compile/parse per dimension', () => {
   it('slots preserves types, canonical values and conditions', () => {
     const slots = [
-      { name: 'size', type: 'str', canonical_values: ['s', 'l'], condition_slot: '', condition_value: '' },
-      { name: 'detail', type: 'str', canonical_values: [], condition_slot: 'size', condition_value: 'l' },
+      { ...emptySlot(), name: 'size', canonical_values: ['s', 'l'] },
+      { ...emptySlot(), name: 'detail', condition_slot: 'size', condition_value: 'l' },
     ]
     const json = fieldByGoal('slot_filling', { slots, resources: [] }, 'frame_schema_json').json
     expect(parseDimension('slots', json)).toEqual(slots)
+  })
+
+  it('numeric bounds round-trip with their operators', () => {
+    const slots = [
+      { ...emptySlot(), name: 'age', type: 'int', min_op: '>=', min: '18', max_op: '<', max: '120' },
+      { ...emptySlot(), name: 'temp', type: 'float', min_op: '>', min: '0.5' },
+    ]
+    const json = fieldByGoal('slot_filling', { slots, resources: [] }, 'frame_schema_json').json
+    const compiled = JSON.parse(json).slots
+    expect(compiled[0]).toMatchObject({ minimum: 18, exclusive_maximum: 120 })
+    expect(compiled[1]).toMatchObject({ exclusive_minimum: 0.5 })
+    expect(compiled[1]).not.toHaveProperty('maximum')
+    expect(parseDimension('slots', json)).toEqual(slots)
+  })
+
+  it('bounds are dropped for non-numeric types and invalid numbers', () => {
+    const slots = [
+      { ...emptySlot(), name: 'city', type: 'str', min: '3' },
+      { ...emptySlot(), name: 'n', type: 'int', min: 'abc', max: '10' },
+    ]
+    const compiled = JSON.parse(fieldByGoal('slot_filling', { slots, resources: [] }, 'frame_schema_json').json).slots
+    expect(compiled[0]).not.toHaveProperty('minimum')
+    expect(compiled[1]).not.toHaveProperty('minimum')
+    expect(compiled[1].maximum).toBe(10)
+  })
+
+  it('slots saved before bounds existed still compile', () => {
+    const legacy = [{ name: 'n', type: 'int', canonical_values: [], condition_slot: '', condition_value: '' }]
+    const compiled = JSON.parse(fieldByGoal('slot_filling', { slots: legacy, resources: [] }, 'frame_schema_json').json).slots
+    expect(compiled[0]).toEqual({ name: 'n', type: 'int' })
+  })
+
+  it('numeric conditions round-trip as condition_<bound> keys', () => {
+    const slots = [
+      { ...emptySlot(), name: 'age', type: 'int' },
+      {
+        ...emptySlot(), name: 'pension', type: 'bool', condition_slot: 'age',
+        condition_mode: 'range', cond_min_op: '>', cond_min: '64', cond_max_op: '<', cond_max: '100',
+      },
+    ]
+    const json = fieldByGoal('slot_filling', { slots, resources: [] }, 'frame_schema_json').json
+    expect(JSON.parse(json).slots[1]).toEqual({
+      name: 'pension', type: 'bool', condition_slot: 'age',
+      condition_exclusive_minimum: 64, condition_exclusive_maximum: 100,
+    })
+    expect(parseDimension('slots', json)).toEqual(slots)
+  })
+
+  it('equality conditions ignore leftover range fields', () => {
+    const slots = [{
+      ...emptySlot(), name: 'detail', condition_slot: 'size', condition_value: 'l', cond_min: '5',
+    }]
+    const compiled = JSON.parse(fieldByGoal('slot_filling', { slots, resources: [] }, 'frame_schema_json').json).slots
+    expect(compiled[0]).toEqual({ name: 'detail', type: 'str', condition_slot: 'size', condition_value: 'l' })
+  })
+
+  it('an incomplete condition keeps condition_slot so the engine reports it', () => {
+    const slots = [{ ...emptySlot(), name: 'x', condition_slot: 'age', condition_mode: 'range' }]
+    const compiled = JSON.parse(fieldByGoal('slot_filling', { slots, resources: [] }, 'frame_schema_json').json).slots
+    expect(compiled[0]).toEqual({ name: 'x', type: 'str', condition_slot: 'age' })
   })
 
   it('quiz compresses questions into a resource and recovers them', () => {
@@ -47,7 +107,7 @@ describe('round-trip compile/parse per dimension', () => {
 
   it('slot_filling with context resources: both fields round-trip', () => {
     const state = {
-      slots: [{ name: 'drink', type: 'str', canonical_values: [], condition_slot: '', condition_value: '' }],
+      slots: [{ ...emptySlot(), name: 'drink' }],
       resources: [{ name: 'menu', description: 'menu', content: 'coffee, tea' }],
     }
     const fields = compileFields('slot_filling', state)

@@ -30,10 +30,63 @@ export const SLOT_TYPES = [
   { value: 'list_str', label: 'List (list_str)' },
 ]
 const TYPE_VALUES = SLOT_TYPES.map((t) => t.value)
+export const NUMERIC_TYPES = ['int', 'float']
+
+// Numeric bounds (int/float slots). The UI edits an operator + a value per
+// side; the engine schema uses one key per operator (JSON Schema naming).
+export const LOWER_OPS = [{ value: '>=', key: 'minimum' }, { value: '>', key: 'exclusive_minimum' }]
+export const UPPER_OPS = [{ value: '<=', key: 'maximum' }, { value: '<', key: 'exclusive_maximum' }]
+
+// The same range editor is used twice per slot: for the slot's own value and
+// for a numeric condition on its parent (engine keys prefixed "condition_").
+const VALUE_RANGE = { min_op: 'min_op', min: 'min', max_op: 'max_op', max: 'max', prefix: '' }
+const CONDITION_RANGE = {
+  min_op: 'cond_min_op', min: 'cond_min', max_op: 'cond_max_op', max: 'cond_max', prefix: 'condition_',
+}
+
+/** Engine bound keys of one range, e.g. { minimum: 18, exclusive_maximum: 120 }. */
+function rangeToJSON(s, f) {
+  const out = {}
+  for (const [ops, op, raw] of [[LOWER_OPS, s[f.min_op], s[f.min]], [UPPER_OPS, s[f.max_op], s[f.max]]]) {
+    const value = Number(raw)
+    if (String(raw ?? '').trim() === '' || !Number.isFinite(value)) continue
+    out[f.prefix + (ops.find((o) => o.value === op) || ops[0]).key] = value
+  }
+  return out
+}
+
+/** Inverse of rangeToJSON: UI fields from an engine slot definition. */
+function rangeFromJSON(s, f) {
+  const side = (ops) => {
+    const hit = ops.find((o) => typeof s?.[f.prefix + o.key] === 'number')
+    return hit ? [hit.value, String(s[f.prefix + hit.key])] : [ops[0].value, '']
+  }
+  const [minOp, min] = side(LOWER_OPS)
+  const [maxOp, max] = side(UPPER_OPS)
+  return { [f.min_op]: minOp, [f.min]: min, [f.max_op]: maxOp, [f.max]: max }
+}
+
+/**
+ * Condition keys of one UI slot: equality or numeric range on the parent.
+ * condition_slot is kept even when the test is incomplete, so the engine
+ * rejects the schema with a clear error instead of silently dropping it.
+ */
+function conditionToJSON(s) {
+  if (!s.condition_slot) return {}
+  const test = s.condition_mode === 'range'
+    ? rangeToJSON(s, CONDITION_RANGE)
+    : (s.condition_value ? { condition_value: s.condition_value } : {})
+  return { condition_slot: s.condition_slot, ...test }
+}
+
+const hasConditionRange = (s) =>
+  [...LOWER_OPS, ...UPPER_OPS].some((o) => typeof s?.[CONDITION_RANGE.prefix + o.key] === 'number')
 
 // ==== EMPTY ELEMENTS PER DIMENSION ====
 export const emptySlot = () => ({
   name: '', type: 'str', canonical_values: [], condition_slot: '', condition_value: '',
+  min_op: '>=', min: '', max_op: '<=', max: '',
+  condition_mode: 'equals', cond_min_op: '>=', cond_min: '', cond_max_op: '<=', cond_max: '',
 })
 export const emptyQuestion = () => ({ question: '', answer: '' })
 export const emptyResource = () => ({ name: '', description: '', content: '' })
@@ -49,8 +102,8 @@ function buildSlotsJSON(slots) {
       ...(s.canonical_values.filter((v) => v.trim()).length > 0
         ? { canonical_values: s.canonical_values.filter((v) => v.trim()) }
         : {}),
-      ...(s.condition_slot ? { condition_slot: s.condition_slot } : {}),
-      ...(s.condition_value ? { condition_value: s.condition_value } : {}),
+      ...conditionToJSON(s),
+      ...(NUMERIC_TYPES.includes(s.type) ? rangeToJSON(s, VALUE_RANGE) : {}),
     }))
   return JSON.stringify({ slots: clean }, null, 2)
 }
@@ -80,6 +133,9 @@ function slotsFromJSON(parsed) {
     canonical_values: Array.isArray(s?.canonical_values) ? s.canonical_values.map(String) : [],
     condition_slot: String(s?.condition_slot ?? ''),
     condition_value: String(s?.condition_value ?? ''),
+    ...rangeFromJSON(s, VALUE_RANGE),
+    condition_mode: hasConditionRange(s) ? 'range' : 'equals',
+    ...rangeFromJSON(s, CONDITION_RANGE),
   }))
 }
 
