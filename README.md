@@ -100,7 +100,7 @@ See **[docs/architecture.md](docs/architecture.md)** for the full design: node g
 | [`robots/nao/`](robots/nao) | NAO-specific layer: URDF, gestures, eye LEDs, pose tooling |
 | [`dialostack_bt_client/`](dialostack_bt_client) | BehaviorTree.CPP leaf node to run a dialogue from a behavior tree |
 | [`evaluation/`](evaluation) | ROS-free benchmark suite with annotated datasets |
-| [`docs/`](docs) | Architecture and configuration documentation |
+| [`docs/`](docs) | Architecture, configuration and slot schema documentation |
 
 ## Getting started
 
@@ -162,7 +162,7 @@ ros2 action send_goal --feedback /dialog/execute_task \
     domain: 'coffee shop'}"
 ```
 
-The robot greets the user, asks for each missing slot, handles corrections ("actually, make it a large"), confirms the result, and returns the completed frame as JSON in `result.final_frame_json`. You can also supply your own schema (`frame_schema_json`) and pre-filled values (`initial_frame_json`) to resume an interrupted dialogue.
+The robot greets the user, asks for each missing slot, handles corrections ("actually, make it a large"), confirms the result, and returns the completed frame as JSON in `result.final_frame_json`. You can also supply your own schema (`frame_schema_json`), with canonical values, numeric ranges and conditional slots (see **[docs/slot_schema.md](docs/slot_schema.md)**), and pre-filled values (`initial_frame_json`) to resume an interrupted dialogue.
 
 **Explanation** explains something and checks it was understood:
 

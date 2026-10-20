@@ -1,8 +1,62 @@
-/** Editable card for a single slot: name, type, canonical values and condition. */
+/** Editable card for a single slot: name, type, canonical values, numeric range and condition. */
 import { useState } from 'react'
 import { GripVertical, Link2, Trash2, X, Plus } from 'lucide-react'
 import { Select } from '../../components/ui'
-import { SLOT_TYPES } from '../../lib/frames'
+import { SLOT_TYPES, NUMERIC_TYPES, LOWER_OPS, UPPER_OPS } from '../../lib/frames'
+
+const rangeInputCls = `bg-app-700 border border-app-border rounded-lg px-2 py-1
+  text-xs text-slate-300 placeholder-slate-600 focus:outline-none
+  focus:border-brand-600 font-mono w-20`
+
+const rangeSelectCls = `bg-app-700 border border-app-border rounded-lg px-2 py-1 w-full
+  text-xs text-slate-300 focus:outline-none focus:border-brand-600 cursor-pointer font-mono`
+
+// Slot fields edited by each RangeInputs instance (see VALUE_RANGE/CONDITION_RANGE in frames.js).
+const VALUE_FIELDS = { min_op: 'min_op', min: 'min', max_op: 'max_op', max: 'max' }
+const CONDITION_FIELDS = { min_op: 'cond_min_op', min: 'cond_min', max_op: 'cond_max_op', max: 'cond_max' }
+
+/** Same rule as the engine (DialogFrame._parse_bounds): reject an empty range. */
+function rangeError(slot, f) {
+  const lo = Number(slot[f.min])
+  const hi = Number(slot[f.max])
+  if (String(slot[f.min] ?? '').trim() === '' || String(slot[f.max] ?? '').trim() === '') return null
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) return 'Bounds must be numbers'
+  const inclusive = (slot[f.min_op] ?? '>=') === '>=' && (slot[f.max_op] ?? '<=') === '<='
+  if (lo > hi || (lo === hi && !inclusive)) return 'Empty range: no value can satisfy it'
+  return null
+}
+
+/** Lower and upper bound, each an operator + a number; either side may stay empty. */
+function RangeInputs({ slot, fields, onField }) {
+  const error = rangeError(slot, fields)
+  const side = (ops, opField, valField, placeholder, fallback) => (
+    <>
+      <Select
+        value={slot[opField] ?? fallback}
+        onChange={(e) => onField(opField, e.target.value)}
+        className={rangeSelectCls}
+        wrapClassName="w-16"
+      >
+        {ops.map((o) => <option key={o.value} value={o.value}>{o.value}</option>)}
+      </Select>
+      <input
+        type="number"
+        placeholder={placeholder}
+        value={slot[valField] ?? ''}
+        onChange={(e) => onField(valField, e.target.value)}
+        className={rangeInputCls}
+      />
+    </>
+  )
+  return (
+    <>
+      {side(LOWER_OPS, fields.min_op, fields.min, 'min', '>=')}
+      <span className="text-xs text-slate-600">and</span>
+      {side(UPPER_OPS, fields.max_op, fields.max, 'max', '<=')}
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </>
+  )
+}
 
 const compactSelectCls = `bg-app-700 border border-app-border rounded-lg px-2 py-1.5
   text-sm text-slate-300 focus:outline-none focus:border-brand-600
@@ -14,6 +68,9 @@ export function SlotCard({
 }) {
   const eligibleParents = allSlots.filter((s, i) => i !== index && s.name.trim())
   const dependent = Boolean(slot.condition_slot)
+  const parent = allSlots.find((s) => s.name === slot.condition_slot)
+  const parentNumeric = Boolean(parent && NUMERIC_TYPES.includes(parent.type))
+  const rangeCondition = slot.condition_mode === 'range'
   // Dragging is only armed when grabbing the handle, to avoid interfering with
   // text selection in the card's inputs.
   const [armed, setArmed] = useState(false)
@@ -139,9 +196,17 @@ export function SlotCard({
           </div>
         )}
 
+        {/* Numeric range (int/float only) */}
+        {NUMERIC_TYPES.includes(slot.type) && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-xs text-slate-600">Range</span>
+            <RangeInputs slot={slot} fields={VALUE_FIELDS} onField={handleField} />
+          </div>
+        )}
+
         {/* Condition */}
         {eligibleParents.length > 0 && (
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="text-xs text-slate-600">Condition</span>
             <Select
               value={slot.condition_slot}
@@ -156,7 +221,29 @@ export function SlotCard({
               ))}
             </Select>
 
-            {slot.condition_slot && (
+            {/* Numeric parents can also be tested against a range (>, <, between). */}
+            {slot.condition_slot && (parentNumeric || rangeCondition) && (
+              <Select
+                value={slot.condition_mode ?? 'equals'}
+                onChange={(e) => handleField('condition_mode', e.target.value)}
+                className={rangeSelectCls}
+                wrapClassName="w-24"
+              >
+                <option value="equals">equals</option>
+                <option value="range">in range</option>
+              </Select>
+            )}
+
+            {slot.condition_slot && rangeCondition && (
+              <>
+                <RangeInputs slot={slot} fields={CONDITION_FIELDS} onField={handleField} />
+                {!parentNumeric && (
+                  <span className="text-xs text-red-400">Range conditions need an int or float parent</span>
+                )}
+              </>
+            )}
+
+            {slot.condition_slot && !rangeCondition && (
               <>
                 <span className="text-xs text-slate-600">=</span>
                 <input

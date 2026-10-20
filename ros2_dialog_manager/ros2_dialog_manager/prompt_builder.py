@@ -156,6 +156,11 @@ class PromptBuilder:
         else:
             line += " [empty — needs a value]"
         line += self._canonical_hint(slot, frame)
+        rng = frame.describe_bounds(slot)
+        if rng:
+            # Out-of-range numbers must still be extracted so the frame can
+            # reject them and the reply can explain the allowed range.
+            line += f" [allowed range: {rng}; extract the number as said even if outside it]"
         return line
 
     @staticmethod
@@ -173,11 +178,19 @@ class PromptBuilder:
         extracted_slots: list[dict],
         attempts_exceeded: list[str],
         ctx: DialogContext | None = None,
+        rejected: dict | None = None,
     ) -> str:
         history_text = self._fmt_history(frame.last_turns(10))
         next_slot = frame.next_slot() or "NONE"
         extracted_summary = (
             ", ".join(f"{e['slot']}={e['value']!r}" for e in extracted_slots) or "None"
+        )
+        rejected_summary = (
+            ", ".join(
+                f"{k}={v!r} (allowed range: {frame.describe_bounds(k)})"
+                for k, v in (rejected or {}).items()
+            )
+            or "None"
         )
         prompt = self._t(
             "generate_response",
@@ -186,6 +199,7 @@ class PromptBuilder:
             history=history_text,
             user_text=user_text,
             extracted_summary=extracted_summary,
+            rejected_summary=rejected_summary,
             next_slot=next_slot,
             attempts_exceeded=str(attempts_exceeded),
         )

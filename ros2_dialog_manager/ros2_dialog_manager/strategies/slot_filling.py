@@ -113,6 +113,9 @@ class SlotFillingStrategy(BaseDialogStrategy):
             return 0
 
         self._frame.try_update(applicable)
+        rejected = self._frame.pop_rejected()
+        if rejected:
+            self._log.warning(f"initial_frame_json: out-of-range value(s) ignored: {rejected}")
         seeded = sum(1 for k in applicable if not self._frame.is_empty(k))
         if seeded:
             self._log.info(f"Resumed with {seeded}/{len(applicable)} slot(s) pre-filled.")
@@ -148,8 +151,12 @@ class SlotFillingStrategy(BaseDialogStrategy):
 
         operations = self._extractions_to_operations(extractions, default_list_op=OpKind.ADD)
         applied = self._apply_operations(operations)
+        rejected = self._frame.pop_rejected()
+        if rejected:
+            self._log.info(f"Out-of-range value(s) rejected: {rejected}")
+            extractions = [e for e in extractions if e.get("slot") not in rejected]
 
-        extracted_keys = {op.slot for op in operations}
+        extracted_keys = {op.slot for op in operations} - rejected.keys()
         if slot_asked is not None and slot_asked not in extracted_keys:
             self._frame.increment_attempts(slot_asked)
 
@@ -176,6 +183,7 @@ class SlotFillingStrategy(BaseDialogStrategy):
             extracted_slots=extractions,
             attempts_exceeded=self._slots_over_attempts(),
             ctx=self._ctx,
+            rejected=rejected,
         )
         reply = f"{ack} {next_q}".strip() if ack else next_q
         self._frame.add_turn("assistant", reply)
@@ -217,6 +225,14 @@ class SlotFillingStrategy(BaseDialogStrategy):
                 default_list_op=OpKind.ADD,
             )
             applied = self._apply_operations(operations)
+            # An out-of-range correction means the old value is wrong and the new
+            # one is invalid: empty the slot so gathering asks for it again.
+            rejected = self._frame.pop_rejected()
+            for slot in rejected:
+                self._frame.clear_slot(slot)
+            if rejected:
+                self._log.info(f"Out-of-range correction(s) rejected: {rejected}")
+                operations = [op for op in operations if op.slot not in rejected]
 
             if not self._frame.is_complete():
                 # Real correction opened a missing slot — go back to gathering.
@@ -235,6 +251,7 @@ class SlotFillingStrategy(BaseDialogStrategy):
                     extracted_slots=applied_extractions,
                     attempts_exceeded=self._slots_over_attempts(),
                     ctx=self._ctx,
+                    rejected=rejected,
                 )
                 self._frame.add_turn("assistant", next_q)
                 return next_q, False
@@ -315,12 +332,12 @@ class SlotFillingStrategy(BaseDialogStrategy):
 
         promoted: dict = {}
         for op in operations:
-            conds = self._frame.conditions_for(op.slot)
-            if not conds:
+            # Only equality conditions can be promoted; a numeric range has no
+            # single parent value to set.
+            promotion = self._frame.promotion_for(op.slot)
+            if promotion is None:
                 continue
-            parent_slot, required_value = conds[0]
-            if self._frame.current_value(parent_slot) == required_value:
-                continue
+            parent_slot, required_value = promotion
             if any(o.slot == parent_slot for o in operations):
                 continue
             promoted[parent_slot] = required_value

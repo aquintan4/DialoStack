@@ -4,7 +4,13 @@ string frame_schema_json   # Optional. JSON slot schema {"slots":[{name,type,...
                             # When non-empty, bypasses LLM frame generation entirely.
                             # Slot fields: name (str), type (str|int|float|bool|list_str),
                             # canonical_values ([str]), condition_slot (str),
-                            # condition_value (str). See DialogFrame.from_slots_json().
+                            # condition_value (str), and for int/float slots the numeric
+                            # bounds minimum | exclusive_minimum, maximum |
+                            # exclusive_maximum (number). A condition on an int/float
+                            # parent may use a range instead of condition_value:
+                            # condition_minimum, condition_exclusive_minimum,
+                            # condition_maximum, condition_exclusive_maximum.
+                            # See DialogFrame.from_slots_json().
 string initial_frame_json  # Optional JSON object pre-filling slot values (resume support).
                             # Applied after frame creation, whether from schema or LLM.
 int32  max_turns            # 0 = unlimited.

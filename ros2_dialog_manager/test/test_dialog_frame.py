@@ -629,3 +629,247 @@ def test_from_slots_json_canonical_values_not_list_raises():
     raw = '{"slots": [{"name": "x", "type": "str", "canonical_values": "small|large"}]}'
     with pytest.raises(ValueError, match="canonical_values"):
         DialogFrame.from_slots_json(raw)
+
+
+# ==== NUMERIC BOUNDS ====
+
+
+def bounded_frame(**bounds):
+    slot = {"name": "edad", "type": "int", **bounds}
+    return DialogFrame.from_slots_json({"slots": [slot]})
+
+
+def test_bounds_inclusive_accepts_edges():
+    f = bounded_frame(minimum=18, maximum=99)
+    assert f.try_update({"edad": 18}) == ["edad"]
+    assert f.try_update({"edad": 99}) == ["edad"]
+    assert f.pop_rejected() == {}
+
+
+def test_bounds_inclusive_rejects_outside():
+    f = bounded_frame(minimum=18, maximum=99)
+    assert f.try_update({"edad": 17}) == []
+    assert f.current_value("edad") is None
+    assert f.pop_rejected() == {"edad": 17}
+    assert f.pop_rejected() == {}
+
+
+def test_bounds_exclusive_rejects_edges():
+    f = bounded_frame(exclusive_minimum=0, exclusive_maximum=10)
+    assert f.try_update({"edad": 0}) == []
+    assert f.try_update({"edad": 10}) == []
+    assert f.try_update({"edad": 5}) == ["edad"]
+
+
+def test_bounds_apply_after_string_normalisation():
+    f = bounded_frame(maximum=10)
+    assert f.try_update({"edad": "tengo 12"}) == []
+    assert f.pop_rejected() == {"edad": 12}
+
+
+def test_bounds_only_lower():
+    f = bounded_frame(exclusive_minimum=0)
+    assert f.try_update({"edad": -3}) == []
+    assert f.try_update({"edad": 1000}) == ["edad"]
+
+
+def test_bounds_float_slot():
+    f = DialogFrame.from_slots_json(
+        {"slots": [{"name": "temp", "type": "float", "minimum": 35.5, "maximum": 42}]}
+    )
+    assert f.try_update({"temp": "35.4"}) == []
+    assert f.try_update({"temp": "36.6"}) == ["temp"]
+    assert f.current_value("temp") == 36.6
+
+
+def test_out_of_range_does_not_overwrite_existing_value():
+    f = bounded_frame(maximum=99)
+    f.try_update({"edad": 40})
+    f.try_update({"edad": 150})
+    assert f.current_value("edad") == 40
+
+
+def test_describe_bounds():
+    assert bounded_frame(minimum=18, exclusive_maximum=120).describe_bounds("edad") == (
+        ">= 18 and < 120"
+    )
+    assert simple_frame().describe_bounds("edad") == ""
+
+
+def test_describe_slots_shows_range():
+    assert "[allowed range: > 0]" in bounded_frame(exclusive_minimum=0).describe_slots()
+
+
+def test_clear_slot_empties_value():
+    f = bounded_frame(maximum=99)
+    f.try_update({"edad": 40})
+    f.clear_slot("edad")
+    assert f.is_empty("edad")
+
+
+def test_int_slot_accepts_decimal_string():
+    f = simple_frame()
+    f.try_update({"edad": "3.5"})
+    assert f.current_value("edad") == 3
+
+
+def test_from_slots_json_bounds_on_str_raises():
+    with pytest.raises(ValueError, match="only apply to int or float"):
+        DialogFrame.from_slots_json({"slots": [{"name": "x", "type": "str", "minimum": 1}]})
+
+
+def test_from_slots_json_bound_not_number_raises():
+    with pytest.raises(ValueError, match="must be a number"):
+        bounded_frame(minimum="18")
+
+
+def test_from_slots_json_bound_bool_raises():
+    with pytest.raises(ValueError, match="must be a number"):
+        bounded_frame(maximum=True)
+
+
+def test_from_slots_json_both_lower_bounds_raises():
+    with pytest.raises(ValueError, match="not both"):
+        bounded_frame(minimum=1, exclusive_minimum=0)
+
+
+def test_from_slots_json_empty_range_raises():
+    with pytest.raises(ValueError, match="empty"):
+        bounded_frame(minimum=10, maximum=5)
+    with pytest.raises(ValueError, match="empty"):
+        bounded_frame(minimum=5, exclusive_maximum=5)
+
+
+def test_from_slots_json_single_value_range_allowed():
+    f = bounded_frame(minimum=5, maximum=5)
+    assert f.try_update({"edad": 5}) == ["edad"]
+
+
+# ==== NUMERIC CONDITIONS ====
+
+
+def numeric_condition_frame(**cond):
+    return DialogFrame.from_slots_json(
+        {
+            "slots": [
+                {"name": "edad", "type": "int", "minimum": 0, "maximum": 120},
+                {"name": "pension", "type": "bool", "condition_slot": "edad", **cond},
+            ]
+        }
+    )
+
+
+def test_numeric_condition_lower_bound():
+    f = numeric_condition_frame(condition_minimum=65)
+    f.try_update({"edad": 64})
+    assert "pension" not in f.missing_slots()
+    f.try_update({"edad": 65})
+    assert "pension" in f.missing_slots()
+
+
+def test_numeric_condition_exclusive_range():
+    f = numeric_condition_frame(condition_exclusive_minimum=10, condition_exclusive_maximum=20)
+    for value, active in ((10, False), (11, True), (19, True), (20, False)):
+        f.try_update({"edad": value})
+        assert ("pension" in f.missing_slots()) is active, value
+
+
+def test_numeric_condition_not_in_scope_while_parent_empty():
+    f = numeric_condition_frame(condition_maximum=17)
+    assert f.missing_slots() == ["edad"]
+
+
+def test_numeric_condition_resets_child_when_leaving_range():
+    f = numeric_condition_frame(condition_minimum=65)
+    f.try_update({"edad": 70, "pension": True})
+    f.try_update({"edad": 80})
+    assert f.current_value("pension") is True
+    f.try_update({"edad": 30})
+    assert f.current_value("pension") is None
+
+
+def test_numeric_condition_described_in_slots():
+    f = numeric_condition_frame(condition_minimum=65, condition_exclusive_maximum=100)
+    f.try_update({"edad": 70})
+    assert "[active when edad >= 65 and < 100]" in f.describe_slots()
+
+
+def test_numeric_condition_has_no_promotion_or_trigger():
+    f = numeric_condition_frame(condition_minimum=65)
+    assert f.promotion_for("pension") is None
+    assert f.trigger_values("edad") == []
+
+
+def test_equality_condition_on_numeric_parent_compares_numbers():
+    f = DialogFrame.from_slots_json(
+        {
+            "slots": [
+                {"name": "hijos", "type": "float"},
+                {
+                    "name": "motivo",
+                    "type": "str",
+                    "condition_slot": "hijos",
+                    "condition_value": "0",
+                },
+            ]
+        }
+    )
+    f.try_update({"hijos": "0"})
+    assert f.current_value("hijos") == 0.0
+    assert "motivo" in f.missing_slots()
+
+
+def test_promotion_for_unmet_equality_condition():
+    f = conditional_frame()
+    assert f.promotion_for("detalle_a") == ("tipo", "A")
+    f.try_update({"tipo": "a"})
+    assert f.promotion_for("detalle_a") is None
+
+
+def test_numeric_condition_on_non_numeric_parent_raises():
+    with pytest.raises(ValueError, match="needs an int or float parent"):
+        DialogFrame.from_slots_json(
+            {
+                "slots": [
+                    {"name": "tipo", "type": "str"},
+                    {"name": "x", "type": "str", "condition_slot": "tipo", "condition_minimum": 1},
+                ]
+            }
+        )
+
+
+def test_numeric_condition_with_condition_value_raises():
+    with pytest.raises(ValueError, match="not both"):
+        numeric_condition_frame(condition_value="65", condition_minimum=65)
+
+
+def test_numeric_condition_without_slot_raises():
+    with pytest.raises(ValueError, match="condition_slot"):
+        DialogFrame.from_slots_json(
+            {"slots": [{"name": "edad", "type": "int", "condition_minimum": 3}]}
+        )
+
+
+def test_numeric_condition_not_a_number_raises():
+    with pytest.raises(ValueError, match="must be a number"):
+        numeric_condition_frame(condition_minimum="65")
+
+
+def test_numeric_condition_empty_range_raises():
+    with pytest.raises(ValueError, match="empty"):
+        numeric_condition_frame(condition_minimum=50, condition_maximum=40)
+
+
+def test_numeric_condition_outside_parent_bounds_raises():
+    with pytest.raises(ValueError, match="can never hold"):
+        numeric_condition_frame(condition_exclusive_minimum=120)
+
+
+def test_equality_condition_outside_parent_bounds_raises():
+    with pytest.raises(ValueError, match="outside the allowed range"):
+        numeric_condition_frame(condition_value="150")
+
+
+def test_equality_condition_not_numeric_on_numeric_parent_raises():
+    with pytest.raises(ValueError, match="is not a number"):
+        numeric_condition_frame(condition_value="mayor")
