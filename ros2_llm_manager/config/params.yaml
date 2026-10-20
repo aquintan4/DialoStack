@@ -41,9 +41,25 @@ llm_manager_node:
       # Claude API key (console.anthropic.com). Prefer setting the
       # ANTHROPIC_API_KEY environment variable and leaving this field empty.
       api_key: ""
-      model: "claude-opus-5-5"
+      model: "claude-haiku-5-5"
       # Request timeout in seconds for inference calls.
       timeout: 60.0
       # Thinking effort: low | medium | high | xhigh | max. "low" keeps spoken
       # replies fast; empty omits it (for older models without effort support).
       effort: "low"
+
+    openai:
+      # Set to true to enable the OpenAI provider and connect at startup.
+      enable: false
+      # OpenAI API key (platform.openai.com). Prefer setting the OPENAI_API_KEY
+      # environment variable and leaving this field empty.
+      api_key: ""
+      model: "gpt-6-luna"
+      # Request timeout in seconds for inference calls.
+      timeout: 60.0
+      # none | low | medium | high | xhigh | max. "none" keeps spoken replies
+      # fast; empty omits it (for models without reasoning).
+      reasoning_effort: "none"
+      # Optional: an OpenAI-compatible server (vLLM, LM Studio, OpenRouter...),
+      # e.g. "http://127.0.0.1:1234/v1". Empty = api.openai.com.
+      base_url: ""

@@ -56,6 +56,7 @@ class GeminiProvider(BaseProvider):
         max_tokens: int = 0,
         format_schema: Optional[dict] = None,
         stream_callback: Optional[Callable[[str], bool]] = None,
+        cache_prefix_len: int = 0,
     ) -> GenerateResult:
         if not self._client:
             return GenerateResult(success=False, error="Client not initialised.")

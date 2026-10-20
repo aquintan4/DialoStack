@@ -42,6 +42,7 @@ import subprocess
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import yaml
@@ -358,7 +359,8 @@ def extract_task_goal(text: str) -> dict:
 DEFAULT_LLM_MODELS = {
     "gemini": "gemini-2.5-flash",
     "ollama": "qwen2.5",
-    "claude": "claude-opus-5-5",
+    "claude": "claude-haiku-5-5",
+    "openai": "gpt-6-luna",
 }
 
 
@@ -373,6 +375,19 @@ def _ollama_host(llm: dict) -> str:
     host = _text(llm.get("ollama_host"), "127.0.0.1")
     alias = os.environ.get("DIALOSTACK_HOST_ALIAS", "").strip()
     return alias if alias and host in _LOOPBACK_HOSTS else (host or "127.0.0.1")
+
+
+def _openai_base_url(llm: dict) -> str:
+    """OpenAI-compatible server URL, with a loopback host redirected like Ollama's."""
+    url = _text(llm.get("openai_base_url"))
+    alias = os.environ.get("DIALOSTACK_HOST_ALIAS", "").strip()
+    if not url or not alias:
+        return url
+    parts = urllib.parse.urlsplit(url)
+    if parts.hostname not in _LOOPBACK_HOSTS:
+        return url
+    netloc = f"{alias}:{parts.port}" if parts.port else alias
+    return urllib.parse.urlunsplit(parts._replace(netloc=netloc))
 
 
 def _llm_provider(llm: dict) -> str:
@@ -433,6 +448,7 @@ def build_params(config: dict) -> dict:
     gemini = {"enable": False}
     ollama = {"enable": False}
     claude = {"enable": False}
+    openai = {"enable": False}
     if provider == "gemini":
         gemini = {"enable": True, "model": llm_model, "timeout": llm_timeout}
         api_key = _text(llm.get("gemini_api_key"))
@@ -448,6 +464,17 @@ def build_params(config: dict) -> dict:
         api_key = _text(llm.get("claude_api_key"))
         if api_key:
             claude["api_key"] = api_key
+    elif provider == "openai":
+        openai = {
+            "enable": True,
+            "model": llm_model,
+            "timeout": llm_timeout,
+            "reasoning_effort": _text(llm.get("openai_reasoning_effort"), "none"),
+            "base_url": _openai_base_url(llm),
+        }
+        api_key = _text(llm.get("openai_api_key"))
+        if api_key:
+            openai["api_key"] = api_key
     else:
         ollama = {
             "enable": True,
@@ -464,6 +491,7 @@ def build_params(config: dict) -> dict:
         "gemini": gemini,
         "ollama": ollama,
         "claude": claude,
+        "openai": openai,
     }
 
     raw_acks = dialog.get("ack_phrases")
@@ -664,6 +692,19 @@ def _check_llm_provider(llm: dict):
             return (
                 "Claude has no API key: enter it in Configuration > LLM > "
                 "API Key, or export it (ANTHROPIC_API_KEY) before launching gui.sh"
+            )
+        return None
+
+    if provider == "openai":
+        # A local OpenAI-compatible server needs no key.
+        if (
+            not _text(llm.get("openai_api_key"))
+            and not _text(llm.get("openai_base_url"))
+            and not os.environ.get("OPENAI_API_KEY")
+        ):
+            return (
+                "OpenAI has no API key: enter it in Configuration > LLM > "
+                "API Key, or export it (OPENAI_API_KEY) before launching gui.sh"
             )
         return None
 

@@ -12,7 +12,7 @@ import { DEFAULT_CONFIG } from '../contexts/ConfigContext'
 // ==== SECRETS ====
 // Credentials are machine/user specific, not part of a "setup": they are never
 // stored in a profile or exported, and applying a profile keeps the current ones.
-export const SECRET_FIELDS = { llm: ['gemini_api_key', 'claude_api_key'] }
+export const SECRET_FIELDS = { llm: ['gemini_api_key', 'claude_api_key', 'openai_api_key'] }
 
 function stripSecrets(config) {
   const out = structuredClone(config)

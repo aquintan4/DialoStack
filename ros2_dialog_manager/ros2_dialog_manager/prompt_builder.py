@@ -6,15 +6,34 @@ a str (NLG prompt) or a (str, dict) tuple (NLU prompt + output schema).
 
 The `language` parameter (e.g. "Spanish", "English") is injected into every
 template automatically, so templates can use {language} wherever needed.
+
+Prompt caching: templates put their fixed instructions first and the per-turn
+data last. Rendered prompts are `Prompt` strings whose `cache_prefix_len` marks
+where the stable part ends (instructions + [CONTEXT] block), so providers with
+prompt caching reuse it across turns. The split is the last paragraph break
+before the first placeholder other than {language}.
 """
 
 import logging  # TRACE
 import time  # TRACE
+from string import Formatter
 
 from .dialog_context import DialogContext
 from .dialog_frame import DialogFrame
 
 _log = logging.getLogger("PromptBuilder")  # TRACE
+
+
+class Prompt(str):
+    """Prompt text plus the length of its stable leading part."""
+
+    cache_prefix_len: int = 0
+
+
+def _prompt(text: str, cache_prefix_len: int) -> Prompt:
+    p = Prompt(text)
+    p.cache_prefix_len = cache_prefix_len
+    return p
 
 
 class PromptBuilder:
@@ -23,9 +42,26 @@ class PromptBuilder:
         self._tpl = templates
         self._language = language
 
-    def _t(self, key: str, **kwargs) -> str:
+    def _t(self, key: str, **kwargs) -> Prompt:
         """Render template `key`, always making {language} available."""
-        return self._tpl[key].format(language=self._language, **kwargs)
+        tpl = self._tpl[key]
+        text = tpl.format(language=self._language, **kwargs)
+        return _prompt(text, self._static_prefix_len(tpl))
+
+    def _static_prefix_len(self, tpl: str) -> int:
+        """Length of the rendered text up to the last paragraph break before
+        the first per-call placeholder (0 if the template opens with data)."""
+        static = []
+        for literal, field, _spec, _conv in Formatter().parse(tpl):
+            static.append(literal)
+            if field is None:
+                continue
+            if field != "language":
+                break
+            static.append(self._language)
+        head = "".join(static)
+        cut = head.rfind("\n\n")
+        return cut + 2 if cut >= 0 else 0
 
     # ==== CONTEXT INJECTION ====
 
@@ -41,7 +77,14 @@ class PromptBuilder:
                 f"[TRACE] context_injected resources={len(ctx.resources)} has_domain={bool(ctx.domain)} emotion={_emotion} | t={time.monotonic():.4f}"
             )
         # /TRACE
-        return f"{block}\n{prompt}" if block else prompt
+        if not block:
+            return prompt
+        # The context block is stable within a dialog: place it right after the
+        # instructions so it joins the cached prefix. Templates that open with
+        # data (no prefix) keep it in front.
+        n = getattr(prompt, "cache_prefix_len", 0)
+        head = prompt[:n] + block + "\n"
+        return _prompt(head + prompt[n:], len(head) if n else 0)
 
     # ==== TASK LEVEL ====
 

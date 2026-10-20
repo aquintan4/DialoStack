@@ -88,7 +88,7 @@ def make_ollama_infer_fn(
 
 
 def make_claude_infer_fn(
-    model: str = "claude-opus-5-5",
+    model: str = "claude-haiku-5-5",
     api_key: Optional[str] = None,
     effort: str = "low",
 ) -> InferFn:
@@ -121,9 +121,58 @@ def make_claude_infer_fn(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_tokens or 0,
             format_schema=schema,
+            cache_prefix_len=getattr(prompt, "cache_prefix_len", 0),
         )
         if not result.success:
             print(f"  [Claude error] {result.error}")
+            return None
+        return result.text or None
+
+    return infer
+
+
+def make_openai_infer_fn(
+    model: str = "gpt-6-luna",
+    api_key: Optional[str] = None,
+    reasoning_effort: str = "none",
+    base_url: str = "",
+) -> InferFn:
+    """Uses the production OpenAIProvider, so benchmarks see the same request
+    shape (structured-output schema, reasoning effort) as the robot."""
+    import sys
+
+    llm_pkg = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "ros2_llm_manager")
+    )
+    if llm_pkg not in sys.path:
+        sys.path.insert(0, llm_pkg)
+    from ros2_llm_manager.providers.openai_provider import OpenAIProvider
+
+    provider = OpenAIProvider(
+        api_key=api_key or "",
+        timeout=120.0,
+        default_model=model,
+        reasoning_effort=reasoning_effort,
+        base_url=base_url,
+    )
+    ok, msg = provider.connect()
+    if not ok:
+        raise ValueError(msg)
+
+    def infer(
+        session_id: str,
+        prompt: str,
+        max_tokens: Optional[int],
+        schema: Optional[dict],
+    ) -> Optional[str]:
+        result = provider.generate(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens or 0,
+            format_schema=schema,
+        )
+        if not result.success:
+            print(f"  [OpenAI error] {result.error}")
             return None
         return result.text or None
 
@@ -146,8 +195,17 @@ def make_infer_fn(cfg: dict) -> InferFn:
         )
     if provider == "claude":
         return make_claude_infer_fn(
-            model=llm_cfg.get("model", "claude-opus-5-5"),
+            model=llm_cfg.get("model", "claude-haiku-5-5"),
             api_key=llm_cfg.get("api_key") or None,
             effort=llm_cfg.get("effort", "low"),
         )
-    raise ValueError(f"Unknown provider '{provider}'. Use 'gemini', 'ollama' or 'claude'.")
+    if provider == "openai":
+        return make_openai_infer_fn(
+            model=llm_cfg.get("model", "gpt-6-luna"),
+            api_key=llm_cfg.get("api_key") or None,
+            reasoning_effort=llm_cfg.get("reasoning_effort", "none"),
+            base_url=llm_cfg.get("base_url", ""),
+        )
+    raise ValueError(
+        f"Unknown provider '{provider}'. Use 'gemini', 'ollama', 'claude' or 'openai'."
+    )

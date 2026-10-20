@@ -1,14 +1,16 @@
-/** LLM tab: provider/model selection plus Gemini, Claude or Ollama connection settings. */
+/** LLM tab: provider/model selection plus Gemini, Claude, OpenAI or Ollama connection settings. */
 import { Cloud, HardDrive, KeyRound, Sparkles } from 'lucide-react'
 import { Field, NumberField, SectionCard, Select, ToggleField, inputCls } from '../../components/ui'
 
 // Suggested models per provider; the first one is the default (same as server.py DEFAULT_LLM_MODELS).
 const MODELS = {
   gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
-  claude: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1'],
+  claude: ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-1'],
+  openai: ['gpt-6-luna', 'gpt-6.1-sol', 'gpt-6-astra'],
   ollama: ['qwen2.5', 'qwen2.5:14b', 'llama3.1', 'llama3.1:8b', 'mistral', 'phi3.5', 'deepseek-r1'],
 }
 const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
+const OPENAI_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max']
 
 export function LLMTab({ llm, update }) {
   const modelList = MODELS[llm.provider] || MODELS.gemini
@@ -30,6 +32,7 @@ export function LLMTab({ llm, update }) {
             <Select value={llm.provider} onChange={e => changeProvider(e.target.value)}>
               <option value="gemini">Gemini (Google)</option>
               <option value="claude">Claude (Anthropic)</option>
+              <option value="openai">OpenAI</option>
               <option value="ollama">Ollama (local)</option>
             </Select>
           </Field>
@@ -74,6 +77,37 @@ export function LLMTab({ llm, update }) {
               </Select>
             </Field>
           </div>
+        </SectionCard>
+      )}
+
+      {llm.provider === 'openai' && (
+        <SectionCard
+          icon={KeyRound}
+          title="OpenAI"
+          description="OpenAI API credentials, or any OpenAI-compatible server"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="API Key"
+              hint="An API key from platform.openai.com. If left empty the OPENAI_API_KEY environment variable is used">
+              <input type="password" value={llm.openai_api_key ?? ''}
+                onChange={e => update({ openai_api_key: e.target.value })}
+                placeholder="sk-…" autoComplete="off"
+                className={inputCls} />
+            </Field>
+            <Field label="Reasoning effort"
+              hint="How much the model reasons before answering. None keeps spoken replies fast">
+              <Select value={llm.openai_reasoning_effort ?? 'none'}
+                onChange={e => update({ openai_reasoning_effort: e.target.value })}>
+                {OPENAI_EFFORTS.map(e => <option key={e} value={e}>{e}</option>)}
+              </Select>
+            </Field>
+          </div>
+          <Field label="Base URL"
+            hint="Optional. An OpenAI-compatible server (vLLM, LM Studio, OpenRouter…). Empty uses api.openai.com">
+            <input type="text" value={llm.openai_base_url ?? ''}
+              onChange={e => update({ openai_base_url: e.target.value })}
+              placeholder="https://api.openai.com/v1" className={inputCls} />
+          </Field>
         </SectionCard>
       )}
 

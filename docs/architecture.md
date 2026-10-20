@@ -157,9 +157,10 @@ The **DialogFrame** is the heart of this strategy: a typed slot store (`str`, `i
 ### Robustness layers
 
 - **ASR hygiene**: `clean_user_input()` filters hallucinated filler ("subtitles by...", stray punctuation) before it reaches the LLM.
-- **Constrained decoding**: NLU prompts ship a JSON schema. Providers that support it (Gemini, Claude) enforce it server-side, and `parse_loose_json()` tolerates the rest.
+- **Constrained decoding**: NLU prompts ship a JSON schema. Providers that support it (Gemini, Claude, OpenAI) enforce it server-side, and `parse_loose_json()` tolerates the rest.
 - **Bounded retries and fallbacks**: every NLU call retries on unparseable output, then falls back to a safe deterministic answer. NLG falls back to fixed phrases in the configured language.
 - **Spoken cancellation**: a fast local keyword check handles obvious cases ("stop", "cancel"). Ambiguous ones go to the LLM with a strict yes/no schema.
+- **Prompt caching**: templates put their fixed instructions first and the per-turn data (user text, history, slot state) last, under `CURRENT TURN`. `PromptBuilder` marks where the stable part ends (instructions plus the `[CONTEXT]` block) and sends it as `cache_prefix_len` on `/llm/inference`. Claude caches that prefix explicitly; OpenAI, Gemini and Ollama reuse a repeated prefix on their own. Keep new templates in the same order.
 - **Timeout ladder**: silence triggers a re-engagement prompt. After `max_timeouts` consecutive silences the dialogue aborts gracefully.
 
 ## The LLM gateway (`ros2_llm_manager`)
@@ -169,7 +170,8 @@ One node hides every provider behind `/llm/inference` (action, with token stream
 | Provider | Type | Streaming | Constrained JSON | Notes |
 |----------|------|-----------|------------------|-------|
 | Gemini (`google-genai`) | Cloud | ✅ | ✅ (`response_schema`) | Thinking disabled for predictable latency |
-| Claude (`anthropic`) | Cloud | ✅ | ✅ (`output_config.format`) | Low thinking effort for latency; refusals retried on Anthropic's fallback model |
+| Claude (`anthropic`) | Cloud | ✅ | ✅ (`output_config.format`) | Haiku by default; low thinking effort for latency; prompt caching of the instruction prefix; refusals retried on Anthropic's fallback model (larger models) |
+| OpenAI (`openai`) | Cloud | ✅ | ✅ (`response_format`, strict when the schema allows) | Chat Completions, so `base_url` also reaches OpenAI-compatible servers; reasoning effort `none` for latency |
 | Ollama | Local | ✅ | no | HTTP keep-alive pool, model pre-warming on startup |
 
 Adding a provider means implementing `BaseProvider` (`connect`, `ensure_model_ready`, `generate`) and registering it in the node's startup. Nothing else in the stack changes.

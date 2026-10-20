@@ -220,17 +220,8 @@ dialog_manager_node:
       extract_slots: |
         Single-pass NLU: identify everything the user wants to do with their
         slots this turn — new values, additions, removals, replacements, or
-        corrections to already-filled values.
-
-        RECENT CONVERSATION (for resolving confirmations and references):
-        {recent_context}
-
-        USER MESSAGE: "{user_text}"
-
-        SLOTS YOU CAN UPDATE THIS TURN:
-        {slot_defs}
-
-        ALREADY FILLED (current values): {filled_ctx}
+        corrections to already-filled values. The slots and the user message
+        are given at the end, under CURRENT TURN.
 
         Output strict JSON only:
         {{"extractions": [
@@ -294,19 +285,23 @@ dialog_manager_node:
           {{"extractions": []}}.
         - Return ONLY the JSON. No markdown.
 
-      generate_response: |
-        Generate the NEXT assistant message in a RUNNING dialog for: "{task}"
-        The user has already been greeted; this is NOT the first turn.
+        CURRENT TURN
 
-        Slot state:
-        {slots}
-        Recent history:
-        {history}
-        User just said: "{user_text}"
-        Extracted this turn: {extracted_summary}
-        Rejected this turn (out of range): {rejected_summary}
-        Next slot to collect: {next_slot}
-        Slots with repeated failures: {attempts_exceeded}
+        RECENT CONVERSATION (for resolving confirmations and references):
+        {recent_context}
+
+        SLOTS YOU CAN UPDATE THIS TURN:
+        {slot_defs}
+
+        ALREADY FILLED (current values): {filled_ctx}
+
+        USER MESSAGE: "{user_text}"
+
+      generate_response: |
+        Generate the NEXT assistant message in a RUNNING dialog. The task,
+        the slot state and the latest exchange are given at the end, under
+        CURRENT TURN. The user has already been greeted; this is NOT the
+        first turn.
 
         Rules:
         - {language} only. No markdown. No mid-dialog greeting (phrases
@@ -316,7 +311,7 @@ dialog_manager_node:
           "Got it", "OK", "Understood" or their {language} equivalents) — the
           system handles that separately. Start DIRECTLY with the question or
           response.
-        - GROUND TRUTH is the Slot state above, NOT the conversation history.
+        - GROUND TRUTH is the Slot state, NOT the conversation history.
           Never state that a value has been "recorded", "noted", "confirmed",
           or "saved" unless it already appears as filled in the Slot state.
           If a slot shows MISSING, the value has NOT been captured yet.
@@ -329,7 +324,7 @@ dialog_manager_node:
         If next_slot is not NONE: ask for it naturally (ONE question), using
         the slot's semantics, NEVER echoing the slot name. Do NOT ask multiple
         things at once. ONLY ask about next_slot — NEVER ask for information
-        that is not listed as a slot in the schema above (e.g. dates, times,
+        that is not listed as a slot in the Slot state (e.g. dates, times,
         or preferences not listed as slots).
 
         If "Rejected this turn" is not None: the user gave a number outside
@@ -349,8 +344,8 @@ dialog_manager_node:
              ask next_slot. NEVER answer from general training knowledge.
              NEVER invent prices, names, schedules, or product details.
            Max 30 words total.
-        b) User asked what has been collected so far: answer using the slot
-           state above, then ask next_slot. Max 30 words.
+        b) User asked what has been collected so far: answer using the Slot
+           state, then ask next_slot. Max 30 words.
         c) Off-topic or unclear: ONE varied recovery phrase, NEVER repeating
            the same wording twice in a row. Rotate among four short options
            that ask the user to clarify or repeat. Max 20 words.
@@ -364,6 +359,18 @@ dialog_manager_node:
 
         Never recap the overall task during gathering — that belongs to the
         confirmation step.
+
+        CURRENT TURN
+        Task: "{task}"
+        Slot state:
+        {slots}
+        Recent history:
+        {history}
+        User just said: "{user_text}"
+        Extracted this turn: {extracted_summary}
+        Rejected this turn (out of range): {rejected_summary}
+        Next slot to collect: {next_slot}
+        Slots with repeated failures: {attempts_exceeded}
 
       ask_confirmation: |
         All required information has been collected for: "{task}"
@@ -387,11 +394,8 @@ dialog_manager_node:
         - Tone follows [CONTEXT] emotional state.
 
       classify_intent: |
-        The user was shown a recap and asked to confirm. Classify their reply.
-
-        Current slot state:
-        {slots_summary}
-        User reply: "{user_text}"
+        The user was shown a recap and asked to confirm. Classify their reply,
+        given at the end under CURRENT TURN.
 
         Intents:
         - "confirms": accepts the data as correct.
@@ -432,6 +436,11 @@ dialog_manager_node:
           Do NOT classify as unclear unless the reply is genuinely unrelated.
         - Any question → question. Vague / off-topic → unclear.
         - Return ONLY the JSON.
+
+        CURRENT TURN
+        Current slot state:
+        {slots_summary}
+        User reply: "{user_text}"
 
       response_to_intent: |
         Close or adjust the interaction for: "{task}"

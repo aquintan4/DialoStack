@@ -9,6 +9,7 @@ import pytest
 
 from ros2_llm_manager.providers.claude_provider import (
     ClaudeProvider,
+    mark_cache_prefix,
     split_messages,
     strict_schema,
 )
@@ -16,14 +17,19 @@ from ros2_llm_manager.providers.claude_provider import (
 # ==== HELPERS ====
 
 
-def message(text="hi", stop_reason="end_turn"):
+def message(text="hi", stop_reason="end_turn", cache_read=None):
     content = [SimpleNamespace(type="thinking", thinking="")]
     if text:
         content.append(SimpleNamespace(type="text", text=text))
     return SimpleNamespace(
         content=content,
         stop_reason=stop_reason,
-        usage=SimpleNamespace(input_tokens=10, output_tokens=5),
+        usage=SimpleNamespace(
+            input_tokens=10,
+            output_tokens=5,
+            cache_read_input_tokens=cache_read,
+            cache_creation_input_tokens=None,
+        ),
     )
 
 
@@ -125,6 +131,21 @@ def test_split_messages_moves_system_out():
     assert turns == [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "hi"}]
 
 
+def test_cache_prefix_splits_last_user_turn():
+    turns = [{"role": "user", "content": "RULES\n\nUSER: hi"}]
+    mark_cache_prefix(turns, len("RULES\n\n"))
+    first, rest = turns[0]["content"]
+    assert first == {"type": "text", "text": "RULES\n\n", "cache_control": {"type": "ephemeral"}}
+    assert rest == {"type": "text", "text": "USER: hi"}
+
+
+@pytest.mark.parametrize("prefix_len", [0, 99])
+def test_cache_prefix_out_of_range_is_ignored(prefix_len):
+    turns = [{"role": "user", "content": "short"}]
+    mark_cache_prefix(turns, prefix_len)
+    assert turns[0]["content"] == "short"
+
+
 # ==== REQUEST PARAMETERS ====
 
 
@@ -162,6 +183,15 @@ def test_generate_returns_text_and_usage():
     r = p.generate("claude-opus-5-5", [{"role": "user", "content": "x"}])
     assert r.success and r.text == "Hello there"
     assert (r.prompt_tokens, r.completion_tokens) == (10, 5)
+
+
+def test_cached_tokens_are_reported():
+    p, fake = provider_with(message("ok", cache_read=900))
+    r = p.generate(
+        "claude-haiku-5-5", [{"role": "user", "content": "RULES\n\nhi"}], cache_prefix_len=7
+    )
+    assert (r.prompt_tokens, r.cached_tokens) == (910, 900)
+    assert fake.calls[0]["messages"][0]["content"][0]["cache_control"] == {"type": "ephemeral"}
 
 
 def test_refusal_is_an_error():

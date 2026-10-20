@@ -105,12 +105,13 @@ Declared in `ros2_llm_manager/ros2_llm_manager/llm_manager_node.py`. Shipped
 values from `ros2_llm_manager/config/params.yaml`. The Gemini provider reads its
 API key from the `GEMINI_API_KEY` environment variable when `gemini.api_key` is
 left empty (the recommended setup); the Claude provider likewise reads
-`ANTHROPIC_API_KEY`. Claude needs a Claude API key from console.anthropic.com: a
-Claude.ai subscription does not include API access.
+`ANTHROPIC_API_KEY` and the OpenAI provider `OPENAI_API_KEY`. Claude needs a Claude
+API key from console.anthropic.com: a Claude.ai subscription does not include API
+access.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `default_provider` | string | `gemini` | Provider used when a session request does not specify one. Must be an enabled provider (`gemini`, `ollama` or `claude`). |
+| `default_provider` | string | `gemini` | Provider used when a session request does not specify one. Must be an enabled provider (`gemini`, `ollama`, `claude` or `openai`). |
 | `default_model` | string | `""` | Default model override. Empty means the provider's own default. |
 | `max_concurrent` | int | `4` | Maximum number of concurrent inference threads. |
 | `silent_mode` | bool | `false` | Disable informational logs when true. |
@@ -125,9 +126,15 @@ Claude.ai subscription does not include API access.
 | `gemini.timeout` | float | `60.0` | Request timeout in seconds for Gemini inference calls. |
 | `claude.enable` | bool | `false` | Enable the Anthropic Claude provider and connect at startup (checks the key and model). |
 | `claude.api_key` | string | `""` | Claude API key. Prefer the `ANTHROPIC_API_KEY` environment variable and leave this empty. |
-| `claude.model` | string | `claude-opus-5-5` | Claude model id (e.g. `claude-sonnet-5-5`, `claude-haiku-5-5`). |
+| `claude.model` | string | `claude-haiku-5-5` | Claude model id. Haiku is the fastest and cheapest; `claude-sonnet-5-5` and `claude-opus-5-5` are more capable and cost 20–40× more per token. |
 | `claude.timeout` | float | `60.0` | Request timeout in seconds for Claude inference calls. |
 | `claude.effort` | string | `low` | Thinking effort: `low`, `medium`, `high`, `xhigh` or `max`. Current Claude models always think; `low` keeps spoken replies fast. Empty omits it (older models). |
+| `openai.enable` | bool | `false` | Enable the OpenAI provider and connect at startup (checks the key and model). |
+| `openai.api_key` | string | `""` | OpenAI API key. Prefer the `OPENAI_API_KEY` environment variable and leave this empty. |
+| `openai.model` | string | `gpt-6-luna` | OpenAI model id. `gpt-6-luna` is the fastest and cheapest; `gpt-6.1-sol` and `gpt-6-astra` are more capable. With `base_url`, the model name of that server. |
+| `openai.timeout` | float | `60.0` | Request timeout in seconds for OpenAI inference calls. |
+| `openai.reasoning_effort` | string | `none` | `none`, `low`, `medium`, `high`, `xhigh` or `max`. `none` keeps spoken replies fast. Empty omits it (models without reasoning). |
+| `openai.base_url` | string | `""` | Optional OpenAI-compatible server (vLLM, LM Studio, OpenRouter…), e.g. `http://127.0.0.1:1234/v1`. Empty uses api.openai.com. |
 
 ## speech_to_text_node
 

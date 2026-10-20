@@ -27,12 +27,12 @@ Edit `config.yaml`. The most important field:
 
 ```yaml
 llm:
-  provider: "gemini"          # or "ollama" / "claude"
-  model: "gemini-2.5-flash"   # e.g. "claude-opus-5-5" for Claude
-  api_key: ""                 # empty → uses GEMINI_API_KEY / ANTHROPIC_API_KEY
+  provider: "gemini"          # or "ollama" / "claude" / "openai"
+  model: "gemini-2.5-flash"   # e.g. "claude-haiku-5-5" for Claude, "gpt-6-luna" for OpenAI
+  api_key: ""                 # empty → uses GEMINI_API_KEY / ANTHROPIC_API_KEY / OPENAI_API_KEY
 ```
 
-Make sure the provider's key (`GEMINI_API_KEY` or `ANTHROPIC_API_KEY`) is exported in your terminal before running. The Claude benchmarks also need `pip install -r ../ros2_llm_manager/config/requirements.txt`.
+Make sure the provider's key (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`) is exported in your terminal before running. The Claude and OpenAI benchmarks also need `pip install -r ../ros2_llm_manager/config/requirements.txt`.
 
 ## Running
 
