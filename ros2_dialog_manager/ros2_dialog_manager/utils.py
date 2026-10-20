@@ -13,12 +13,13 @@ import unicodedata
 from typing import Any
 
 # Minimum number of recognisable words required to forward ASR output to the
-# dialog system. One word is enough ("sí", "no", "domicilio", ...).
+# dialog system. One word is enough ("yes", "no", "tomorrow", ...).
 _MIN_WORDS = 1
 
-# Pure filler or hallucinated transcripts. Anything in this set is silently
-# discarded. Short affirmations like "ok" or "okay" are NOT included here:
-# they are legitimate confirmations during the confirming phase.
+# Pure filler or hallucinated transcripts. A transcript containing any of these
+# (as whole words) is silently discarded. Short affirmations like "ok" or
+# "okay" are NOT included here: they are legitimate confirmations during the
+# confirming phase.
 # The list also catches recurrent Whisper hallucinations seen in production
 # (YouTube-style outros) — those are multi-word and specific enough that real
 # conversation almost never contains them.
@@ -44,10 +45,25 @@ _NOISE_PHRASES = frozenset(
         "proximos videos",
         "hasta la proxima vez",
         "hasta la proxima semana",
+        "thanks for watching",
+        "thank you for watching",
+        "please subscribe",
+        "like and subscribe",
+        "subtitles by",
+        "see you in the next video",
+        "see you next time",
         "eh",
         "mm",
         "hmm",
     }
+)
+
+# Whole-word match, so short fillers ("mm", "eh") do not hit inside real words
+# ("summer", "behind").
+_NOISE_RE = re.compile(
+    r"\b(?:"
+    + "|".join(re.escape(p) for p in sorted(_NOISE_PHRASES, key=len, reverse=True))
+    + r")\b"
 )
 
 # Universal explicit cancel commands (language-independent).
@@ -95,7 +111,7 @@ def clean_user_input(text: str) -> str | None:
     if not normalized:
         return None
 
-    if any(phrase in normalized for phrase in _NOISE_PHRASES):
+    if _NOISE_RE.search(normalized):
         return None
 
     words = [w for w in normalized.split() if re.search(r"[a-z0-9]", w)]

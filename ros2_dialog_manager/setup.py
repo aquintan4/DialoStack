@@ -19,7 +19,7 @@ setup(
     install_requires=["setuptools"],
     zip_safe=True,
     maintainer="aquintan",
-    maintainer_email="tu_correo@ejemplo.com",
+    maintainer_email="aquintana.camacho@proton.me",
     description="Dialog Manager (FSM + NLU/NLG) for ROS 2",
     license="MIT",
     tests_require=["pytest"],

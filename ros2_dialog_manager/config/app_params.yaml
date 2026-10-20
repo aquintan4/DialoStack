@@ -4,7 +4,7 @@ speech_to_text_node:
     is_speaking_topic: /is_speaking
     input_device: ''
     model_size: small
-    language: es
+    language: en
     device: cpu
     compute_type: int8
     cpu_threads: 4
@@ -21,7 +21,7 @@ text_to_speech_node:
     # Piper voice filename, resolved under DIALOSTACK_MODELS_DIR
     # (default ~/.local/share/dialostack/models; run scripts/download_models.sh).
     # An absolute path is also accepted.
-    model_path: es_ES-sharvard-medium.onnx
+    model_path: en_US-lessac-medium.onnx
     sample_rate: 22050
     audio_device: default
 
@@ -55,8 +55,8 @@ dialog_manager_node:
     user_speaking_topic: "/user_speaking"
 
     # Language for LLM generation and fallback phrases.
-    # Change to "English" (or any language name) to switch the dialog language.
-    language: "Spanish"
+    # Change to "Spanish" (or any language name) to switch the dialog language.
+    language: "English"
 
     # Maximum number of turns kept in the dialog history buffer.
     # When exceeded, the oldest half is dropped to bound memory usage.

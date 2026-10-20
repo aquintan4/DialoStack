@@ -3,7 +3,7 @@ LLMDialogClient — thin wrapper around the LLM inference action.
 
 Owns two independent sessions (NLU for understanding, NLG for generation).
 All structured-output calls retry on parse failure up to MAX_RETRIES.
-NLG calls fall back to a safe Spanish phrase if the LLM is unavailable.
+NLG calls fall back to a safe phrase in the dialog language if the LLM is unavailable.
 """
 
 import inspect  # TRACE
@@ -118,7 +118,7 @@ class LLMDialogClient:
         nlg_session_id: str,
         infer_fn: InferFn,
         prompt_builder: PromptBuilder,
-        language: str = "Spanish",
+        language: str = "English",
         history_max_turns: int = 200,
         phrase_overrides: dict[str, str] | None = None,
     ):

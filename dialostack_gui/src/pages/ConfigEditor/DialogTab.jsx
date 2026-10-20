@@ -2,7 +2,7 @@
 import { FileText, Languages, Timer } from 'lucide-react'
 import { Field, NumberField, SectionCard, Select, SliderField, ToggleField, inputCls } from '../../components/ui'
 
-const LANGUAGES = ['Spanish', 'English', 'French', 'German', 'Portuguese', 'Catalan', 'Italian']
+const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Catalan', 'Italian']
 
 export function DialogTab({ dialog, update }) {
   return (

@@ -16,9 +16,10 @@ currently running playback before accepting or finishing the next operation.
 """
 
 import os
+import subprocess
+import tempfile
 import threading
 import time
-import subprocess
 
 import numpy as np
 import sounddevice as sd
@@ -56,7 +57,7 @@ class TextToSpeechNode(Node):
     def _declare_parameters(self) -> None:
         self.declare_parameter("action_name", "/speak")
         self.declare_parameter("is_speaking_topic", "/is_speaking")
-        self.declare_parameter("model_path", "es_ES-sharvard-medium.onnx")
+        self.declare_parameter("model_path", "en_US-lessac-medium.onnx")
         self.declare_parameter("sample_rate", 22050)
         self.declare_parameter("audio_device", "default")
         # Audio output sink: "speaker" (local, default) or "topic" (raw S16LE
@@ -72,7 +73,17 @@ class TextToSpeechNode(Node):
         p = self.get_parameter
 
         self.sample_rate = p("sample_rate").value
-        self.model_path = self._resolve_model_path(p("model_path").value)
+        raw_model_path = p("model_path").value
+        self.model_path = self._resolve_model_path(raw_model_path)
+        if self.model_path != raw_model_path and os.path.isabs(raw_model_path):
+            self.get_logger().warning(
+                f"Voice not found at {raw_model_path}; using {self.model_path} instead."
+            )
+        if not os.path.isfile(self.model_path):
+            self.get_logger().error(
+                f"Piper voice not found: '{self.model_path}'. Run scripts/download_models.sh "
+                "or fix model_path; every utterance will fail until then."
+            )
 
         self._audio_sink = p("audio_sink").value
         self._audio_topic = p("audio_topic").value
@@ -89,17 +100,27 @@ class TextToSpeechNode(Node):
     def _resolve_model_path(model_path: str) -> str:
         """Resolve a Piper voice path so configs stay machine-independent.
 
-        Absolute paths are used as-is. A bare filename (or relative path) is
-        looked up under DIALOSTACK_MODELS_DIR, defaulting to
-        ~/.local/share/dialostack/models (where scripts/download_models.sh
-        places the voices). So the shipped config carries only a filename.
+        A bare filename (or relative path) is looked up under
+        DIALOSTACK_MODELS_DIR, defaulting to ~/.local/share/dialostack/models
+        (where scripts/download_models.sh places the voices). So the shipped
+        config carries only a filename.
+
+        Absolute paths are used as-is, unless the file does not exist and a
+        voice with the same filename is in the models directory: a config
+        written on another machine (or the host, when running in Docker) then
+        still finds the voice.
         """
-        if not model_path or os.path.isabs(model_path):
+        if not model_path:
             return model_path
         models_dir = os.environ.get("DIALOSTACK_MODELS_DIR") or os.path.expanduser(
             "~/.local/share/dialostack/models"
         )
-        return os.path.join(models_dir, model_path)
+        if not os.path.isabs(model_path):
+            return os.path.join(models_dir, model_path)
+        fallback = os.path.join(models_dir, os.path.basename(model_path))
+        if not os.path.isfile(model_path) and os.path.isfile(fallback):
+            return fallback
+        return model_path
 
     # ==== ROS INTERFACES ====
 
@@ -182,13 +203,16 @@ class TextToSpeechNode(Node):
         status = "completed"
         first_chunk_played = False
 
+        # Piper's stderr goes to a temp file (a pipe could fill up and block it)
+        # so a failed synthesis can be reported instead of passing as silence.
+        piper_err = tempfile.TemporaryFile()
         try:
             cmd = self._build_piper_command(speed)
             proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=piper_err,
             )
 
             try:
@@ -208,11 +232,21 @@ class TextToSpeechNode(Node):
                 proc.terminate()
                 proc.wait()
 
+            if status == "completed" and played_chunks == 0:
+                piper_err.seek(0)
+                detail = piper_err.read().decode("utf-8", "replace").strip().splitlines()
+                self.get_logger().error(
+                    f"Piper produced no audio (model '{self.model_path}'): "
+                    f"{detail[-1] if detail else 'no error output'}"
+                )
+                status = "error"
+
         except Exception as exc:
             self.get_logger().error(f"TTS Error: {exc}")
             status = "error"
 
         finally:
+            piper_err.close()
             self._publish_speaking(False)
 
         duration = time.monotonic() - start_time

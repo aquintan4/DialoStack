@@ -18,7 +18,7 @@ export const DEFAULT_CONFIG = {
     ollama_port: 11434,
   },
   dialog: {
-    language: 'Spanish',
+    language: 'English',
     wait_timeout: 20,
     llm_timeout: 120,
     tts_timeout: 60,
@@ -36,7 +36,7 @@ export const DEFAULT_CONFIG = {
     model_size: 'small',
     device: 'cpu',
     compute_type: 'int8',
-    language: 'es',
+    language: 'en',
     vad_threshold: 0.5,
     grace_period: 0.8,
     max_phrase_secs: 8.0,

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Arranca la GUI de DialoStack: rosbridge + servidor web/API.
-#   ./gui.sh          modo producción (build estático + server.py)
-#   ./gui.sh --dev    modo desarrollo (Vite con hot reload + API aparte)
+# Starts the DialoStack GUI: rosbridge + web/API server.
+#   ./gui.sh          production mode (static build + server.py)
+#   ./gui.sh --dev    development mode (Vite with hot reload + separate API)
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUI_DIR="$SCRIPT_DIR/dialostack_gui"
 BRIDGE_PORT=9090
 WEB_PORT=5173
-API_PORT=5175   # Solo en dev; en producción /api comparte WEB_PORT
+API_PORT=5175   # Dev only; in production /api shares WEB_PORT
 BRIDGE_LOG=/tmp/dialostack_bridge.log
 
 BLUE='\033[0;34m'
@@ -27,12 +27,12 @@ echo "  ╚═════╝ ╚═╝╚═╝  ╚═╝╚══════
 echo -e "${NC}  GUI v1.0"
 echo ""
 
-# ─── Secretos locales (.env, fuera de git) ──────────────────────────────────
-# Permite definir GEMINI_API_KEY y similares sin exportarlas a mano:
+# ─── Local secrets (.env, kept out of git) ──────────────────────────────────
+# Lets you define GEMINI_API_KEY and similar without exporting them by hand:
 #   echo 'GEMINI_API_KEY=...' > .env
 if [ -f "$SCRIPT_DIR/.env" ]; then
   set -a; source "$SCRIPT_DIR/.env"; set +a
-  echo -e "  Secretos:  ${GREEN}.env cargado${NC}"
+  echo -e "  Secrets:   ${GREEN}.env loaded${NC}"
 fi
 
 # ─── Source ROS 2 ───────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ else
   exit 1
 fi
 
-# ─── Workspace overlay (única detección, reutilizada después) ───────────────
+# ─── Workspace overlay (detected once, reused below) ────────────────────────
 WS_SETUP=""
 for _candidate in \
   "$SCRIPT_DIR/install/setup.bash" \
@@ -89,7 +89,9 @@ need_npm() {
   fi
 }
 
-if [ ! -d "$GUI_DIR/node_modules" ]; then
+# node_modules is only needed to develop or to build: with a prebuilt dist/
+# (e.g. the Docker image) production mode does not need npm.
+if [ ! -d "$GUI_DIR/node_modules" ] && { [ "$DEV_MODE" = true ] || [ ! -d "$GUI_DIR/dist" ]; }; then
   need_npm
   echo -e "${YELLOW}[DEPS]${NC} Installing npm dependencies..."
   (cd "$GUI_DIR" && npm install --silent)
@@ -104,9 +106,9 @@ if [ "$DEV_MODE" = false ] && [ ! -d "$GUI_DIR/dist" ]; then
 fi
 
 # ─── 1. rosbridge ───────────────────────────────────────────────────────────
-# rosbridge necesita el Python del sistema: quitamos el venv del PATH para que
-# no interfiera, pero mantenemos el overlay del workspace para que pueda
-# importar los tipos de mensaje propios (ros2_dialog_interfaces).
+# rosbridge needs the system Python: drop the venv from PATH so it does not
+# interfere, but keep the workspace overlay so it can import the project's own
+# message types (ros2_dialog_interfaces).
 echo -e "${BLUE}[1/2]${NC} rosbridge_websocket  →  ws://localhost:${BRIDGE_PORT}  (log: ${BRIDGE_LOG})"
 SYSTEM_PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "dialostack_venv" | tr '\n' ':' | sed 's/:$//')
 
@@ -123,15 +125,15 @@ sleep 1
 
 # ─── 2. Web / API server ────────────────────────────────────────────────────
 if [ "$DEV_MODE" = true ]; then
-  # Vite sirve el frontend; server.py atiende /api en otro puerto
-  # (vite.config.js proxya /api → localhost:$API_PORT).
+  # Vite serves the frontend; server.py handles /api on another port
+  # (vite.config.js proxies /api to localhost:$API_PORT).
   echo -e "${BLUE}[2/3]${NC} API server (engine)  →  http://localhost:${API_PORT}"
   python3 "$GUI_DIR/server.py" --api-only $API_PORT &
   sleep 0.5
   echo -e "${BLUE}[3/3]${NC} Web server (Vite)    →  http://localhost:${WEB_PORT}"
   (cd "$GUI_DIR" && npm run dev -- --port $WEB_PORT --host) &
 else
-  # Producción: un único servidor para estáticos y /api.
+  # Production: a single server for static files and /api.
   echo -e "${BLUE}[2/2]${NC} Web server           →  http://localhost:${WEB_PORT}"
   python3 "$GUI_DIR/server.py" $WEB_PORT "$GUI_DIR/dist" &
 fi

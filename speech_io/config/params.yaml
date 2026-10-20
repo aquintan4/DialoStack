@@ -16,8 +16,8 @@ speech_to_text_node:
     # faster-whisper model size: tiny, base, small, medium, large-v3, etc.
     model_size: base
 
-    # Expected speech language. Use ISO language codes, e.g. es, en.
-    language: es
+    # Expected speech language. Use ISO language codes, e.g. en, es.
+    language: en
 
     # Inference device used by faster-whisper: cpu or cuda.
     device: cpu
@@ -57,7 +57,7 @@ text_to_speech_node:
     # Piper voice for speech synthesis: a filename resolved under
     # DIALOSTACK_MODELS_DIR (default ~/.local/share/dialostack/models; run
     # scripts/download_models.sh), or an absolute path.
-    model_path: es_ES-sharvard-medium.onnx
+    model_path: en_US-lessac-medium.onnx
 
     # Output sample rate expected by the selected Piper model.
     sample_rate: 22050

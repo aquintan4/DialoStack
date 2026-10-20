@@ -3,13 +3,13 @@
 <package format="3">
   <name>ros2_dialog_manager</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Dialog Manager (FSM + NLU/NLG) for ROS 2</description>
   <maintainer email="aquintana.camacho@proton.me">aquintan</maintainer>
   <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
-  <depend>ros2_ollama_interfaces</depend>
+  <depend>ros2_llm_interfaces</depend>
   <depend>ros2_dialog_interfaces</depend>
 
   <test_depend>ament_copyright</test_depend>

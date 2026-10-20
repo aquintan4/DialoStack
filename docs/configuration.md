@@ -51,13 +51,13 @@ created with `automatically_declare_parameters_from_overrides=True`, so the
 | `transcription_topic` | string | `/transcription` | Topic carrying final user transcriptions from the STT node. |
 | `user_emotion_topic` | string | `/user_emotion` | Topic carrying detected user emotion (JSON payload). |
 | `user_speaking_topic` | string | `/user_speaking` | Topic carrying the user-speaking signal for barge-in. Set to `""` to disable barge-in. |
-| `language` | string | `Spanish` | Language used for LLM generation and fallback phrases. Any language name is accepted. |
+| `language` | string | `English` | Language used for LLM generation and fallback phrases. Any language name is accepted. |
 | `history_max_turns` | int | `200` | Maximum turns kept in the dialog history buffer. The oldest half is dropped when exceeded. |
-| `ack_phrases` | string[] | `["Anotado.", "Hecho.", "Perfecto.", "Entendido.", "De acuerdo."]` | Acknowledgment phrases injected by the system after each successful slot extraction. Set to `[""]` to disable. |
+| `ack_phrases` | string[] | `[""]` (language default) | Acknowledgment phrases injected by the system after each successful slot extraction. Empty uses the built-in set for `language` (English: `Noted.`, `Done.`, `Got it.`, `Understood.`, `Alright.`); set an explicit list to override. |
 | `wait_timeout` | float | `20.0` | Seconds to wait for a user reply before prompting again. |
 | `llm_timeout` | float | `120.0` | Seconds to wait for an LLM Manager response. |
 | `tts_timeout` | float | `60.0` | Seconds to wait for the TTS action to finish. |
-| `timeout_prompt` | string | `¿Sigues ahí?` | Phrase spoken when the user does not respond within `wait_timeout`. |
+| `timeout_prompt` | string | `""` (language default) | Phrase spoken when the user does not respond within `wait_timeout`. Empty uses the built-in phrase for `language` (English: `Are you still there?`). |
 | `max_timeouts` | int | `2` | Maximum consecutive timeouts before the FSM gives up. |
 | `max_unclear` | int | `3` | Maximum consecutive unclear replies before the FSM gives up. |
 | `max_attempts` | int | `3` | Maximum attempts per slot/explanation before escalating. |
@@ -135,7 +135,7 @@ Silero VAD for voice activity detection.
 | `vad_topic` | string | `/user_vad` | Topic where the raw VAD probability is published as `Float32` in `[0, 1]`. |
 | `input_device` | string | `''` | Microphone input device. Empty string uses the default system input. |
 | `model_size` | string | `base` | faster-whisper model size (`tiny`, `base`, `small`, `medium`, `large-v3`, …). |
-| `language` | string | `es` | Expected speech language (ISO code). |
+| `language` | string | `en` | Expected speech language (ISO code). |
 | `device` | string | `cpu` | faster-whisper inference device (`cpu` or `cuda`). |
 | `compute_type` | string | `int8` | faster-whisper compute type (e.g. `int8` for CPU, `float16`/`int8_float16` for CUDA). |
 | `cpu_threads` | int | `4` | Number of CPU threads used by faster-whisper. |
@@ -154,7 +154,7 @@ Declared in `speech_io/speech_io/text_to_speech_node.py`. Shipped values from
 | --- | --- | --- | --- |
 | `action_name` | string | `/speak` | `SpeakText` action server name used to request synthesis. |
 | `is_speaking_topic` | string | `/is_speaking` | Topic publishing whether TTS is currently playing. STT uses it to mute itself. |
-| `model_path` | string | `models/es_ES-sharvard-medium.onnx` | Piper voice model used for synthesis. |
+| `model_path` | string | `en_US-lessac-medium.onnx` | Piper voice, as a filename under `DIALOSTACK_MODELS_DIR` or an absolute path. |
 | `sample_rate` | int | `22050` | Output sample rate expected by the selected Piper model. |
 | `audio_device` | string | `default` | Audio output device. `default` uses the system default output. |
 
@@ -262,10 +262,6 @@ node falls back to its code default `/user_vad`.
   `qwen2.5`, while `ros2_llm_manager/params.yaml` ships `llama3.2:3b`.
 - `gemini.model`: code default `gemini-2.0-flash`. Both YAML files ship
   `gemini-2.5-flash`.
-
-**Dialog Manager, code vs. `app_params.yaml`:**
-- `timeout_prompt`: code default `""`. YAML ships `¿Sigues ahí?`.
-- `ack_phrases`: code default `[""]` (disabled). YAML ships five phrases.
 
 **Arm gesture manager, code vs. launch:**
 `transition_speed` has an in-code default of `0.03` but the launch file passes

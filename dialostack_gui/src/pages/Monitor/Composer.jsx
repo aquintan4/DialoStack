@@ -13,7 +13,7 @@ const MIC_POLL_MS = 10_000
 const SAY_RE = /^\/say\s+([\s\S]+)/i
 const isSayCommand = (t) => /^\/say\b/i.test(t.trim())
 
-/** Hardware mute of the system microphone (PipeWire, via the GUI server). */
+/** Hardware mute of the system microphone (PipeWire or PulseAudio, via the GUI server). */
 function MicButton() {
   const [mic, setMic] = useState({ available: false, muted: false })
 

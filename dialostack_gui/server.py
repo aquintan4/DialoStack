@@ -364,7 +364,7 @@ def build_params(config: dict) -> dict:
     stt_params = {
         "input_device": _text(stt.get("input_device")),
         "model_size": _text(stt.get("model_size"), "small"),
-        "language": _text(stt.get("language"), "es"),
+        "language": _text(stt.get("language"), "en"),
         "device": _text(stt.get("device"), "cpu"),
         "compute_type": _text(stt.get("compute_type"), "int8"),
         "cpu_threads": _num(stt.get("cpu_threads"), 4, 1, 64, integer=True),
@@ -441,7 +441,7 @@ def build_params(config: dict) -> dict:
         ack_phrases = [""]
 
     dialog_params = {
-        "language": _text(dialog.get("language"), "Spanish"),
+        "language": _text(dialog.get("language"), "English"),
         "history_max_turns": _num(
             dialog.get("history_max_turns"), 200, 1, integer=True
         ),
@@ -482,7 +482,7 @@ def build_params(config: dict) -> dict:
     # language at a time); injected as "phrases.*" node parameters.
     by_lang = config.get("phrases")
     if isinstance(by_lang, dict):
-        language = _text(dialog.get("language"), "Spanish")
+        language = _text(dialog.get("language"), "English")
         phrase_ovr = _clean_phrase_overrides(by_lang.get(language) or {}, language)
         if phrase_ovr:
             dialog_node_params = {**dialog_node_params, "phrases": phrase_ovr}
@@ -504,37 +504,54 @@ def params_yaml(config: dict) -> str:
     )
 
 
-# ==== MICROPHONE (HARDWARE MUTE VIA PIPEWIRE) ====
-# Mutes the system default audio source with wpctl: the dialogue engine is not
-# touched, it simply stops receiving audio.
+# ==== MICROPHONE (HARDWARE MUTE) ====
+# Mutes the system default audio source: the dialogue engine is not touched, it
+# simply stops receiving audio. wpctl (native PipeWire) is tried first; pactl
+# covers PulseAudio and the Docker image, which only sees the pulse socket.
 
-MIC_SOURCE = "@DEFAULT_AUDIO_SOURCE@"
+# (status command, parser of its stdout -> muted, set-mute command prefix)
+MIC_BACKENDS = (
+    (
+        ["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"],
+        lambda out: "MUTED" in out,
+        ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@"],
+    ),
+    (
+        ["pactl", "get-source-mute", "@DEFAULT_SOURCE@"],
+        lambda out: "yes" in out.lower(),
+        ["pactl", "set-source-mute", "@DEFAULT_SOURCE@"],
+    ),
+)
+
+
+def _mic_backend():
+    """First backend whose status command works here, or None."""
+    for status_cmd, parse, set_cmd in MIC_BACKENDS:
+        try:
+            out = subprocess.run(status_cmd, capture_output=True, text=True, timeout=3)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+        if out.returncode == 0:
+            return status_cmd, parse, set_cmd, out.stdout
+    return None
 
 
 def _mic_status() -> dict:
-    try:
-        out = subprocess.run(
-            ["wpctl", "get-volume", MIC_SOURCE],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        if out.returncode != 0:
-            return {"available": False, "muted": False}
-        return {"available": True, "muted": "MUTED" in out.stdout}
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    backend = _mic_backend()
+    if backend is None:
         return {"available": False, "muted": False}
+    _, parse, _, stdout = backend
+    return {"available": True, "muted": parse(stdout)}
 
 
 def _mic_set_mute(muted: bool) -> dict:
-    try:
-        subprocess.run(
-            ["wpctl", "set-mute", MIC_SOURCE, "1" if muted else "0"],
-            capture_output=True,
-            timeout=3,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    backend = _mic_backend()
+    if backend is not None:
+        set_cmd = backend[2]
+        try:
+            subprocess.run(set_cmd + ["1" if muted else "0"], capture_output=True, timeout=3)
+        except subprocess.TimeoutExpired:
+            pass
     return _mic_status()
 
 
@@ -890,7 +907,7 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         elif route == "/api/phrases" and method == "GET":
             from urllib.parse import urlparse, parse_qs
 
-            language = (parse_qs(urlparse(self.path).query).get("language") or ["Spanish"])[0]
+            language = (parse_qs(urlparse(self.path).query).get("language") or ["English"])[0]
             defaults = _default_phrases(language)
             self._json(
                 {"phrases": defaults, "languages": _phrase_languages(), "available": bool(defaults)}
@@ -903,7 +920,7 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
                 {
                     "yaml": phrases_yaml(
                         overrides if isinstance(overrides, dict) else {},
-                        _text(body.get("language"), "Spanish"),
+                        _text(body.get("language"), "English"),
                         mode,
                     )
                 }

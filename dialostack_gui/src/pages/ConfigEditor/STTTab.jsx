@@ -3,7 +3,7 @@ import { AudioLines, Ear, Mic } from 'lucide-react'
 import { Field, NumberField, SectionCard, Select, SliderField, ToggleField, inputCls } from '../../components/ui'
 
 const STT_SIZES = ['tiny', 'base', 'small', 'medium', 'large-v2', 'large-v3']
-const STT_LANGS = ['es', 'en', 'fr', 'de', 'pt', 'ca', 'it']
+const STT_LANGS = ['en', 'es', 'fr', 'de', 'pt', 'ca', 'it']
 const CPU_COMPUTES = ['int8', 'int8_float32', 'float32']
 const CUDA_COMPUTES = ['float16', 'int8_float16', 'int8', 'float32']
 
@@ -53,10 +53,10 @@ export function STTTab({ stt, update }) {
         description="Microphone and capture format"
       >
         <div className="grid grid-cols-2 gap-4">
-          <Field label="ASR language" hint="Two-letter ISO code (es, en, fr...)">
+          <Field label="ASR language" hint="Two-letter ISO code (en, es, fr...)">
             <input type="text" value={stt.language}
               onChange={e => update({ language: e.target.value })}
-              placeholder="es" className={inputCls} list="stt-langs" />
+              placeholder="en" className={inputCls} list="stt-langs" />
             <datalist id="stt-langs">
               {STT_LANGS.map(l => <option key={l} value={l} />)}
             </datalist>
