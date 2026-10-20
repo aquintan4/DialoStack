@@ -59,6 +59,7 @@ def make_ollama_infer_fn(
     model: str = "qwen2.5",
     host: str = "127.0.0.1",
     port: int = 11434,
+    think: bool = False,
 ) -> InferFn:
     import json
     import requests
@@ -71,7 +72,7 @@ def make_ollama_infer_fn(
         max_tokens: Optional[int],
         schema: Optional[dict],
     ) -> Optional[str]:
-        payload: dict = {"model": model, "prompt": prompt, "stream": False}
+        payload: dict = {"model": model, "prompt": prompt, "stream": False, "think": think}
         if max_tokens and max_tokens > 0:
             payload["options"] = {"num_predict": max_tokens}
         if schema:
@@ -192,6 +193,7 @@ def make_infer_fn(cfg: dict) -> InferFn:
             model=llm_cfg.get("model", "qwen2.5"),
             host=llm_cfg.get("ollama_host", "127.0.0.1"),
             port=int(llm_cfg.get("ollama_port", 11434)),
+            think=bool(llm_cfg.get("think", False)),
         )
     if provider == "claude":
         return make_claude_infer_fn(

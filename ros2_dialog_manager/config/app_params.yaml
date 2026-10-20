@@ -38,6 +38,8 @@ llm_manager_node:
       port: 11434
       model: "qwen2.5"
       timeout: 120.0
+      # Reasoning models think before answering when true (slower).
+      think: false
 
     gemini:
       enable: true

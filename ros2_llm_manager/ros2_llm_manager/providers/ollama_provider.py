@@ -4,6 +4,10 @@ OllamaProvider — inference backend for locally-served Ollama models.
 Maintains a persistent HTTP connection pool (httpx.Client) and uses
 keep_alive=-1 on every request to keep the model resident in VRAM, avoiding
 repeated cold-start penalties during a dialog session.
+
+Reasoning models (Qwen 3.5, DeepSeek-R1...) think before answering unless the
+request sends think=false; `think` (False by default) keeps spoken replies
+fast. Models without thinking accept the flag and ignore it.
 """
 
 import json
@@ -17,9 +21,12 @@ from ..base_provider import BaseProvider, GenerateResult
 
 class OllamaProvider(BaseProvider):
 
-    def __init__(self, host: str, port: int, timeout: float, default_model: str):
+    def __init__(
+        self, host: str, port: int, timeout: float, default_model: str, think: bool = False
+    ):
         self._base_url = f"http://{host}:{port}"
         self._timeout = timeout
+        self._think = think
         self.default_model = default_model
         self._http: Optional[httpx.Client] = None
 
@@ -89,6 +96,7 @@ class OllamaProvider(BaseProvider):
             "messages": messages,
             "stream": stream_callback is not None,
             "keep_alive": -1,
+            "think": self._think,
         }
         if max_tokens > 0:
             payload["options"] = {"num_predict": max_tokens}
