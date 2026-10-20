@@ -29,7 +29,10 @@ services:
       # plain Docker Engine inside WSL2 too.
       - "host.docker.internal:host-gateway"
     volumes:
-      - /mnt/wslg:/mnt/wslg
+      # WSLg's audio sockets as seen from Docker Desktop's VM (its own distro
+      # has no /mnt/wslg). With Docker Engine installed inside a WSL2 distro
+      # instead, use /mnt/wslg:/mnt/wslg.
+      - /run/desktop/mnt/host/wslg:/mnt/wslg
       # Model caches: extra Whisper sizes or voices survive container restarts.
       - dialostack-cache:/root/.cache
 
