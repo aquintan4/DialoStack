@@ -30,8 +30,8 @@
   /* Kept as a no-op so old class names do not break */
   .glow-blue { box-shadow: none; }
 
-  /* Oculta los spinners nativos de los <input type="number"> —
-     NumberField pinta sus propios botones. */
+  /* Hide the native spinners of <input type="number">;
+     NumberField draws its own buttons. */
   .no-spinner::-webkit-outer-spin-button,
   .no-spinner::-webkit-inner-spin-button {
     -webkit-appearance: none;

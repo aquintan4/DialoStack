@@ -73,6 +73,16 @@ def test_clean_user_input_noise_filler():
     assert clean_user_input("mm") is None
 
 
+def test_clean_user_input_english_noise_phrase():
+    assert clean_user_input("Thanks for watching!") is None
+
+
+@pytest.mark.parametrize("text", ["summer", "I will be right behind you", "recommend it"])
+def test_clean_user_input_filler_inside_word_is_kept(text):
+    # "mm" / "eh" are fillers only as whole words, not inside real words.
+    assert clean_user_input(text) == text
+
+
 def test_clean_user_input_pure_punctuation():
     assert clean_user_input("...!!!") is None
 

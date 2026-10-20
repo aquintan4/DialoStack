@@ -81,7 +81,7 @@ class SpeechToTextNode(Node):
         self.declare_parameter("audio_topic", "/audio_in")
         self.declare_parameter("model_size", "base")
         self.declare_parameter("sample_rate", 16000)
-        self.declare_parameter("language", "es")
+        self.declare_parameter("language", "en")
         self.declare_parameter("vad_threshold", 0.5)
         self.declare_parameter("grace_period", 0.8)
         self.declare_parameter("max_phrase_secs", 8.0)

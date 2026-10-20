@@ -14,7 +14,7 @@ export function TTSTab({ tts, update }) {
           hint="Voice filename (resolved under DIALOSTACK_MODELS_DIR) or an absolute .onnx path. The .onnx.json must sit next to it.">
           <input type="text" value={tts.model_path}
             onChange={e => update({ model_path: e.target.value })}
-            placeholder="es_ES-sharvard-medium.onnx"
+            placeholder="en_US-lessac-medium.onnx"
             className={inputCls} />
         </Field>
       </SectionCard>

@@ -24,7 +24,7 @@ const sameAcks = (a, b) =>
 export function StrategiesEditor() {
   const { config, updateSection } = useConfig()
   const navigate = useNavigate()
-  const language = config.dialog?.language || 'Spanish'
+  const language = config.dialog?.language || 'English'
   const overrides = config.phrases?.[language] || {}
 
   const [defaults, setDefaults] = useState(null)

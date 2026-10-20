@@ -101,17 +101,41 @@ See **[docs/architecture.md](docs/architecture.md)** for the full design: node g
 | [`dialostack_bt_client/`](dialostack_bt_client) | BehaviorTree.CPP leaf node to run a dialogue from a behavior tree |
 | [`evaluation/`](evaluation) | ROS-free benchmark suite with annotated datasets |
 | [`docs/`](docs) | Architecture, configuration and slot schema documentation |
+| [`docker/`](docker) | Docker image (`Dockerfile`), used by `docker-compose.yml` and the release workflow |
 
 ## Getting started
 
-### Prerequisites
+There are two ways to run DialoStack: the prebuilt Docker image (quickest, nothing to compile) or a source build in your own ROS 2 workspace (needed to modify the code, run the vision nodes or drive a robot).
+
+### Run with Docker
+
+Requires Linux with [Docker](https://docs.docker.com/engine/install/) and the Compose plugin. The image bundles ROS 2 Jazzy, the dialogue core, the speech models and the web GUI.
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.yml
+export GEMINI_API_KEY="your-key"   # or put it in a .env file next to docker-compose.yml
+docker compose up
+```
+
+Open **http://localhost:5173**, check the configuration and press **Start engine**.
+
+- **Audio:** the container uses your desktop's microphone and speakers through the PulseAudio/PipeWire socket (`$XDG_RUNTIME_DIR/pulse/native`), the default on Ubuntu and most desktop distributions.
+- **Local LLM:** run [Ollama](https://ollama.com) on the host and enable it in the GUI with host `127.0.0.1`; the container shares the host network.
+- **ROS 2:** the dialogue action `/dialog/execute_task` is reachable from ROS 2 nodes on the host or the network (same `ROS_DOMAIN_ID`). To run the engine headless instead of the GUI: `docker compose run --rm dialostack ros2 launch ros2_dialog_manager main.launch.py`.
+- The image is CPU-only and does not include the optional vision nodes or the NAO packages; use a source build for those.
+
+To build the image yourself from a clone: `docker compose build`.
+
+### Build from source
+
+#### Prerequisites
 
 - Ubuntu 24.04 with [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html)
 - Python ≥ 3.10
 - An LLM provider: a [Gemini API key](https://aistudio.google.com/apikey) (the free tier works) **or** a local [Ollama](https://ollama.com) install
 - A microphone and speakers (any ALSA device)
 
-### Install & build
+#### Install & build
 
 ```bash
 mkdir -p ~/dialostack_ws/src && cd ~/dialostack_ws/src
@@ -129,7 +153,7 @@ source install/setup.bash
 
 > **Using a venv?** Sourcing the overlay reorders `PYTHONPATH` and hides the pip packages from the nodes. `activate.sh` fixes this. Open `src/DialoStack/activate.sh`, set the two variables at the top (your ROS distro and the venv path), then `source src/DialoStack/activate.sh` instead of `install/setup.bash` in every new terminal. It also exports `DIALOSTACK_MODELS_DIR`.
 
-### Download the TTS voices
+#### Download the TTS voices
 
 `text_to_speech_node` uses [Piper](https://github.com/rhasspy/piper) voices. One script fetches the default Spanish and English voices:
 
@@ -139,7 +163,7 @@ source install/setup.bash
 
 It downloads into `~/.local/share/dialostack/models` (override with `DIALOSTACK_MODELS_DIR`), where the nodes look by default. The shipped config references voices **by filename**, so you never edit a path. STT (faster-whisper) and the vision models download themselves on first run.
 
-### Run the stack
+#### Run the stack
 
 ```bash
 export GEMINI_API_KEY="your-key"   # or enable Ollama in the config
@@ -196,7 +220,7 @@ All runtime behavior comes from two YAML files loaded by `main.launch.py`:
 - [`ros2_dialog_manager/config/app_params.yaml`](ros2_dialog_manager/config/app_params.yaml): topics, language, timeouts, turn limits, LLM provider and model, logging.
 - [`ros2_dialog_manager/config/prompts.yaml`](ros2_dialog_manager/config/prompts.yaml): every prompt template the engine uses, editable without touching code.
 
-The dialogue language is a single parameter (`language: "Spanish"`). The prompts instruct the LLM accordingly and the fallback phrases follow. The full parameter reference lives in **[docs/configuration.md](docs/configuration.md)**.
+The dialogue language is a single parameter (`language: "English"`). The prompts instruct the LLM accordingly and the fallback phrases follow. The full parameter reference lives in **[docs/configuration.md](docs/configuration.md)**.
 
 ## Evaluation
 

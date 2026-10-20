@@ -161,7 +161,7 @@ class SlotFillingStrategy(BaseDialogStrategy):
             self._frame.increment_attempts(slot_asked)
 
         # Acknowledgment is injected by Python (not the LLM) to guarantee variety
-        # and prevent the LLM from saying "Anotado." when nothing was extracted.
+        # and prevent the LLM from saying "Noted." when nothing was extracted.
         ack = self._pop_ack() if applied > 0 else ""
 
         if self._frame.is_complete():

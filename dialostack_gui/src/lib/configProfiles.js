@@ -70,7 +70,7 @@ function stableStringify(value) {
 
 // ==== SHORT SUMMARY ====
 
-/** One-line description shown under the profile name (e.g. "Spanish · es · gemini"). */
+/** One-line description shown under the profile name (e.g. "English · en · gemini"). */
 export function describeProfile(profileConfig) {
   const c = applyProfileConfig({}, profileConfig)
   const voice = c.tts.model_path ? c.tts.model_path.split('/').pop().replace(/\.onnx$/, '') : ''

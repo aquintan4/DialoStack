@@ -1,0 +1,14 @@
+# Build context for docker/Dockerfile: sources only.
+.git
+**/node_modules
+dialostack_gui/dist
+build
+install
+log
+**/__pycache__
+**/*.py[cod]
+.env
+*.key
+*.onnx
+evaluation/results
+docs/media

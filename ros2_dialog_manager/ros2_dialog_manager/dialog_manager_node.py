@@ -139,9 +139,9 @@ class DialogManagerNode(Node):
             "timeout_prompt": "",
             "conversation_log_path": "/tmp/dialog_conversations.log",
             "conversation_log_max_mb": 10.0,
-            "language": "Spanish",
+            "language": "English",
             "history_max_turns": 200,
-            "ack_phrases": [""],  # Empty list disables acknowledgment; set in app_params.yaml
+            "ack_phrases": [""],  # Empty = built-in phrases for `language`; set a list to override
         }
         for name, default in defaults.items():
             if not self.has_parameter(name):

@@ -72,7 +72,7 @@ export const api = {
   /** Parses a pasted task (goal JSON, YAML, or a `ros2 action send_goal` command) into a goal object. */
   taskParse: (text) => postJson('/api/task/parse', { text }),
 
-  /** System microphone status (hardware mute via PipeWire). */
+  /** System microphone status (hardware mute via PipeWire or PulseAudio). */
   micStatus: () => request('/api/mic/status'),
 
   micMute: (muted) => postJson('/api/mic/mute', { muted }),

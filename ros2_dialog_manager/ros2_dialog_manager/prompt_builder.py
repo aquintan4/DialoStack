@@ -19,7 +19,7 @@ _log = logging.getLogger("PromptBuilder")  # TRACE
 
 class PromptBuilder:
 
-    def __init__(self, templates: dict[str, str], language: str = "Spanish"):
+    def __init__(self, templates: dict[str, str], language: str = "English"):
         self._tpl = templates
         self._language = language
 

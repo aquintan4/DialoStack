@@ -1,0 +1,29 @@
+# DialoStack with Docker (Linux).
+#
+#   docker compose up            then open http://localhost:5173
+#
+# GEMINI_API_KEY is read from your shell or from a .env file next to this one.
+# For a local LLM, run Ollama on the host and enable it in the GUI (127.0.0.1).
+services:
+  dialostack:
+    image: ghcr.io/aquintan4/dialostack:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    # Host network: GUI (5173), rosbridge (9090), a host Ollama and ROS 2
+    # discovery with nodes outside the container (e.g. a robot) all just work.
+    network_mode: host
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      # Shared memory does not cross the container boundary reliably.
+      FASTDDS_BUILTIN_TRANSPORTS: UDPv4
+      PULSE_SERVER: unix:/run/pulse/native
+    volumes:
+      # Host audio (PulseAudio or PipeWire) for the microphone and speaker.
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}/pulse/native:/run/pulse/native
+      # Model caches: extra Whisper sizes or voices survive container restarts.
+      - dialostack-cache:/root/.cache
+
+volumes:
+  dialostack-cache:
