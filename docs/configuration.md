@@ -104,11 +104,13 @@ The templates, grouped by purpose:
 Declared in `ros2_llm_manager/ros2_llm_manager/llm_manager_node.py`. Shipped
 values from `ros2_llm_manager/config/params.yaml`. The Gemini provider reads its
 API key from the `GEMINI_API_KEY` environment variable when `gemini.api_key` is
-left empty (the recommended setup).
+left empty (the recommended setup); the Claude provider likewise reads
+`ANTHROPIC_API_KEY`. Claude needs a Claude API key from console.anthropic.com: a
+Claude.ai subscription does not include API access.
 
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
-| `default_provider` | string | `gemini` | Provider used when a session request does not specify one. Must be an enabled provider (`gemini` or `ollama`). |
+| `default_provider` | string | `gemini` | Provider used when a session request does not specify one. Must be an enabled provider (`gemini`, `ollama` or `claude`). |
 | `default_model` | string | `""` | Default model override. Empty means the provider's own default. |
 | `max_concurrent` | int | `4` | Maximum number of concurrent inference threads. |
 | `silent_mode` | bool | `false` | Disable informational logs when true. |
@@ -121,6 +123,11 @@ left empty (the recommended setup).
 | `gemini.api_key` | string | `""` | Google Gemini API key. Prefer the `GEMINI_API_KEY` environment variable and leave this empty. |
 | `gemini.model` | string | `gemini-2.5-flash` | Gemini model name. |
 | `gemini.timeout` | float | `60.0` | Request timeout in seconds for Gemini inference calls. |
+| `claude.enable` | bool | `false` | Enable the Anthropic Claude provider and connect at startup (checks the key and model). |
+| `claude.api_key` | string | `""` | Claude API key. Prefer the `ANTHROPIC_API_KEY` environment variable and leave this empty. |
+| `claude.model` | string | `claude-opus-5-5` | Claude model id (e.g. `claude-sonnet-5-5`, `claude-haiku-5-5`). |
+| `claude.timeout` | float | `60.0` | Request timeout in seconds for Claude inference calls. |
+| `claude.effort` | string | `low` | Thinking effort: `low`, `medium`, `high`, `xhigh` or `max`. Current Claude models always think; `low` keeps spoken replies fast. Empty omits it (older models). |
 
 ## speech_to_text_node
 

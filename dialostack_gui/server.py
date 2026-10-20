@@ -354,6 +354,33 @@ def extract_task_goal(text: str) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+# Default model per LLM provider, used when the config leaves the model empty.
+DEFAULT_LLM_MODELS = {
+    "gemini": "gemini-2.5-flash",
+    "ollama": "qwen2.5",
+    "claude": "claude-opus-5-5",
+}
+
+
+# Inside a container 127.0.0.1 is the container itself, not the machine running
+# Ollama. When DIALOSTACK_HOST_ALIAS is set (e.g. host.docker.internal in the
+# Windows compose file), loopback Ollama hosts are redirected to it, so the
+# GUI's default 127.0.0.1 still reaches Ollama on the host.
+_LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", ""}
+
+
+def _ollama_host(llm: dict) -> str:
+    host = _text(llm.get("ollama_host"), "127.0.0.1")
+    alias = os.environ.get("DIALOSTACK_HOST_ALIAS", "").strip()
+    return alias if alias and host in _LOOPBACK_HOSTS else (host or "127.0.0.1")
+
+
+def _llm_provider(llm: dict) -> str:
+    """The configured LLM provider, defaulting to Gemini for unknown values."""
+    provider = llm.get("provider")
+    return provider if provider in DEFAULT_LLM_MODELS else "gemini"
+
+
 def build_params(config: dict) -> dict:
     """Build the ROS 2 params dict (node -> ros__parameters) from a GUI config."""
     llm = config.get("llm") or {}
@@ -399,23 +426,32 @@ def build_params(config: dict) -> dict:
         stt_params["audio_source"] = "microphone"
         tts_params["audio_sink"] = "speaker"
 
-    provider = "ollama" if llm.get("provider") == "ollama" else "gemini"
+    provider = _llm_provider(llm)
     llm_timeout = _num(llm.get("timeout"), 60.0, 1.0, 3600.0)
-    llm_model = _text(
-        llm.get("model"), "gemini-2.5-flash" if provider == "gemini" else "qwen2.5"
-    )
+    llm_model = _text(llm.get("model")) or DEFAULT_LLM_MODELS[provider]
 
+    gemini = {"enable": False}
+    ollama = {"enable": False}
+    claude = {"enable": False}
     if provider == "gemini":
         gemini = {"enable": True, "model": llm_model, "timeout": llm_timeout}
         api_key = _text(llm.get("gemini_api_key"))
         if api_key:
             gemini["api_key"] = api_key
-        ollama = {"enable": False}
+    elif provider == "claude":
+        claude = {
+            "enable": True,
+            "model": llm_model,
+            "timeout": llm_timeout,
+            "effort": _text(llm.get("claude_effort"), "low"),
+        }
+        api_key = _text(llm.get("claude_api_key"))
+        if api_key:
+            claude["api_key"] = api_key
     else:
-        gemini = {"enable": False}
         ollama = {
             "enable": True,
-            "host": _text(llm.get("ollama_host"), "127.0.0.1"),
+            "host": _ollama_host(llm),
             "port": _num(llm.get("ollama_port"), 11434, 1, 65535, integer=True),
             "model": llm_model,
             "timeout": llm_timeout,
@@ -427,6 +463,7 @@ def build_params(config: dict) -> dict:
         "silent_mode": _flag(llm.get("silent_mode")),
         "gemini": gemini,
         "ollama": ollama,
+        "claude": claude,
     }
 
     raw_acks = dialog.get("ack_phrases")
@@ -618,7 +655,17 @@ def _kill_all_dialostack() -> dict:
 
 def _check_llm_provider(llm: dict):
     """Return an error message if the LLM provider is not usable."""
-    provider = "ollama" if llm.get("provider") == "ollama" else "gemini"
+    provider = _llm_provider(llm)
+
+    if provider == "claude":
+        if not _text(llm.get("claude_api_key")) and not os.environ.get(
+            "ANTHROPIC_API_KEY"
+        ):
+            return (
+                "Claude has no API key: enter it in Configuration > LLM > "
+                "API Key, or export it (ANTHROPIC_API_KEY) before launching gui.sh"
+            )
+        return None
 
     if provider == "gemini":
         if not _text(llm.get("gemini_api_key")) and not os.environ.get(
@@ -630,7 +677,7 @@ def _check_llm_provider(llm: dict):
             )
         return None
 
-    host = _text(llm.get("ollama_host"), "127.0.0.1")
+    host = _ollama_host(llm)
     port = _num(llm.get("ollama_port"), 11434, 1, 65535, integer=True)
     try:
         urllib.request.urlopen(f"http://{host}:{port}/api/version", timeout=2)

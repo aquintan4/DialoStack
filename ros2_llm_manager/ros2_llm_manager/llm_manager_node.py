@@ -28,6 +28,7 @@ from ros2_llm_interfaces.srv import CreateSession, DeleteSession, ListSessions
 from .session_manager import SessionManager
 from .providers.ollama_provider import OllamaProvider
 from .providers.gemini_provider import GeminiProvider
+from .providers.claude_provider import ClaudeProvider
 
 
 class LLMManagerNode(Node):
@@ -101,6 +102,12 @@ class LLMManagerNode(Node):
         self.declare_parameter("gemini.model", "gemini-2.0-flash")
         self.declare_parameter("gemini.timeout", 60.0)
 
+        self.declare_parameter("claude.enable", False)
+        self.declare_parameter("claude.api_key", "")
+        self.declare_parameter("claude.model", "claude-opus-5-5")
+        self.declare_parameter("claude.timeout", 60.0)
+        self.declare_parameter("claude.effort", "low")
+
     def _read_parameters(self) -> None:
         p = self.get_parameter
         self._default_provider = p("default_provider").value
@@ -142,6 +149,19 @@ class LLMManagerNode(Node):
 
             if ok:
                 self._providers["gemini"] = gemini
+
+        if p("claude.enable").value:
+            claude = ClaudeProvider(
+                api_key=p("claude.api_key").value,
+                timeout=p("claude.timeout").value,
+                default_model=p("claude.model").value,
+                effort=p("claude.effort").value,
+            )
+            ok, msg = claude.connect()
+            self._log(f"[claude] {msg}") if ok else self.get_logger().warning(f"[claude] {msg}")
+
+            if ok:
+                self._providers["claude"] = claude
 
     # ==== INFERENCE ACTION ====
 

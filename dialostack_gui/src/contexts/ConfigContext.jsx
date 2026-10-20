@@ -14,6 +14,8 @@ export const DEFAULT_CONFIG = {
     max_concurrent: 4,
     silent_mode: false,
     gemini_api_key: '',
+    claude_api_key: '',
+    claude_effort: 'low',
     ollama_host: '127.0.0.1',
     ollama_port: 11434,
   },

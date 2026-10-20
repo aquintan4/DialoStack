@@ -6,7 +6,7 @@ Statistical benchmarks for the dialog system. They run **without ROS** by import
 
 ```
 evaluation/
-├── config.yaml          ← configures the LLM provider (Gemini / Ollama)
+├── config.yaml          ← configures the LLM provider (Gemini / Ollama / Claude)
 ├── run_eval.py          ← main entry point
 ├── core/                ← infrastructure (LLM adapter, mock audio, metrics)
 ├── datasets/            ← evaluation datasets in JSON (hand-annotated)
@@ -27,12 +27,12 @@ Edit `config.yaml`. The most important field:
 
 ```yaml
 llm:
-  provider: "gemini"          # or "ollama"
-  model: "gemini-2.5-flash"
-  api_key: ""                 # empty → uses the GEMINI_API_KEY environment variable
+  provider: "gemini"          # or "ollama" / "claude"
+  model: "gemini-2.5-flash"   # e.g. "claude-opus-5-5" for Claude
+  api_key: ""                 # empty → uses GEMINI_API_KEY / ANTHROPIC_API_KEY
 ```
 
-Make sure `GEMINI_API_KEY` is exported in your terminal before running.
+Make sure the provider's key (`GEMINI_API_KEY` or `ANTHROPIC_API_KEY`) is exported in your terminal before running. The Claude benchmarks also need `pip install -r ../ros2_llm_manager/config/requirements.txt`.
 
 ## Running
 

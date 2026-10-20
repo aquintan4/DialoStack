@@ -2,7 +2,8 @@
 #
 #   docker compose up            then open http://localhost:5173
 #
-# GEMINI_API_KEY is read from your shell or from a .env file next to this one.
+# GEMINI_API_KEY / ANTHROPIC_API_KEY are read from your shell or from a .env
+# file next to this one.
 # For a local LLM, run Ollama on the host and enable it in the GUI (127.0.0.1).
 services:
   dialostack:
@@ -15,6 +16,7 @@ services:
     network_mode: host
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
       # Shared memory does not cross the container boundary reliably.
       FASTDDS_BUILTIN_TRANSPORTS: UDPv4

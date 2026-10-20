@@ -1,0 +1,36 @@
+# DialoStack on Windows 11 with Docker Desktop (WSL2 backend, the default).
+#
+#   docker compose -f docker-compose.windows.yml up     then open http://localhost:5173
+#
+# GEMINI_API_KEY / ANTHROPIC_API_KEY are read from your shell or from a .env
+# file next to this one. For a local LLM, install Ollama for Windows and select
+# it in the GUI: the default host 127.0.0.1 is redirected to your PC.
+#
+# Unlike the Linux file, this one publishes ports instead of using the host
+# network, so ROS 2 nodes outside the container (e.g. a robot) cannot discover
+# it; use WSL2 with a source build for that.
+services:
+  dialostack:
+    image: ghcr.io/aquintan4/dialostack:latest
+    ports:
+      - "5173:5173"   # GUI and API
+      - "9090:9090"   # rosbridge (the GUI's live connection)
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Microphone and speaker through WSLg's PulseAudio server (Windows 11).
+      PULSE_SERVER: unix:/mnt/wslg/PulseServer
+      # Ollama (and other host services) configured as 127.0.0.1 in the GUI.
+      DIALOSTACK_HOST_ALIAS: host.docker.internal
+      FASTDDS_BUILTIN_TRANSPORTS: UDPv4
+    extra_hosts:
+      # Docker Desktop defines it already; this keeps the file working on
+      # plain Docker Engine inside WSL2 too.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /mnt/wslg:/mnt/wslg
+      # Model caches: extra Whisper sizes or voices survive container restarts.
+      - dialostack-cache:/root/.cache
+
+volumes:
+  dialostack-cache:
