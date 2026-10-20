@@ -11,6 +11,7 @@ llm:
   # Ollama options (only used when provider=ollama)
   ollama_host: "127.0.0.1"
   ollama_port: 11434
+  think: false                # Ollama only: let reasoning models (qwen3.5...) think first (slower)
 
 dialog:
   language: "Spanish"

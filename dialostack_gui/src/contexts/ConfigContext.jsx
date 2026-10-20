@@ -21,6 +21,7 @@ export const DEFAULT_CONFIG = {
     openai_base_url: '',
     ollama_host: '127.0.0.1',
     ollama_port: 11434,
+    ollama_think: false,
   },
   dialog: {
     language: 'English',

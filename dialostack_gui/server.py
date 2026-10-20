@@ -482,6 +482,7 @@ def build_params(config: dict) -> dict:
             "port": _num(llm.get("ollama_port"), 11434, 1, 65535, integer=True),
             "model": llm_model,
             "timeout": llm_timeout,
+            "think": _flag(llm.get("ollama_think")),
         }
 
     llm_params = {

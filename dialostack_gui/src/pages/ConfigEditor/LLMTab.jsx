@@ -7,7 +7,7 @@ const MODELS = {
   gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
   claude: ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5', 'claude-fable-5-1'],
   openai: ['gpt-6-luna', 'gpt-6.1-sol', 'gpt-6-astra'],
-  ollama: ['qwen2.5', 'qwen2.5:14b', 'llama3.1', 'llama3.1:8b', 'mistral', 'phi3.5', 'deepseek-r1'],
+  ollama: ['qwen2.5', 'qwen3.5:9b', 'qwen3.5:4b', 'qwen2.5:14b', 'llama3.1', 'llama3.1:8b', 'mistral', 'phi3.5', 'deepseek-r1'],
 }
 const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
 const OPENAI_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max']
@@ -142,6 +142,9 @@ export function LLMTab({ llm, update }) {
             <NumberField label="Port" min={1} max={65535}
               value={llm.ollama_port} onChange={v => update({ ollama_port: v })} />
           </div>
+          <ToggleField label="Thinking"
+            hint="Let reasoning models (qwen3.5, deepseek-r1…) think before answering. Slower; leave off for spoken dialogue"
+            value={llm.ollama_think ?? false} onChange={v => update({ ollama_think: v })} />
           <div className="px-3 py-2.5 bg-app-950 border border-app-border rounded">
             <p className="text-xs text-brand-300/80">
               Ollama must be running at{' '}

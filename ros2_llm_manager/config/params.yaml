@@ -24,6 +24,9 @@ llm_manager_node:
       model: "llama3.2:3b"
       # Request timeout in seconds for inference calls.
       timeout: 120.0
+      # Let reasoning models (qwen3.5, deepseek-r1...) think before answering.
+      # Slower; false keeps spoken replies fast. Ignored by other models.
+      think: false
 
     gemini:
       # Set to true to enable the Gemini provider and connect at startup.

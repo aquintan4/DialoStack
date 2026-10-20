@@ -120,6 +120,7 @@ access.
 | `ollama.port` | int | `11434` | Ollama server port. |
 | `ollama.model` | string | `llama3.2:3b` | Model to pre-load into VRAM on startup. |
 | `ollama.timeout` | float | `120.0` | Request timeout in seconds for Ollama inference calls. |
+| `ollama.think` | bool | `false` | Let reasoning models (`qwen3.5`, `deepseek-r1`…) think before answering. Slower; `false` keeps spoken replies fast. Models without thinking ignore it. |
 | `gemini.enable` | bool | `true` | Enable the Gemini provider and connect at startup. |
 | `gemini.api_key` | string | `""` | Google Gemini API key. Prefer the `GEMINI_API_KEY` environment variable and leave this empty. |
 | `gemini.model` | string | `gemini-2.5-flash` | Gemini model name. |

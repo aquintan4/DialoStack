@@ -97,6 +97,7 @@ class LLMManagerNode(Node):
         self.declare_parameter("ollama.port", 11434)
         self.declare_parameter("ollama.model", "llama3.2:3b")
         self.declare_parameter("ollama.timeout", 120.0)
+        self.declare_parameter("ollama.think", False)
 
         self.declare_parameter("gemini.enable", False)
         self.declare_parameter("gemini.api_key", "")
@@ -133,6 +134,7 @@ class LLMManagerNode(Node):
                 port=p("ollama.port").value,
                 timeout=p("ollama.timeout").value,
                 default_model=p("ollama.model").value,
+                think=p("ollama.think").value,
             )
             ok, msg = ollama.connect()
             self._log(f"[ollama] {msg}") if ok else self.get_logger().warning(f"[ollama] {msg}")
