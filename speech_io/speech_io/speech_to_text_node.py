@@ -21,6 +21,7 @@ The node is intentionally split into three background loops:
 import threading
 import queue
 
+import ctranslate2
 import numpy as np
 import sounddevice as sd
 import rclpy
@@ -85,8 +86,9 @@ class SpeechToTextNode(Node):
         self.declare_parameter("vad_threshold", 0.5)
         self.declare_parameter("grace_period", 0.8)
         self.declare_parameter("max_phrase_secs", 8.0)
-        self.declare_parameter("device", "cpu")
-        self.declare_parameter("compute_type", "int8")
+        # "auto" picks an NVIDIA GPU when one is usable and the CPU otherwise.
+        self.declare_parameter("device", "auto")
+        self.declare_parameter("compute_type", "auto")
         self.declare_parameter("cpu_threads", 4)
         self.declare_parameter("silent_mode", False)
 
@@ -124,16 +126,54 @@ class SpeechToTextNode(Node):
             trust_repo=True,
         )
 
+    @staticmethod
+    def _resolve_device(device: str, compute_type: str, cuda_devices: int) -> tuple:
+        """Turn "auto" device/compute type into concrete faster-whisper values.
+
+        int8_float32 is the CUDA default because it is fast on every NVIDIA
+        GPU; float16 only pays off on cards with tensor cores.
+        """
+        if device == "auto":
+            device = "cuda" if cuda_devices > 0 else "cpu"
+        if compute_type == "auto":
+            compute_type = "int8_float32" if device == "cuda" else "int8"
+        return device, compute_type
+
     def _load_asr_model(self) -> None:
         p = self.get_parameter
-        self._log(f"Loading Whisper ({p('model_size').value})...")
+        auto = p("device").value == "auto"
+        device, compute_type = self._resolve_device(
+            p("device").value, p("compute_type").value, ctranslate2.get_cuda_device_count()
+        )
+        self._log(f"Loading Whisper ({p('model_size').value}, {device}/{compute_type})...")
 
-        self._asr = WhisperModel(
+        try:
+            self._asr = self._load_whisper(device, compute_type)
+        except (RuntimeError, ValueError) as e:
+            # A GPU can be visible yet unusable (e.g. the CPU image, which
+            # lacks the CUDA libraries): in auto mode, fall back to the CPU.
+            if not (auto and device == "cuda"):
+                raise
+            self.get_logger().warn(f"GPU unavailable ({e}), using the CPU.")
+            self._asr = self._load_whisper(
+                *self._resolve_device("cpu", p("compute_type").value, 0)
+            )
+
+    def _load_whisper(self, device: str, compute_type: str) -> WhisperModel:
+        p = self.get_parameter
+        model = WhisperModel(
             p("model_size").value,
-            device=p("device").value,
-            compute_type=p("compute_type").value,
+            device=device,
+            compute_type=compute_type,
             cpu_threads=p("cpu_threads").value,
         )
+        # The CUDA libraries load on the first inference, not with the model:
+        # run one on a second of silence so a broken GPU fails here, and the
+        # user's first phrase does not pay the warm-up.
+        if device == "cuda":
+            segments, _ = model.transcribe(np.zeros(16000, dtype=np.float32))
+            list(segments)
+        return model
 
     # ==== ROS INTERFACES ====
 

@@ -151,8 +151,8 @@ Silero VAD for voice activity detection.
 | `input_device` | string | `''` | Microphone input device. Empty string uses the default system input. |
 | `model_size` | string | `base` | faster-whisper model size (`tiny`, `base`, `small`, `medium`, `large-v3`, …). |
 | `language` | string | `en` | Expected speech language (ISO code). |
-| `device` | string | `cpu` | faster-whisper inference device (`cpu` or `cuda`). |
-| `compute_type` | string | `int8` | faster-whisper compute type (e.g. `int8` for CPU, `float16`/`int8_float16` for CUDA). |
+| `device` | string | `auto` | faster-whisper inference device: `auto` (an NVIDIA GPU if usable, else the CPU), `cpu` or `cuda`. |
+| `compute_type` | string | `auto` | faster-whisper compute type (`auto` follows the device; e.g. `int8` for CPU; `int8_float32` for CUDA on any NVIDIA GPU, `float16`/`int8_float16` only pay off on GPUs with tensor cores such as RTX). |
 | `cpu_threads` | int | `4` | Number of CPU threads used by faster-whisper. |
 | `sample_rate` | int | `16000` | Microphone sample rate expected by Silero VAD. |
 | `vad_threshold` | float | `0.5` | Minimum Silero VAD probability to treat a chunk as speech. |
@@ -261,10 +261,10 @@ defaults and the shipped YAML values. They are reported here as-is and are not
 modified by this document.
 
 **Speech-to-text, `app_params.yaml` vs. code and `speech_io/params.yaml`:**
-`app_params.yaml` ships `model_size: small`, `device: cuda`, and
-`compute_type: float16`, whereas the node defaults (and `speech_io/params.yaml`)
-use `base`, `cpu`, and `int8`. As a result the STT node runs with different
-inference settings depending on which launch file starts it. Additionally,
+`app_params.yaml` ships `model_size: small`, whereas the node default (and
+`speech_io/params.yaml`) is `base`, so the STT node loads a different Whisper
+size depending on which launch file starts it. `device` and `compute_type` are
+`auto` everywhere. Additionally,
 `app_params.yaml` does not include `vad_topic`, so under `main.launch.py` the
 node falls back to its code default `/user_vad`.
 

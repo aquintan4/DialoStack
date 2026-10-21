@@ -19,12 +19,13 @@ speech_to_text_node:
     # Expected speech language. Use ISO language codes, e.g. en, es.
     language: en
 
-    # Inference device used by faster-whisper: cpu or cuda.
-    device: cpu
+    # Inference device used by faster-whisper: auto (NVIDIA GPU if usable,
+    # else CPU), cpu or cuda.
+    device: auto
 
-    # faster-whisper compute type. Common CPU option: int8.
-    # Common CUDA options: float16, int8_float16.
-    compute_type: int8
+    # faster-whisper compute type. auto: int8 on CPU, int8_float32 on CUDA.
+    # Other CUDA options: float16, int8_float16 (fast only on RTX cards).
+    compute_type: auto
 
     # Number of CPU threads used by faster-whisper.
     cpu_threads: 4

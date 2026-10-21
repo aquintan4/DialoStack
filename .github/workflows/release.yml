@@ -1,5 +1,6 @@
-# Release: on a version tag (v1.2.0), build the Docker image, push it to
-# ghcr.io/<owner>/dialostack and publish a GitHub Release that points to it.
+# Release: on a version tag (v1.2.0), build the Docker images (CPU, and the
+# NVIDIA GPU variant tagged -cuda), push them to ghcr.io/<owner>/dialostack and
+# publish a GitHub Release that points to them.
 #
 #   git tag v1.1.0 && git push origin v1.1.0
 #
@@ -21,6 +22,9 @@ env:
 jobs:
   image:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        variant: [cpu, cuda]
     steps:
       - uses: actions/checkout@v4
 
@@ -47,16 +51,18 @@ jobs:
             type=ref,event=branch
           flavor: |
             latest=${{ startsWith(github.ref, 'refs/tags/v') }}
+            suffix=${{ matrix.variant == 'cuda' && '-cuda' || '' }}
 
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
+          build-args: VARIANT=${{ matrix.variant }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}
 
   release:
     needs: image
@@ -74,7 +80,8 @@ jobs:
           ## Docker image
 
           \`\`\`bash
-          docker pull ${IMAGE}:${TAG#v}
+          docker pull ${IMAGE}:${TAG#v}        # CPU
+          docker pull ${IMAGE}:${TAG#v}-cuda   # NVIDIA GPU
           \`\`\`
 
           Or download the compose file for your system below and run it, then
@@ -82,10 +89,11 @@ jobs:
 
           - Linux: \`docker compose up\` with \`docker-compose.yml\`
           - Windows 11 (Docker Desktop): \`docker compose -f docker-compose.windows.yml up\`
+          - NVIDIA GPU: add \`-f docker-compose.gpu.yml\` to either command
 
           See the README section "Run with Docker" for audio and LLM setup.
           EOF
-          gh release create "$TAG" docker-compose.yml docker-compose.windows.yml \
+          gh release create "$TAG" docker-compose.yml docker-compose.windows.yml docker-compose.gpu.yml \
             --title "DialoStack $TAG" \
             --notes-file notes.md \
             --generate-notes
