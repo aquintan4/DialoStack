@@ -126,7 +126,7 @@ Open **http://localhost:5173**, check the configuration and press **Start engine
 - **Audio:** the container uses your desktop's microphone and speakers through the PulseAudio/PipeWire socket (`$XDG_RUNTIME_DIR/pulse/native`), the default on Ubuntu and most desktop distributions.
 - **Local LLM:** run [Ollama](https://ollama.com) on the host and enable it in the GUI with host `127.0.0.1`; the container shares the host network.
 - **ROS 2:** the dialogue action `/dialog/execute_task` is reachable from ROS 2 nodes on the host or the network (same `ROS_DOMAIN_ID`). To run the engine headless instead of the GUI: `docker compose run --rm dialostack ros2 launch ros2_dialog_manager main.launch.py`.
-- The image is CPU-only and does not include the optional vision nodes or the NAO packages; use a source build for those.
+- The image does not include the optional vision nodes or the NAO packages; use a source build for those. For an NVIDIA GPU, see [GPU acceleration](#gpu-acceleration-nvidia).
 
 To build the image yourself from a clone: `docker compose build`.
 
@@ -145,6 +145,22 @@ Open **http://localhost:5173** and press **Start engine**.
 - **Audio:** the microphone and speakers of Windows reach the container through WSLg, built into Windows 11. Allow microphone access for desktop apps in Windows privacy settings.
 - **Local LLM:** install [Ollama for Windows](https://ollama.com/download) and select it in the GUI. The default host `127.0.0.1` is redirected to your PC, and Ollama uses your GPU.
 - **ROS 2:** the Windows file publishes ports instead of sharing the host network, so the engine is not discoverable by robots or other ROS 2 machines. For that, build from source inside WSL2 (Ubuntu 24.04).
+
+#### GPU acceleration (NVIDIA)
+
+The `-cuda` image runs speech recognition on an NVIDIA GPU, which makes the larger Whisper models (`medium`, `large-v3`) fast enough for live conversation. Download the GPU add-on next to your compose file and pass both:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.gpu.yml   # curl.exe on Windows
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up                  # Linux
+docker compose -f docker-compose.windows.yml -f docker-compose.gpu.yml up          # Windows 11
+```
+
+Nothing to set in the GUI: the STT device defaults to `auto`, which uses the GPU when there is one and the CPU otherwise. With the GPU, pick a larger model size in the **STT** tab. To force a device or compute type, set it there (`int8_float32` is fast on any NVIDIA GPU; `float16` only on RTX cards).
+
+- **Windows 11:** a recent NVIDIA driver is all it needs; Docker Desktop passes the GPU through WSL2.
+- **Linux:** install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+- A local LLM gets the GPU from Ollama itself, with or without this image.
 
 ### Build from source
 

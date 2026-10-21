@@ -1,0 +1,21 @@
+# NVIDIA GPU add-on: runs speech recognition (Whisper) on the GPU. Combine it
+# with the file for your system:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up                  (Linux)
+#   docker compose -f docker-compose.windows.yml -f docker-compose.gpu.yml up          (Windows 11)
+#
+# Speech recognition picks the GPU by itself (STT device "auto", the default).
+# Requires an NVIDIA GPU with a recent driver: on Windows, Docker Desktop passes
+# it through WSL2 by itself; on Linux, install the NVIDIA Container Toolkit.
+# To build this image from a clone:
+#   docker build -f docker/Dockerfile --build-arg VARIANT=cuda -t ghcr.io/aquintan4/dialostack:latest-cuda .
+services:
+  dialostack:
+    image: ghcr.io/aquintan4/dialostack:latest-cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

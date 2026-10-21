@@ -3,11 +3,17 @@
 # in so the first start needs no downloads.
 #
 #   docker build -f docker/Dockerfile -t dialostack .
+#   docker build -f docker/Dockerfile --build-arg VARIANT=cuda -t dialostack:cuda .
+#
+# The cuda variant adds the CUDA 12 / cuDNN 9 libraries that faster-whisper
+# needs to run on an NVIDIA GPU (select device "cuda" in the GUI's STT tab).
+# The GPU driver itself comes from the host through the NVIDIA runtime.
 #
 # Not included: vision_io (optional camera layer), the NAO packages and the
 # BehaviorTree client. Build them from source on top of this image if needed.
 
 ARG ROS_DISTRO=jazzy
+ARG VARIANT=cpu
 
 # ==== GUI BUILD ====
 FROM node:20-slim AS gui
@@ -20,6 +26,7 @@ RUN npm run build
 # ==== RUNTIME ====
 FROM ros:${ROS_DISTRO}-ros-base
 ARG ROS_DISTRO
+ARG VARIANT
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_BREAK_SYSTEM_PACKAGES=1 \
@@ -46,6 +53,15 @@ RUN grep -hE '^(torch|torchaudio|torchvision)==' /tmp/req/speech_io.txt > /tmp/r
     && grep -hvE '^setuptools==' /tmp/req/speech_io.txt /tmp/req/llm.txt > /tmp/req/all.txt \
     && pip install -r /tmp/req/all.txt \
     && rm -rf /tmp/req
+
+# GPU variant: cuBLAS and cuDNN from pip (what CTranslate2 links against),
+# registered with the dynamic linker. Silero VAD stays on the CPU torch.
+RUN if [ "$VARIANT" = "cuda" ]; then \
+        pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*" \
+        && python3 -c "import nvidia.cublas.lib as b, nvidia.cudnn.lib as d; print(b.__path__[0]); print(d.__path__[0])" \
+            > /etc/ld.so.conf.d/nvidia-pip.conf \
+        && ldconfig; \
+    fi
 
 # Default models: Piper voices (ES + EN), Silero VAD and Whisper "small", loaded
 # exactly as speech_to_text_node does so they land in the same caches.

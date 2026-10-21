@@ -5,10 +5,12 @@ import { Field, NumberField, SectionCard, Select, SliderField, ToggleField, inpu
 const STT_SIZES = ['tiny', 'base', 'small', 'medium', 'large-v2', 'large-v3']
 const STT_LANGS = ['en', 'es', 'fr', 'de', 'pt', 'ca', 'it']
 const CPU_COMPUTES = ['int8', 'int8_float32', 'float32']
-const CUDA_COMPUTES = ['float16', 'int8_float16', 'int8', 'float32']
+const CUDA_COMPUTES = ['int8_float32', 'int8_float16', 'float16', 'int8', 'float32']
+const DEFAULT_COMPUTE = { auto: 'auto', cuda: 'int8_float32', cpu: 'int8' }
 
 export function STTTab({ stt, update }) {
-  const computeTypes = stt.device === 'cuda' ? CUDA_COMPUTES : CPU_COMPUTES
+  const computeTypes = stt.device === 'auto' ? ['auto']
+    : stt.device === 'cuda' ? CUDA_COMPUTES : CPU_COMPUTES
 
   return (
     <div className="space-y-4">
@@ -24,18 +26,20 @@ export function STTTab({ stt, update }) {
               {STT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
             </Select>
           </Field>
-          <Field label="Compute device">
+          <Field label="Compute device"
+            hint="Auto uses an NVIDIA GPU when the -cuda image has one, else the CPU">
             <Select value={stt.device}
               onChange={e => {
                 const dev = e.target.value
-                update({ device: dev, compute_type: dev === 'cuda' ? 'float16' : 'int8' })
+                update({ device: dev, compute_type: DEFAULT_COMPUTE[dev] })
               }}>
+              <option value="auto">Auto</option>
               <option value="cpu">CPU</option>
               <option value="cuda">GPU (CUDA)</option>
             </Select>
           </Field>
           <Field label="Compute type"
-            hint="Numeric precision of the inference; int8 is the fastest on CPU">
+            hint="Numeric precision of the inference; int8 is the fastest on CPU, int8_float32 works well on any NVIDIA GPU (float16 needs an RTX)">
             <Select value={stt.compute_type} onChange={e => update({ compute_type: e.target.value })}>
               {computeTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </Select>

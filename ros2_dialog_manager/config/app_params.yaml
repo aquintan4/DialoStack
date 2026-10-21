@@ -5,8 +5,8 @@ speech_to_text_node:
     input_device: ''
     model_size: small
     language: en
-    device: cpu
-    compute_type: int8
+    device: auto
+    compute_type: auto
     cpu_threads: 4
     sample_rate: 16000
     vad_threshold: 0.5

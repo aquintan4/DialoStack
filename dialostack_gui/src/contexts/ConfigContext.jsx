@@ -40,8 +40,8 @@ export const DEFAULT_CONFIG = {
   },
   stt: {
     model_size: 'small',
-    device: 'cpu',
-    compute_type: 'int8',
+    device: 'auto',
+    compute_type: 'auto',
     language: 'en',
     vad_threshold: 0.5,
     grace_period: 0.8,
