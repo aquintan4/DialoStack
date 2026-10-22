@@ -1,9 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://aquintan4.github.io/DialoStack/</loc>
     <lastmod>2026-10-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
+    <image:image><image:loc>https://aquintan4.github.io/DialoStack/assets/media/builder-slots-dark.webp</image:loc></image:image>
+    <image:image><image:loc>https://aquintan4.github.io/DialoStack/assets/media/prompts-dark.webp</image:loc></image:image>
+    <image:image><image:loc>https://aquintan4.github.io/DialoStack/assets/media/config-llm-dark.webp</image:loc></image:image>
+    <video:video>
+      <video:thumbnail_loc>https://aquintan4.github.io/DialoStack/assets/media/hero-coffee.webp</video:thumbnail_loc>
+      <video:title>DialoStack: a spoken coffee order handled by a ROS 2 dialogue engine</video:title>
+      <video:description>Real recording of the DialoStack Monitor: the robot takes a coffee order, accepts a correction, fills the frame and confirms, with qwen3.5:9b on Ollama.</video:description>
+      <video:content_loc>https://aquintan4.github.io/DialoStack/assets/media/hero-coffee.mp4</video:content_loc>
+      <video:duration>105</video:duration>
+      <video:publication_date>2026-10-22</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://aquintan4.github.io/DialoStack/assets/media/monitor-roleplay.webp</video:thumbnail_loc>
+      <video:title>DialoStack roleplay: a robot interviewer scores a practice job interview</video:title>
+      <video:description>The robot plays an HR interviewer, gives a hint when asked, then scores each criterion of the rubric from 1 to 5.</video:description>
+      <video:content_loc>https://aquintan4.github.io/DialoStack/assets/media/monitor-roleplay.mp4</video:content_loc>
+      <video:publication_date>2026-10-22</video:publication_date>
+      <video:family_friendly>yes</video:family_friendly>
+    </video:video>
   </url>
 </urlset>
