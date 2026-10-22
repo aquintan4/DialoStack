@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DialoStack · LLM spoken dialogue for ROS 2 robots</title>
+<meta name="description" content="Open-source spoken dialogue stack for ROS 2 robots: Whisper speech recognition, a deterministic LLM dialogue engine (slot filling, explanation, quiz, procedure, roleplay), Piper TTS and a web GUI. Gemini, Claude, OpenAI or Ollama. One docker run.">
+<meta name="keywords" content="ROS 2, robot dialogue, spoken dialogue system, conversational robot, human-robot interaction, LLM robot, voice assistant robot, slot filling, Whisper, Piper TTS, NAO robot, Ollama, Gemini, Claude, OpenAI">
+<meta name="author" content="Álvaro Quintana">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://aquintan4.github.io/DialoStack/">
+<meta name="theme-color" content="#07101a">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DialoStack">
+<meta property="og:title" content="DialoStack · Give your ROS 2 robot a voice that gets things done">
+<meta property="og:description" content="Open-source LLM spoken dialogue stack for ROS 2: speech, a deterministic dialogue engine, TTS and a web GUI in one docker run.">
+<meta property="og:url" content="https://aquintan4.github.io/DialoStack/">
+<meta property="og:image" content="https://aquintan4.github.io/DialoStack/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="DialoStack: spoken dialogue for ROS 2 robots">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DialoStack · LLM spoken dialogue for ROS 2 robots">
+<meta name="twitter:description" content="Speech, a deterministic dialogue engine, TTS and a web GUI for ROS 2 robots. Gemini, Claude, OpenAI or Ollama.">
+<meta name="twitter:image" content="https://aquintan4.github.io/DialoStack/assets/og-image.png">
+
+<link rel="icon" type="image/png" href="assets/favicon-64.png">
+<link rel="apple-touch-icon" href="assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DialoStack",
+  "alternateName": "DialoStack ROS 2 spoken dialogue stack",
+  "description": "Open-source LLM-powered spoken dialogue stack for ROS 2 robots: speech recognition, a deterministic task-oriented dialogue engine, text-to-speech and a web GUI.",
+  "url": "https://aquintan4.github.io/DialoStack/",
+  "image": "https://aquintan4.github.io/DialoStack/assets/og-image.png",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Robotics",
+  "operatingSystem": "Linux, Windows 11 (Docker)",
+  "softwareRequirements": "ROS 2 Jazzy or Docker",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Álvaro Quintana" },
+  "codeRepository": "https://github.com/aquintan4/DialoStack",
+  "programmingLanguage": ["Python", "JavaScript", "C++"],
+  "keywords": "ROS 2, spoken dialogue, human-robot interaction, LLM, Whisper, Piper, NAO, slot filling"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "Do I need a robot to use DialoStack?",
+     "acceptedAnswer": {"@type": "Answer", "text": "No. With the Docker image the browser tab is the microphone and speaker, so you can build and test dialogues on a laptop. A robot plugs in later through ROS 2 topics."}},
+    {"@type": "Question", "name": "Which LLMs does DialoStack support?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Google Gemini, Anthropic Claude, OpenAI, any OpenAI-compatible server (vLLM, LM Studio, OpenRouter) and local models through Ollama. The provider is one configuration field."}},
+    {"@type": "Question", "name": "Can DialoStack run fully offline?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Yes. Speech recognition (faster-whisper) and speech synthesis (Piper) run locally, and with Ollama the language model does too."}},
+    {"@type": "Question", "name": "Which languages does it speak?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Any language your speech models and LLM handle. One parameter switches the prompts and the fixed phrases; Spanish and English voices are downloaded by default."}},
+    {"@type": "Question", "name": "Which robots are supported?",
+     "acceptedAnswer": {"@type": "Answer", "text": "Any ROS 2 robot. The SoftBank NAO has a ready-made layer with gestures and eye LEDs; other robots publish their microphone audio and play the TTS audio over standard topics."}}
+  ]
+}
+</script>
+
+<style>
+:root{
+  --bg:#07101a; --bg2:#0b1724; --card:#0f1e2e; --card2:#12253a; --line:rgba(140,200,230,.13); --line2:rgba(140,200,230,.25);
+  --text:#e9f3f8; --muted:#93acbd; --dim:#5f7a8c;
+  --cyan:#12a5cb; --cyan2:#4fd1f0; --violet:#8b7cf6; --green:#3ddc97; --amber:#f5b94a; --pink:#f472b6;
+  --radius:18px; --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+code,pre{font-family:var(--mono)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* background */
+.bg-grid{position:fixed;inset:0;z-index:-2;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:64px 64px;mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 75%);opacity:.5}
+.bg-glow{position:fixed;z-index:-1;border-radius:50%;filter:blur(110px);opacity:.35;pointer-events:none}
+.g1{width:620px;height:620px;background:var(--cyan);top:-260px;left:-160px}
+.g2{width:520px;height:520px;background:var(--violet);top:120px;right:-220px;opacity:.22}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);background:rgba(7,16,26,.72);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:66px;gap:16px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img.mark{width:34px;height:34px}
+.brand img.word{height:20px;width:auto}
+.navlinks{display:flex;gap:26px;font-size:14.5px;color:var(--muted)}
+.navlinks a:hover{color:var(--text)}
+.gh{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);padding:7px 13px;border-radius:10px;font-size:14px;font-weight:500;transition:.2s}
+.gh:hover{border-color:var(--cyan);background:rgba(18,165,203,.08)}
+.gh svg{width:17px;height:17px}
+.gh .stars{color:var(--amber);font-weight:600}
+@media (max-width:860px){.navlinks{display:none}}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:12px;font-weight:600;font-size:15px;transition:.2s;cursor:pointer;border:0}
+.btn-primary{background:linear-gradient(135deg,var(--cyan),#0c86a8);color:#fff;box-shadow:0 8px 30px -8px rgba(18,165,203,.6)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 14px 40px -10px rgba(18,165,203,.8)}
+.btn-ghost{border:1px solid var(--line2);color:var(--text);background:rgba(255,255,255,.02)}
+.btn-ghost:hover{border-color:var(--cyan2)}
+.btn svg{width:18px;height:18px}
+
+/* hero */
+.hero{padding:86px 0 70px}
+.hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+@media (max-width:980px){.hero .wrap{grid-template-columns:1fr}.hero{padding-top:48px}}
+.hero .wrap>*,.split>*,.explorer>*{min-width:0}
+@media (max-width:560px){.cmd{font-size:12px}.cta .btn{flex:1;justify-content:center;padding:12px 12px;font-size:14px;white-space:nowrap}.demo-top span:nth-child(2){display:none}}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--cyan2);border:1px solid rgba(79,209,240,.3);background:rgba(18,165,203,.08);padding:5px 12px;border-radius:99px;margin-bottom:22px}
+.pill b{background:var(--cyan);color:#fff;font-size:11px;padding:1px 7px;border-radius:99px;letter-spacing:.02em}
+h1{font-size:clamp(38px,5.6vw,64px);line-height:1.04;letter-spacing:-.035em;font-weight:800}
+.grad{background:linear-gradient(100deg,var(--cyan2) 0%,var(--cyan) 40%,var(--violet) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:19px;color:var(--muted);margin:22px 0 30px;max-width:560px}
+.lead strong{color:var(--text);font-weight:600}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:26px}
+.cmd{display:flex;align-items:center;gap:12px;background:#050b12;border:1px solid var(--line2);border-radius:12px;padding:12px 12px 12px 16px;font-family:var(--mono);font-size:13.5px;max-width:600px}
+.cmd .p{color:var(--cyan2);user-select:none}
+.cmd code{flex:1;overflow-x:auto;white-space:nowrap;color:#cfe6f0;scrollbar-width:none}
+.copy{flex-shrink:0;background:var(--card2);border:1px solid var(--line2);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:12px;font-family:Inter,sans-serif;cursor:pointer;transition:.2s}
+.copy:hover{color:var(--text);border-color:var(--cyan)}
+.copy.ok{color:var(--green);border-color:var(--green)}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;font-size:13.5px;color:var(--dim)}
+.meta span::before{content:"✓ ";color:var(--green)}
+
+/* live demo card */
+.demo{position:relative;background:linear-gradient(180deg,var(--card),#0a1724);border:1px solid var(--line2);border-radius:22px;box-shadow:0 40px 100px -30px rgba(0,0,0,.8),0 0 0 1px rgba(18,165,203,.08) inset;overflow:hidden}
+.demo-top{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.dots{display:flex;gap:6px}.dots i{width:10px;height:10px;border-radius:50%;background:#26394b}
+.live{display:flex;align-items:center;gap:7px;color:var(--green)}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.demo-body{display:grid;grid-template-columns:1fr 172px;min-height:392px}
+@media (max-width:560px){.demo-body{grid-template-columns:1fr}.frame{display:none}}
+.chat{padding:18px;display:flex;flex-direction:column;gap:10px;justify-content:flex-end;overflow:hidden;height:392px;mask-image:linear-gradient(180deg,transparent 0,#000 70px);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 70px)}
+.msg{max-width:88%;padding:10px 13px;border-radius:14px;font-size:13.8px;line-height:1.45;animation:pop .35s ease both}
+.msg small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:4px}
+.bot{background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:4px}
+.user{align-self:flex-end;background:linear-gradient(135deg,rgba(18,165,203,.25),rgba(139,124,246,.2));border:1px solid rgba(79,209,240,.25);border-bottom-right-radius:4px}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.wave{display:flex;align-items:center;gap:3px;height:22px;padding:0 4px}
+.wave i{width:3px;border-radius:3px;background:var(--cyan2);animation:wv 1s ease-in-out infinite}
+@keyframes wv{0%,100%{height:4px}50%{height:20px}}
+.frame{border-left:1px solid var(--line);padding:16px 14px;font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.18)}
+.frame h4{font-family:Inter,sans-serif;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;font-weight:600}
+.slot{border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:8px;transition:.4s}
+.slot .k{color:var(--dim)}
+.slot .v{color:var(--dim);display:block;margin-top:2px;min-height:16px}
+.slot.filled{border-color:rgba(61,220,151,.45);background:rgba(61,220,151,.06)}
+.slot.filled .v{color:var(--green)}
+.slot.flash{animation:flash .8s}
+@keyframes flash{0%{box-shadow:0 0 0 0 rgba(61,220,151,.6)}100%{box-shadow:0 0 0 10px rgba(61,220,151,0)}}
+.phase{margin-top:14px;font-size:11px;color:var(--muted)}
+.phase b{color:var(--cyan2);font-weight:500}
+.result{margin-top:10px;padding:8px;border-radius:9px;border:1px dashed var(--line2);color:var(--muted);font-size:10.5px;opacity:0;transition:.5s;white-space:pre;overflow:hidden}
+.result.show{opacity:1;color:var(--green);border-color:rgba(61,220,151,.4)}
+
+/* sections */
+section{padding:92px 0}
+.eyebrow{font-size:13px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan2);margin-bottom:12px}
+h2{font-size:clamp(30px,3.8vw,44px);letter-spacing:-.03em;line-height:1.1;font-weight:800;max-width:780px}
+.sub{color:var(--muted);font-size:18px;max-width:680px;margin-top:16px}
+.center{text-align:center}.center h2,.center .sub{margin-left:auto;margin-right:auto}
+
+/* works with */
+.works{padding:26px 0 30px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(255,255,255,.012)}
+.works p{text-align:center;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:16px}
+.marquee{overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.track{display:flex;gap:44px;width:max-content;animation:scroll 34s linear infinite}
+.track span{font-size:19px;font-weight:700;color:#7e98aa;white-space:nowrap;letter-spacing:-.01em}
+.track span em{font-style:normal;color:var(--cyan)}
+@keyframes scroll{to{transform:translateX(-50%)}}
+
+/* strategies explorer */
+.explorer{display:grid;grid-template-columns:300px 1fr;gap:24px;margin-top:48px}
+@media (max-width:900px){.explorer{grid-template-columns:1fr}}
+.tabs{display:flex;flex-direction:column;gap:8px}
+@media (max-width:900px){.tabs{flex-direction:row;overflow-x:auto;padding-bottom:6px}}
+.tab{display:flex;gap:13px;align-items:flex-start;text-align:left;background:transparent;border:1px solid var(--line);border-radius:14px;padding:14px 15px;color:var(--text);cursor:pointer;transition:.2s;font:inherit;flex-shrink:0}
+.tab:hover{border-color:var(--line2);background:rgba(255,255,255,.02)}
+.tab.on{border-color:var(--cyan);background:linear-gradient(135deg,rgba(18,165,203,.13),rgba(139,124,246,.06))}
+.tab .ic{font-size:22px;line-height:1}
+.tab b{display:block;font-size:15px}
+.tab code{font-size:11.5px;color:var(--cyan2)}
+.tab p{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4}
+@media (max-width:900px){.tab p{display:none}}
+.panel{background:var(--card);border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden;display:grid;grid-template-rows:auto 1fr auto}
+.panel-head{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.panel-head h3{font-size:20px;letter-spacing:-.01em}
+.panel-head p{color:var(--muted);font-size:14.5px;margin-top:4px;max-width:520px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start}
+.tags span{font-size:12px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--muted)}
+.convo{padding:22px 24px;display:flex;flex-direction:column;gap:10px;min-height:250px}
+.returns{border-top:1px solid var(--line);padding:14px 24px;background:#050b12;font-family:var(--mono);font-size:12.5px;color:var(--muted);overflow-x:auto;white-space:pre}
+.returns b{color:var(--cyan2);font-weight:500;font-family:Inter,sans-serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:10px}
+.returns .s{color:var(--green)}
+
+/* pipeline */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+@media (max-width:940px){.split{grid-template-columns:1fr}}
+.points{margin-top:28px;display:grid;gap:16px}
+.point{display:flex;gap:14px}
+.point i{flex-shrink:0;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-style:normal;background:rgba(18,165,203,.12);border:1px solid rgba(79,209,240,.25)}
+.point b{display:block}
+.point span{color:var(--muted);font-size:15px}
+.pipe{background:var(--card);border:1px solid var(--line2);border-radius:var(--radius);padding:26px}
+.pipe svg{width:100%;height:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.flow{stroke-dasharray:6 8;animation:dash 1.2s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-28}}
+
+/* features */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+@media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.grid{grid-template-columns:1fr}}
+.feat{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;transition:.25s;overflow:hidden}
+.feat:hover{border-color:var(--line2);transform:translateY(-3px)}
+.feat::after{content:"";position:absolute;inset:-1px;border-radius:inherit;background:radial-gradient(400px circle at var(--mx,50%) var(--my,0%),rgba(79,209,240,.12),transparent 40%);opacity:0;transition:.3s;pointer-events:none}
+.feat:hover::after{opacity:1}
+.feat .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:21px;background:linear-gradient(135deg,rgba(18,165,203,.2),rgba(139,124,246,.15));border:1px solid var(--line2);margin-bottom:16px}
+.feat h3{font-size:17px;letter-spacing:-.01em;margin-bottom:6px}
+.feat p{color:var(--muted);font-size:14.5px}
+.feat.wide{grid-column:span 2}
+@media (max-width:620px){.feat.wide{grid-column:auto}}
+
+/* gui showcase */
+.shot{margin-top:48px;position:relative;border-radius:20px;padding:10px;background:linear-gradient(135deg,rgba(18,165,203,.5),rgba(139,124,246,.35));box-shadow:0 50px 120px -40px rgba(18,165,203,.45)}
+.shot img{border-radius:12px;width:100%}
+.pages{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:22px}
+@media (max-width:900px){.pages{grid-template-columns:repeat(2,1fr)}}
+.page{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--card)}
+.page b{font-size:14.5px}
+.page p{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.45}
+.videos{display:grid;grid-template-columns:1.7fr 1fr;gap:16px;margin-top:22px}
+@media (max-width:760px){.videos{grid-template-columns:1fr}}
+.video{position:relative;display:block;border-radius:16px;overflow:hidden;border:1px solid var(--line2);background:#000}
+.video img{width:100%;height:100%;object-fit:cover;opacity:.75;transition:.3s;max-height:340px}
+.video:hover img{opacity:.95;transform:scale(1.02)}
+.video .play{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
+.video .play i{width:62px;height:62px;border-radius:50%;background:rgba(18,165,203,.9);display:grid;place-items:center;box-shadow:0 0 0 10px rgba(18,165,203,.2)}
+.video .play i::after{content:"";border-left:18px solid #fff;border-top:11px solid transparent;border-bottom:11px solid transparent;margin-left:5px}
+.video .play b{background:rgba(0,0,0,.6);padding:4px 12px;border-radius:99px;font-size:14px}
+
+/* audio modes */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px}
+@media (max-width:860px){.modes{grid-template-columns:1fr}}
+.mode{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.mode .route{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--cyan2);margin:14px 0 12px;flex-wrap:wrap}
+.mode .route span{border:1px solid var(--line2);border-radius:7px;padding:3px 8px;background:#050b12}
+.mode h3{font-size:17px}
+.mode p{font-size:14.5px;color:var(--muted)}
+
+/* quickstart */
+.qs{margin-top:44px;background:#050b12;border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden}
+.qtabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto}
+.qtab{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;font-weight:500;padding:14px 20px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.qtab.on{color:var(--text);border-bottom-color:var(--cyan)}
+.qpane{display:none;padding:22px 24px;position:relative}
+.qpane.on{display:block}
+.qpane pre{font-size:13.5px;line-height:1.75;overflow-x:auto;color:#cfe6f0}
+.qpane .c{color:#5f7a8c}
+.qpane .k{color:var(--cyan2)}
+.qpane .str{color:var(--amber)}
+.qpane .copy{position:absolute;top:16px;right:16px}
+.qpane p.note{font-size:14px;color:var(--muted);margin-top:14px;font-family:Inter,sans-serif}
+.qpane p.note a{color:var(--cyan2)}
+
+/* compare */
+.compare{margin-top:44px;border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden}
+.crow{display:grid;grid-template-columns:1.1fr 1.3fr 1.5fr;border-bottom:1px solid var(--line)}
+.crow:last-child{border-bottom:0}
+.crow>div{padding:15px 20px;font-size:14.5px}
+.crow>div:first-child{color:var(--muted);font-weight:500}
+.crow>div:nth-child(2){color:var(--dim)}
+.crow>div:nth-child(3){background:rgba(18,165,203,.06);color:var(--text)}
+.crow.h>div{font-weight:700;color:var(--text);font-size:13px;letter-spacing:.06em;text-transform:uppercase;background:var(--card)}
+.crow.h>div:nth-child(3){color:var(--cyan2);background:rgba(18,165,203,.12)}
+@media (max-width:700px){.crow{grid-template-columns:1fr}.crow>div:first-child{padding-bottom:0;font-size:12px;text-transform:uppercase;letter-spacing:.06em}.crow.h{display:none}.crow>div:nth-child(2)::before{content:"Chatbot: "}.crow>div:nth-child(3)::before{content:"DialoStack: ";color:var(--cyan2)}}
+
+/* use cases */
+.uses{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:44px}
+@media (max-width:900px){.uses{grid-template-columns:repeat(2,1fr)}}
+.use{border:1px solid var(--line);border-radius:16px;padding:20px;background:linear-gradient(180deg,var(--card),transparent)}
+.use .e{font-size:26px}
+.use b{display:block;margin:10px 0 4px}
+.use p{font-size:13.8px;color:var(--muted)}
+
+/* faq */
+.faq{max-width:820px;margin:44px auto 0}
+details{border-bottom:1px solid var(--line);padding:4px 0}
+summary{cursor:pointer;list-style:none;padding:18px 0;font-weight:600;font-size:17px;display:flex;justify-content:space-between;gap:16px}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--cyan2);font-size:22px;line-height:1;transition:.2s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{color:var(--muted);padding:0 0 18px;font-size:15.5px}
+details code{font-size:13px;color:var(--cyan2)}
+
+/* final cta */
+.final{position:relative;text-align:center;border:1px solid var(--line2);border-radius:28px;padding:70px 24px;overflow:hidden;background:radial-gradient(ellipse at top,rgba(18,165,203,.22),transparent 60%),var(--bg2)}
+.final img{width:76px;margin:0 auto 20px}
+.final .cta{justify-content:center;margin:30px 0 0}
+
+footer{border-top:1px solid var(--line);padding:40px 0;color:var(--dim);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+footer a{color:var(--muted)}footer a:hover{color:var(--text)}
+footer nav{all:unset;display:flex;gap:20px;flex-wrap:wrap}
+
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-glow g1" aria-hidden="true"></div>
+<div class="bg-glow g2" aria-hidden="true"></div>
+
+<nav aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="DialoStack home">
+      <img class="mark" src="assets/logo-mark.png" alt="" width="34" height="34">
+      <img class="word" src="assets/logo-wordmark-white.png" alt="DialoStack" width="126" height="20">
+    </a>
+    <div class="navlinks">
+      <a href="#strategies">Strategies</a>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#gui">GUI</a>
+      <a href="#start">Quick start</a>
+      <a href="https://github.com/aquintan4/DialoStack/tree/main/docs">Docs</a>
+    </div>
+    <a class="gh" href="https://github.com/aquintan4/DialoStack" aria-label="DialoStack on GitHub">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      Star <span class="stars" id="stars">★</span>
+    </a>
+  </div>
+</nav>
+
+<main>
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <a class="pill" href="https://github.com/aquintan4/DialoStack/releases"><b>NEW</b> Roleplay &amp; procedure strategies · browser audio</a>
+      <h1>Give your <span class="grad">ROS&nbsp;2 robot</span> a voice that gets things done.</h1>
+      <p class="lead">DialoStack is an open-source <strong>spoken dialogue stack for robots</strong>: speech recognition, an LLM-powered dialogue engine with a <strong>deterministic core</strong>, text-to-speech and a web GUI. Your robot takes orders, teaches, quizzes, coaches and guides, by voice, in any language.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#start">Get started in 60 s
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-ghost" href="#gui">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg> Watch the demo</a>
+      </div>
+      <div class="cmd" role="group" aria-label="Install command">
+        <span class="p">$</span>
+        <code id="cmd1">docker run -d -p 5173:5173 -p 9090:9090 ghcr.io/aquintan4/dialostack</code>
+        <button class="copy" data-copy="cmd1">Copy</button>
+      </div>
+      <div class="meta"><span>MIT licensed</span><span>Runs offline with Ollama</span><span>No robot required</span></div>
+    </div>
+
+    <div class="demo reveal" aria-label="Animated example of a slot-filling dialogue">
+      <div class="demo-top">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <span>/dialog/execute_task · slot_filling</span>
+        <span class="live">live</span>
+      </div>
+      <div class="demo-body">
+        <div class="chat" id="chat"></div>
+        <aside class="frame">
+          <h4>Frame</h4>
+          <div class="slot" data-k="drink"><span class="k">drink</span><span class="v">—</span></div>
+          <div class="slot" data-k="size"><span class="k">size</span><span class="v">—</span></div>
+          <div class="slot" data-k="milk"><span class="k">milk</span><span class="v">—</span></div>
+          <div class="slot" data-k="name"><span class="k">name</span><span class="v">—</span></div>
+          <div class="phase">phase: <b id="phase">gathering</b></div>
+          <div class="result" id="result">success: true
+turns: 4</div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ WORKS WITH ============ -->
+<div class="works" aria-label="Works with">
+  <p>Plays well with</p>
+  <div class="marquee"><div class="track" id="track">
+    <span><em>ROS 2</em> Jazzy</span><span>Google Gemini</span><span>Anthropic Claude</span><span>OpenAI</span><span><em>Ollama</em></span><span>faster-whisper</span><span>Silero VAD</span><span>Piper TTS</span><span>SoftBank <em>NAO</em></span><span>BehaviorTree.CPP</span><span>Docker · CUDA</span><span>vLLM · LM Studio · OpenRouter</span>
+  </div></div>
+</div>
+
+<!-- ============ STRATEGIES ============ -->
+<section id="strategies">
+  <div class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">Five dialogue strategies</div>
+      <h2>Not a chatbot. A robot with a job to do.</h2>
+      <p class="sub">Every conversation has a goal and an end. Pick a strategy with one field of the ROS 2 goal, or describe the task in plain words and let the engine design the questions.</p>
+    </div>
+    <div class="explorer reveal">
+      <div class="tabs" role="tablist" id="stabs"></div>
+      <div class="panel" role="tabpanel" aria-live="polite">
+        <div class="panel-head"><div><h3 id="s-title"></h3><p id="s-desc"></p></div><div class="tags" id="s-tags"></div></div>
+        <div class="convo" id="s-convo"></div>
+        <div class="returns" id="s-ret"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how" style="padding-top:40px">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="eyebrow">How it works</div>
+      <h2>Deterministic control. Probabilistic understanding.</h2>
+      <p class="sub">The LLM never decides what happens next. It answers narrow, schema-constrained questions and phrases one reply. Everything else is plain, tested Python.</p>
+      <div class="points">
+        <div class="point"><i>🧭</i><div><b>A state machine drives the dialogue</b><span>Phases, turn limits, confirmation, cancellation and timeouts are code you can read, test and trust.</span></div></div>
+        <div class="point"><i>🧩</i><div><b>Two LLM sessions per dialogue</b><span>NLU extracts and classifies with JSON schemas; NLG writes the reply. Neither pollutes the other.</span></div></div>
+        <div class="point"><i>🛟</i><div><b>Every call has a fallback</b><span>Timeouts, bounded retries and fixed phrases: a misbehaving model degrades the experience, it never hangs the robot.</span></div></div>
+        <div class="point"><i>⚡</i><div><b>Built for latency</b><span>Streaming TTS, prompt caching, model pre-warming and barge-in so the user can interrupt mid-sentence.</span></div></div>
+      </div>
+    </div>
+    <div class="pipe reveal" aria-label="Diagram of one dialogue turn">
+      <svg viewBox="0 0 460 430" role="img" aria-labelledby="pipeTitle">
+        <title id="pipeTitle">One dialogue turn: speech to text, NLU, state machine, NLG and text to speech</title>
+        <defs>
+          <linearGradient id="gc" x1="0" x2="1"><stop offset="0" stop-color="#4fd1f0"/><stop offset="1" stop-color="#8b7cf6"/></linearGradient>
+        </defs>
+        <g font-family="Inter,sans-serif" font-size="13" fill="#e9f3f8">
+          <!-- user -->
+          <rect x="170" y="8" width="120" height="44" rx="12" fill="#12253a" stroke="#4fd1f0" stroke-opacity=".5"/>
+          <text x="230" y="35" text-anchor="middle" font-weight="600">🙂 User</text>
+          <!-- STT -->
+          <rect x="20" y="96" width="150" height="58" rx="12" fill="#0f1e2e" stroke="rgba(140,200,230,.3)"/>
+          <text x="95" y="120" text-anchor="middle" font-weight="600">Speech-to-text</text>
+          <text x="95" y="140" text-anchor="middle" fill="#93acbd" font-size="11.5">Whisper + Silero VAD</text>
+          <!-- TTS -->
+          <rect x="290" y="96" width="150" height="58" rx="12" fill="#0f1e2e" stroke="rgba(140,200,230,.3)"/>
+          <text x="365" y="120" text-anchor="middle" font-weight="600">Text-to-speech</text>
+          <text x="365" y="140" text-anchor="middle" fill="#93acbd" font-size="11.5">Piper, streamed</text>
+          <!-- FSM -->
+          <rect x="130" y="200" width="200" height="74" rx="14" fill="url(#gc)" fill-opacity=".16" stroke="url(#gc)" stroke-width="1.6"/>
+          <text x="230" y="230" text-anchor="middle" font-weight="700" font-size="14.5">Dialogue FSM + strategy</text>
+          <text x="230" y="252" text-anchor="middle" fill="#93acbd" font-size="11.5">deterministic Python</text>
+          <!-- NLU -->
+          <rect x="20" y="330" width="170" height="58" rx="12" fill="#0f1e2e" stroke="rgba(245,185,74,.45)"/>
+          <text x="105" y="354" text-anchor="middle" font-weight="600">LLM · NLU</text>
+          <text x="105" y="374" text-anchor="middle" fill="#93acbd" font-size="11.5">extract · classify (JSON)</text>
+          <!-- NLG -->
+          <rect x="270" y="330" width="170" height="58" rx="12" fill="#0f1e2e" stroke="rgba(245,185,74,.45)"/>
+          <text x="355" y="354" text-anchor="middle" font-weight="600">LLM · NLG</text>
+          <text x="355" y="374" text-anchor="middle" fill="#93acbd" font-size="11.5">phrase the reply</text>
+          <text x="230" y="420" text-anchor="middle" fill="#5f7a8c" font-size="11">Gemini · Claude · OpenAI · Ollama</text>
+        </g>
+        <g fill="none" stroke-width="2" stroke-linecap="round">
+          <path class="flow" d="M170 40 C 110 40, 95 60, 95 92" stroke="#4fd1f0"/>
+          <path class="flow" d="M95 158 C 95 190, 120 210, 128 228" stroke="#4fd1f0"/>
+          <path class="flow" d="M150 278 C 130 300, 110 310, 105 326" stroke="#f5b94a"/>
+          <path class="flow" d="M190 352 C 215 330, 220 300, 222 280" stroke="#f5b94a"/>
+          <path class="flow" d="M240 280 C 245 300, 250 330, 268 352" stroke="#f5b94a"/>
+          <path class="flow" d="M355 326 C 355 300, 345 280, 334 260" stroke="#8b7cf6"/>
+          <path class="flow" d="M332 228 C 350 210, 365 190, 365 158" stroke="#8b7cf6"/>
+          <path class="flow" d="M365 92 C 365 60, 350 40, 290 40" stroke="#8b7cf6"/>
+        </g>
+      </svg>
+      <div class="legend"><span style="--c:#4fd1f0">Hearing</span><span style="--c:#f5b94a">Understanding &amp; phrasing</span><span style="--c:#8b7cf6">Speaking</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section id="features" style="padding-top:40px">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Everything in the box</div>
+      <h2>From microphone to robot gesture, one stack.</h2>
+    </div>
+    <div class="grid">
+      <article class="feat wide reveal"><div class="ic">🧠</div><h3>Any LLM, one interface</h3><p>Gemini, Claude, OpenAI, any OpenAI-compatible server (vLLM, LM Studio, OpenRouter) or local Ollama models. JSON-constrained outputs, streaming and prompt caching on every provider. Switch with one field.</p></article>
+      <article class="feat reveal"><div class="ic">🗣️</div><h3>Full speech pipeline</h3><p>faster-whisper with Silero VAD, streaming Piper voices, self-muting and true barge-in.</p></article>
+      <article class="feat reveal"><div class="ic">🖥️</div><h3>Web GUI</h3><p>Live monitor with per-turn latencies, visual frame builder, prompt editor, config profiles, session export.</p></article>
+      <article class="feat reveal"><div class="ic">🎙️</div><h3>Audio anywhere</h3><p>Local devices, the browser tab, or raw PCM over ROS: hear on the robot, think on the GPU box.</p></article>
+      <article class="feat reveal"><div class="ic">🌍</div><h3>Any language</h3><p>One parameter switches the prompts and the fixed phrases. Spanish and English voices out of the box.</p></article>
+      <article class="feat reveal"><div class="ic">👀</div><h3>Multimodal context</h3><p>Facial emotion and lip-activity detection feed the user's state into the prompts, so tone adapts.</p></article>
+      <article class="feat reveal"><div class="ic">🤖</div><h3>Robot embodiment</h3><p>Talking gestures, postures and eye LEDs for the NAO, in RViz and on the real robot. Core stays robot-agnostic.</p></article>
+      <article class="feat reveal"><div class="ic">🐳</div><h3>One-command deploy</h3><p>CPU and CUDA images, Linux and Windows 11 compose files, automatic GPU detection.</p></article>
+      <article class="feat reveal"><div class="ic">🌳</div><h3>Behavior trees</h3><p>A BehaviorTree.CPP leaf node runs a dialogue as one step of a larger robot mission.</p></article>
+      <article class="feat wide reveal"><div class="ic">📊</div><h3>Measured, not guessed</h3><p>A ROS-free evaluation suite (precision/recall/F1, confusion matrices, end-to-end task completion) on hand-annotated datasets to compare models and validate prompt changes, plus 354 unit tests over the deterministic core and the GUI.</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GUI ============ -->
+<section id="gui" style="padding-top:40px">
+  <div class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">The web GUI</div>
+      <h2>Design, launch and watch every conversation.</h2>
+      <p class="sub">No YAML editing, no terminals. Configure the engine, build a task visually and see each turn as it happens, with timings for speech, LLM and voice.</p>
+    </div>
+    <div class="shot reveal"><img src="assets/gui-monitor.jpg" alt="DialoStack GUI Monitor page: a live spoken dialogue with STT, LLM and TTS latencies and the dialogue frame" width="960" height="540" loading="lazy"></div>
+    <div class="pages reveal">
+      <div class="page"><b>Monitor</b><p>Live transcript, latencies, barge-in, frame and emotion. Export to CSV, JSON, Markdown.</p></div>
+      <div class="page"><b>Frame Builder</b><p>Slots, quiz banks, procedure steps and roleplay scenes, in a library.</p></div>
+      <div class="page"><b>Prompts</b><p>Override any template, with placeholder validation.</p></div>
+      <div class="page"><b>Strategies</b><p>Edit each strategy's fixed phrases, per language.</p></div>
+      <div class="page"><b>Configuration</b><p>LLM, dialogue, STT, TTS and audio, saved as profiles.</p></div>
+    </div>
+    <div class="videos reveal">
+      <a class="video" href="https://www.dropbox.com/scl/fi/w5niqwi23jtkye2zqfchh/Dialostack_promovideo.mp4?rlkey=jj4j1s0wgb9hvf9hmm2ylkvjy&st=ut60mwo6&dl=0" target="_blank" rel="noopener">
+        <img src="assets/gui-monitor.jpg" alt="" loading="lazy"><span class="play"><i></i><b>Promo video · 2:42</b></span></a>
+      <a class="video" href="https://www.dropbox.com/scl/fi/8m9e1r847z0sdi19mkjvc/DialoStackDemo_nao.mp4?rlkey=o7q0q24v26ibxkt071y1jh10v&st=kdo1be3j&dl=0" target="_blank" rel="noopener">
+        <img src="assets/nao-demo.jpg" alt="" loading="lazy"><span class="play"><i></i><b>Live on a real NAO · 4:06</b></span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AUDIO ============ -->
+<section id="audio" style="padding-top:40px">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Audio anywhere</div>
+      <h2>The microphone can live anywhere. So can the models.</h2>
+      <p class="sub">Sound travels as raw PCM over a tiny ROS 2 contract (<code>AudioChunk</code>). Anything that speaks it is a microphone and a speaker for DialoStack.</p>
+    </div>
+    <div class="modes">
+      <div class="mode reveal"><h3>🌐 This browser</h3><div class="route"><span>browser mic</span>→<span>rosbridge</span>→<span>STT</span></div><p>The GUI tab captures with echo cancellation and plays the voice. Zero audio setup: perfect for Docker and demos.</p></div>
+      <div class="mode reveal"><h3>🤖 On the robot</h3><div class="route"><span>audio_bridge</span>→<span>/audio_in</span>→<span>GPU box</span></div><p>Capture and play on the robot's head or a Raspberry Pi; run Whisper, Piper and the LLM on a stronger machine.</p></div>
+      <div class="mode reveal"><h3>💻 Local hardware</h3><div class="route"><span>ALSA mic</span>→<span>STT</span>·<span>TTS</span>→<span>speaker</span></div><p>Classic setup: the machine running the nodes hears and speaks. PulseAudio, PipeWire and WSLg supported.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ QUICK START ============ -->
+<section id="start" style="padding-top:40px">
+  <div class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">Quick start</div>
+      <h2>Talking to your stack in a minute.</h2>
+      <p class="sub">Run the image, open the GUI, paste an API key (or pick a local Ollama model), press <b>Start engine</b> and speak.</p>
+    </div>
+    <div class="qs reveal">
+      <div class="qtabs" role="tablist">
+        <button class="qtab on" data-q="q1">Docker</button>
+        <button class="qtab" data-q="q2">NVIDIA GPU</button>
+        <button class="qtab" data-q="q3">ROS 2 source build</button>
+        <button class="qtab" data-q="q4">Send a goal</button>
+      </div>
+      <div class="qpane on" id="q1"><button class="copy" data-copy="q1pre">Copy</button><pre id="q1pre"><span class="c"># Linux or Windows 11 with Docker</span>
+<span class="k">docker run</span> -d --name dialostack -p 5173:5173 -p 9090:9090 ghcr.io/aquintan4/dialostack
+
+<span class="c"># then open http://localhost:5173 → Configuration → LLM → Start engine</span></pre>
+        <p class="note">Compose files for host audio and ROS 2 networking: <a href="https://github.com/aquintan4/DialoStack/blob/main/docs/installation.md">installation guide</a>.</p></div>
+      <div class="qpane" id="q2"><button class="copy" data-copy="q2pre">Copy</button><pre id="q2pre"><span class="c"># Whisper medium / large-v3 in real time on an NVIDIA GPU</span>
+<span class="k">docker run</span> -d --name dialostack --gpus all -p 5173:5173 -p 9090:9090 \
+  ghcr.io/aquintan4/dialostack:latest-cuda</pre>
+        <p class="note">The STT device defaults to <code>auto</code>: GPU when there is one, CPU otherwise.</p></div>
+      <div class="qpane" id="q3"><button class="copy" data-copy="q3pre">Copy</button><pre id="q3pre"><span class="c"># Ubuntu 24.04 + ROS 2 Jazzy</span>
+mkdir -p ~/dialostack_ws/src && cd ~/dialostack_ws/src
+<span class="k">git clone</span> https://github.com/aquintan4/DialoStack.git && cd ..
+pip install -r src/DialoStack/speech_io/requirements.txt \
+            -r src/DialoStack/ros2_llm_manager/config/requirements.txt
+<span class="k">colcon build</span> --symlink-install && source install/setup.bash
+./src/DialoStack/scripts/download_models.sh
+export GEMINI_API_KEY=<span class="str">"your-key"</span>
+<span class="k">ros2 launch</span> ros2_dialog_manager main.launch.py</pre></div>
+      <div class="qpane" id="q4"><button class="copy" data-copy="q4pre">Copy</button><pre id="q4pre"><span class="k">ros2 action send_goal</span> --feedback /dialog/execute_task \
+  ros2_dialog_interfaces/action/DialogTask \
+  <span class="str">"{task_description: 'Take a coffee order: drink type, size and customer name',
+    dialog_mode: 'slot_filling', domain: 'coffee shop'}"</span>
+
+<span class="c"># result.final_frame_json → {"drink": "latte", "size": "large", "name": "Ana"}</span></pre></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARE ============ -->
+<section id="why" style="padding-top:40px">
+  <div class="wrap">
+    <div class="center reveal">
+      <div class="eyebrow">Why DialoStack</div>
+      <h2>What a robot needs that a chatbot doesn't give you.</h2>
+    </div>
+    <div class="compare reveal" role="table" aria-label="Chatbot with a microphone compared with DialoStack">
+      <div class="crow h" role="row"><div role="columnheader"></div><div role="columnheader">Chatbot + microphone</div><div role="columnheader">DialoStack</div></div>
+      <div class="crow" role="row"><div role="cell">Goal</div><div role="cell">Open-ended chat</div><div role="cell">A task with an end: collect, teach, quiz, guide, rehearse</div></div>
+      <div class="crow" role="row"><div role="cell">Who decides the next step</div><div role="cell">The LLM</div><div role="cell">A tested state machine; the LLM understands and phrases</div></div>
+      <div class="crow" role="row"><div role="cell">Output</div><div role="cell">A transcript</div><div role="cell">Structured JSON results, scores, completed steps</div></div>
+      <div class="crow" role="row"><div role="cell">When the model fails</div><div role="cell">The conversation derails</div><div role="cell">Timeouts, bounded retries, deterministic fallbacks</div></div>
+      <div class="crow" role="row"><div role="cell">Robot integration</div><div role="cell">Up to you</div><div role="cell">ROS 2 actions and topics, gestures, LEDs, remote audio</div></div>
+      <div class="crow" role="row"><div role="cell">Vendor lock-in</div><div role="cell">One API</div><div role="cell">Four providers plus any OpenAI-compatible server</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ USE CASES ============ -->
+<section id="uses" style="padding-top:40px">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Built for real rooms</div>
+      <h2>Where DialoStack robots work.</h2>
+    </div>
+    <div class="uses">
+      <div class="use reveal"><div class="e">🏥</div><b>Healthcare</b><p>Patient intake, pre-surgery instructions with understanding checks, guided rehab exercises.</p></div>
+      <div class="use reveal"><div class="e">🎓</div><b>Education</b><p>Spoken quizzes, tutoring, language practice through roleplay with rubric-based feedback.</p></div>
+      <div class="use reveal"><div class="e">🛎️</div><b>Reception &amp; retail</b><p>Orders, check-in, wayfinding and FAQs, returning structured data to your systems.</p></div>
+      <div class="use reveal"><div class="e">🔬</div><b>HRI research</b><p>Reproducible, logged, measurable dialogues with exportable sessions and an evaluation suite.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq" style="padding-top:40px">
+  <div class="wrap">
+    <div class="center reveal"><div class="eyebrow">FAQ</div><h2>Questions, answered.</h2></div>
+    <div class="faq">
+      <details><summary>Do I need a robot to use DialoStack?</summary><p>No. With the Docker image the browser tab is the microphone and speaker, so you can build and test dialogues on a laptop. A robot plugs in later through ROS 2 topics.</p></details>
+      <details><summary>Which LLMs does it support?</summary><p>Google Gemini, Anthropic Claude, OpenAI, any OpenAI-compatible server (vLLM, LM Studio, OpenRouter) and local models through Ollama. The provider is one configuration field, and each dialogue can pick its own.</p></details>
+      <details><summary>Can it run fully offline?</summary><p>Yes. Speech recognition (faster-whisper) and synthesis (Piper) always run locally; with Ollama the language model does too.</p></details>
+      <details><summary>Which languages does it speak?</summary><p>Any language your speech models and LLM handle. One parameter switches the prompts and the fixed phrases; Spanish and English voices are downloaded by default.</p></details>
+      <details><summary>Which robots are supported?</summary><p>Any ROS 2 robot. The SoftBank NAO has a ready-made layer with gestures and eye LEDs. Other robots publish their microphone on <code>/audio_in</code>, play <code>/audio_out</code>, and map <code>/is_speaking</code> to their effectors.</p></details>
+      <details><summary>Can I add my own dialogue strategy?</summary><p>Yes. A strategy is one Python class with <code>on_init</code> and <code>on_user_turn</code>, registered with <code>@register_strategy("my_mode")</code>. It inherits cancellation, timeouts and barge-in for free.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section style="padding-top:40px">
+  <div class="wrap">
+    <div class="final reveal">
+      <img src="assets/logo-mark.png" alt="" width="76" height="76" loading="lazy">
+      <h2 style="margin:0 auto">Your robot is ready to talk.</h2>
+      <p class="sub" style="margin-left:auto;margin-right:auto">Open source under MIT. Star the repo to follow releases, or get in touch for custom integrations, strategies and deployments.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/aquintan4/DialoStack">⭐ Star on GitHub</a>
+        <a class="btn btn-ghost" href="mailto:dialostacksupport.quotation181@passmail.net">Custom integration</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>© 2026 Álvaro Quintana · DialoStack is MIT licensed</div>
+    <nav aria-label="Footer">
+      <a href="https://github.com/aquintan4/DialoStack">GitHub</a>
+      <a href="https://github.com/aquintan4/DialoStack/blob/main/docs/installation.md">Installation</a>
+      <a href="https://github.com/aquintan4/DialoStack/blob/main/docs/architecture.md">Architecture</a>
+      <a href="https://github.com/aquintan4/DialoStack/blob/main/docs/configuration.md">Configuration</a>
+      <a href="https://github.com/aquintan4/DialoStack/releases">Releases</a>
+      <a href="https://github.com/aquintan4/DialoStack/issues">Issues</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  // ---- copy buttons
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    const t = document.getElementById(b.dataset.copy).innerText.replace(/^#.*$/gm, '').trim();
+    try { await navigator.clipboard.writeText(t); b.textContent = 'Copied'; b.classList.add('ok'); }
+    catch { b.textContent = 'Select & copy'; }
+    setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('ok'); }, 1600);
+  }));
+
+  // ---- GitHub stars
+  fetch('https://api.github.com/repos/aquintan4/DialoStack').then(r => r.ok ? r.json() : null)
+    .then(d => { if (d && typeof d.stargazers_count === 'number') document.getElementById('stars').textContent = '★ ' + d.stargazers_count; })
+    .catch(() => {});
+
+  // ---- marquee: duplicate for a seamless loop
+  const track = document.getElementById('track'); track.innerHTML += track.innerHTML;
+
+  // ---- reveal on scroll
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // ---- feature card spotlight
+  document.querySelectorAll('.feat').forEach(c => c.addEventListener('pointermove', e => {
+    const r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  }));
+
+  // ---- quick start tabs
+  document.querySelectorAll('.qtab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.qtab,.qpane').forEach(x => x.classList.remove('on'));
+    t.classList.add('on'); document.getElementById(t.dataset.q).classList.add('on');
+  }));
+
+  // ---- hero live demo (slot filling)
+  const chat = document.getElementById('chat'), phase = document.getElementById('phase'), result = document.getElementById('result');
+  const script = [
+    ['bot', "Hi! I'm taking coffee orders today. What would you like to drink?", 'tts 0.4s'],
+    ['user', "A latte please, with oat milk.", 'stt 0.6s', {drink: 'latte', milk: 'oat'}],
+    ['bot', "Oat latte, noted. What size: small, medium or large?", 'llm 0.7s'],
+    ['user', "Medium… actually, make it a large.", 'stt 0.5s', {size: 'large'}],
+    ['bot', "Large it is. And the name for the order?", 'llm 0.6s'],
+    ['user', "Ana.", 'stt 0.3s', {name: 'Ana'}],
+    ['phase', 'confirming'],
+    ['bot', "So that's a large oat latte for Ana. Is that right?", 'llm 0.6s'],
+    ['user', "Yes, perfect.", 'stt 0.3s'],
+    ['done'],
+  ];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  function bubble(who, text, meta) {
+    const d = document.createElement('div'); d.className = 'msg ' + who;
+    d.innerHTML = esc(text) + (meta ? `<small>${meta}</small>` : '');
+    chat.appendChild(d);
+    while (chat.children.length > 5) chat.firstElementChild.remove();
+    return d;
+  }
+  async function typing() {
+    const w = document.createElement('div'); w.className = 'msg bot';
+    w.innerHTML = '<div class="wave">' + Array.from({length: 12}, (_, i) => `<i style="animation-delay:${i * 70}ms"></i>`).join('') + '</div>';
+    chat.appendChild(w); await sleep(900); w.remove();
+  }
+  function fill(slots) {
+    for (const [k, v] of Object.entries(slots)) {
+      const s = document.querySelector(`.slot[data-k="${k}"]`);
+      s.classList.add('filled', 'flash'); s.querySelector('.v').textContent = '"' + v + '"';
+      setTimeout(() => s.classList.remove('flash'), 800);
+    }
+  }
+  function reset() {
+    chat.innerHTML = ''; phase.textContent = 'gathering'; result.classList.remove('show');
+    document.querySelectorAll('.slot').forEach(s => { s.classList.remove('filled'); s.querySelector('.v').textContent = '—'; });
+  }
+  async function run() {
+    if (reduce) { // static final state
+      script.filter(s => s[0] === 'bot' || s[0] === 'user').slice(-6).forEach(s => bubble(s[0], s[1], s[2]));
+      fill({drink: 'latte', size: 'large', milk: 'oat', name: 'Ana'}); phase.textContent = 'done'; result.classList.add('show'); return;
+    }
+    for (;;) {
+      reset(); await sleep(600);
+      for (const step of script) {
+        if (step[0] === 'phase') { phase.textContent = step[1]; continue; }
+        if (step[0] === 'done') { phase.textContent = 'done'; result.classList.add('show'); await sleep(4200); break; }
+        if (step[0] === 'bot') await typing();
+        bubble(step[0], step[1], step[2]);
+        if (step[3]) { await sleep(350); fill(step[3]); }
+        await sleep(step[0] === 'bot' ? 1500 : 1100);
+      }
+    }
+  }
+  run();
+
+  // ---- strategy explorer
+  const S = [
+    { id: 'slot_filling', icon: '🧾', name: 'Slot filling', short: 'Collect structured data by voice',
+      desc: 'Asks for what is missing, accepts corrections, validates types, ranges and conditional slots, then confirms.',
+      tags: ['orders', 'check-in', 'intake forms', 'surveys'],
+      convo: [['bot', 'Welcome to the clinic. Could you tell me your full name?'], ['user', "I'm Marta López, I'm 67."], ['bot', 'Thank you, Marta. Since you are over 65, do you receive a pension?'], ['user', 'Yes, I do.']],
+      ret: '{ "name": "Marta López", "age": 67, "pension": true }' },
+    { id: 'explanation', icon: '📖', name: 'Explanation', short: 'Explain and check understanding',
+      desc: 'Explains a topic from your resources, asks a comprehension question, answers follow-ups and rephrases if needed.',
+      tags: ['patient instructions', 'onboarding', 'museum guide'],
+      convo: [['bot', 'Before surgery, please have no food for 8 hours. Clear water is fine until 2 hours before. Can you tell me until when you can drink water?'], ['user', 'Hmm, up to the night before?'], ['bot', "Almost! Water is fine until just 2 hours before the operation. So if it's at 10, you can drink until 8."], ['user', 'Ah, got it, until 8.']],
+      ret: '{ "understood": true, "attempts": 2 }' },
+    { id: 'quiz', icon: '❓', name: 'Quiz', short: 'Ask, grade spoken answers, score',
+      desc: 'Asks questions from a bank and grades free-form spoken answers with the LLM, then sums up.',
+      tags: ['education', 'cognitive exercises', 'trivia'],
+      convo: [['bot', 'Question 2 of 5: what is the capital of Australia?'], ['user', 'Sydney?'], ['bot', "Close, but it's Canberra. Sydney is the largest city. Question 3: which planet is known as the red planet?"], ['user', 'Mars!']],
+      ret: '{ "score": "4/5", "answers": [ … per-question verdicts … ] }' },
+    { id: 'procedure', icon: '🪜', name: 'Procedure', short: 'Guide step by step',
+      desc: 'Presents each step, answers questions about it, helps when the user is stuck, repeats, goes back or skips on request.',
+      tags: ['physiotherapy', 'assembly', 'recipes', 'checklists'],
+      convo: [['bot', 'Step 2: roll your shoulders back slowly, five times. Tell me when you are done.'], ['user', 'Wait, forwards or backwards?'], ['bot', 'Backwards: lift them up, squeeze them back, then let them drop. Take your time.'], ['user', 'Done, no pain.']],
+      ret: '{ "completed": [1, 2], "skipped": [], "current": 3 }' },
+    { id: 'roleplay', icon: '🎭', name: 'Roleplay', short: 'Practise a scene, get scored',
+      desc: 'Plays a character so the user can rehearse, gives hints on request, then steps out of the role and scores a rubric from 1 to 5.',
+      tags: ['job interviews', 'language practice', 'soft skills'],
+      convo: [['bot', '(as the interviewer) Tell me about a project you are proud of.'], ['user', 'Can I get a hint?'], ['bot', '(coach) Pick one project and give a concrete result: what you built and what changed because of it.'], ['user', 'I built a voice interface for a NAO robot that cut setup time in half.']],
+      ret: '{ "Answers clearly": 4, "Gives concrete examples": 5, "feedback": "…" }' },
+  ];
+  const tabs = document.getElementById('stabs');
+  S.forEach((s, i) => {
+    const b = document.createElement('button'); b.className = 'tab'; b.setAttribute('role', 'tab');
+    b.innerHTML = `<span class="ic">${s.icon}</span><span><b>${s.name}</b><code>${s.id}</code><p>${s.short}</p></span>`;
+    b.addEventListener('click', () => show(i)); tabs.appendChild(b);
+  });
+  let cur = 0, timer;
+  function show(i) {
+    cur = i; const s = S[i];
+    tabs.querySelectorAll('.tab').forEach((t, j) => { t.classList.toggle('on', j === i); t.setAttribute('aria-selected', j === i); });
+    document.getElementById('s-title').textContent = s.name;
+    document.getElementById('s-desc').textContent = s.desc;
+    document.getElementById('s-tags').innerHTML = s.tags.map(t => `<span>${esc(t)}</span>`).join('');
+    const c = document.getElementById('s-convo'); c.innerHTML = '';
+    s.convo.forEach((m, k) => { const d = document.createElement('div'); d.className = 'msg ' + m[0]; d.style.animationDelay = (k * 0.18) + 's'; d.textContent = m[1]; c.appendChild(d); });
+    document.getElementById('s-ret').innerHTML = '<b>returns</b><span class="s">' + esc(s.ret) + '</span>';
+  }
+  show(0);
+})();
+</script>
+</body>
+</html>
