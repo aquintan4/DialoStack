@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Rocket } from 'lucide-react'
 import { JsonEditor } from './JSONPreview'
 import { SlotsEditor } from './editors/SlotsEditor'
 import { QuizEditor } from './editors/QuizEditor'
+import { StepsEditor } from './editors/StepsEditor'
 import { ResourcesEditor } from './editors/ResourcesEditor'
 import { FrameLibrary } from './FrameLibrary'
 import { usePersistentState } from '../../hooks/usePersistentState'
@@ -11,7 +12,7 @@ import { STORAGE } from '../../lib/storageKeys'
 import {
   FRAME_KINDS, kindMeta, kindFields, emptyState, emptyDimension,
   compileFields, parseDimension,
-  emptySlot, emptyQuestion, emptyResource,
+  emptySlot, emptyQuestion, emptyStep, emptyResource,
   LIBRARY_KEY, HANDOFF_TO_BUILDER, INJECT_TO_LAUNCH,
   readHandoff, writeHandoff, clearHandoff,
 } from '../../lib/frames'
@@ -20,16 +21,17 @@ import {
 export function FrameBuilder() {
   const navigate = useNavigate()
 
-  // Active mode + one persistent draft per DIMENSION (slots/quiz/resources are
+  // Active mode + one persistent draft per DIMENSION (slots/quiz/steps/resources are
   // shared across modes: "resources" is a dimension, not a property of a mode).
   const [kind, setKind] = usePersistentState(STORAGE.builderKind, 'slot_filling')
   const [slots, setSlots] = usePersistentState(STORAGE.builderSlots, [emptySlot()])
   const [quiz, setQuiz] = usePersistentState(STORAGE.builderQuiz, [emptyQuestion()])
+  const [steps, setSteps] = usePersistentState(STORAGE.builderSteps, [emptyStep()])
   const [resources, setResources] = usePersistentState(STORAGE.builderResources, [emptyResource()])
   const [library, setLibrary] = usePersistentState(LIBRARY_KEY, [])
   const [resourcesOpen, setResourcesOpen] = useState(false)
 
-  const dim = { slots, questions: quiz, resources }
+  const dim = { slots, questions: quiz, steps, resources }
 
   // Editable state of the current mode: only the dimensions that mode produces.
   function currentState(k = kind) {
@@ -43,6 +45,7 @@ export function FrameBuilder() {
     const safe = items?.length ? items : emptyDimension(key)
     if (key === 'slots') setSlots(safe)
     else if (key === 'questions') setQuiz(safe)
+    else if (key === 'steps') setSteps(safe)
     else setResources(safe)
   }
 
@@ -83,6 +86,7 @@ export function FrameBuilder() {
   // Suggested name when saving, based on the first element with content.
   const suggestedName =
     kind === 'quiz' ? (quiz.find((q) => q.question.trim())?.question.trim().slice(0, 40) || '')
+      : kind === 'procedure' ? (steps.find((s) => s.step.trim())?.step.trim().slice(0, 40) || '')
       : kind === 'explanation' ? (resources.find((r) => r.name.trim())?.name.trim() || '')
         : (slots.find((s) => s.name.trim())?.name.trim() || '')
 
@@ -169,6 +173,7 @@ export function FrameBuilder() {
             </>
           )}
           {kind === 'quiz' && <QuizEditor questions={quiz} onChange={setQuiz} />}
+          {kind === 'procedure' && <StepsEditor steps={steps} onChange={setSteps} />}
           {kind === 'explanation' && <ResourcesEditor resources={resources} onChange={setResources} />}
         </div>
 

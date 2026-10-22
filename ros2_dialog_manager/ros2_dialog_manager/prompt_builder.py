@@ -376,6 +376,93 @@ class PromptBuilder:
     def explanation_max_attempts(self, task: str, ctx: DialogContext | None = None) -> str:
         return self._inject(self._t("explanation_max_attempts", task=task), ctx)
 
+    # ==== PROCEDURE ====
+
+    def procedure_opening(self, task: str, total: int, ctx: DialogContext | None = None) -> str:
+        return self._inject(self._t("procedure_opening", task=task, total=total), ctx)
+
+    def procedure_step(
+        self, step: str, n: int, total: int, situation: str, ctx: DialogContext | None = None
+    ) -> str:
+        prompt = self._t("procedure_step", step=step, n=n, total=total, situation=situation)
+        return self._inject(prompt, ctx)
+
+    def classify_step_turn(
+        self,
+        user_text: str,
+        step: str,
+        check: str,
+        history: list[dict],
+        ctx: DialogContext | None = None,
+    ) -> tuple[str, dict]:
+        schema = {
+            "type": "object",
+            "properties": {
+                "intent": {
+                    "type": "string",
+                    "enum": ["done", "question", "problem", "repeat", "back", "skip", "unclear"],
+                }
+            },
+            "required": ["intent"],
+        }
+        prompt = self._t(
+            "classify_step_turn",
+            step=step,
+            check=check or "(none)",
+            history=self._fmt_history(history[-6:]),
+            user_text=user_text,
+        )
+        return self._inject(prompt, ctx), schema
+
+    def procedure_answer_question(
+        self,
+        user_text: str,
+        task: str,
+        step: str,
+        history: list[dict],
+        ctx: DialogContext | None = None,
+    ) -> str:
+        prompt = self._t(
+            "procedure_answer_question",
+            task=task,
+            step=step,
+            history=self._fmt_history(history[-6:]),
+            user_text=user_text,
+        )
+        return self._inject(prompt, ctx)
+
+    def procedure_help_step(
+        self,
+        task: str,
+        step: str,
+        history: list[dict],
+        attempt_number: int,
+        ctx: DialogContext | None = None,
+    ) -> str:
+        prompt = self._t(
+            "procedure_help_step",
+            task=task,
+            step=step,
+            history=self._fmt_history(history[-8:]),
+            attempt_number=attempt_number,
+        )
+        return self._inject(prompt, ctx)
+
+    def procedure_remind(self, step: str, ctx: DialogContext | None = None) -> str:
+        return self._inject(self._t("procedure_remind", step=step), ctx)
+
+    def procedure_summary(
+        self, task: str, completed: int, total: int, not_done: str, ctx: DialogContext | None = None
+    ) -> str:
+        prompt = self._t(
+            "procedure_summary",
+            task=task,
+            completed=completed,
+            total=total,
+            not_done=not_done or "(none)",
+        )
+        return self._inject(prompt, ctx)
+
     # ==== CANCEL FLOW ====
 
     def detect_cancel_intent(

@@ -4,14 +4,15 @@ import { AlertTriangle, Eraser, Send, X } from 'lucide-react'
 import { Field, NumberField, Select, inputCls } from '../../components/ui'
 import { usePersistentState } from '../../hooks/usePersistentState'
 import { QuizEditor } from '../FrameBuilder/editors/QuizEditor'
+import { StepsEditor } from '../FrameBuilder/editors/StepsEditor'
 import {
-  emptyQuestion, compileFields, stateFromFields, kindMeta,
+  emptyQuestion, emptyStep, compileFields, parseDimension, stateFromFields, kindMeta,
   LIBRARY_KEY, INJECT_TO_LAUNCH, HANDOFF_TO_BUILDER,
   readHandoff, writeHandoff, clearHandoff,
 } from '../../lib/frames'
 import { STORAGE } from '../../lib/storageKeys'
 import { api } from '../../lib/api'
-import { LAUNCH_DEFAULT, MODES, jsonFieldError, buildGoal } from './launch/goal'
+import { LAUNCH_DEFAULT, MODES, PACKED_MODES, jsonFieldError, buildGoal } from './launch/goal'
 import { PresetsSection } from './launch/PresetsSection'
 import { CopyTaskMenu } from './launch/CopyTaskMenu'
 import { ImportTaskMenu } from './launch/ImportTaskMenu'
@@ -45,6 +46,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
   const [frameSchema, setFrameSchema] = usePersistentState(STORAGE.launchSchema, '')
   const [resources, setResources] = usePersistentState(STORAGE.launchResources, '')
   const [quizQuestions, setQuizQuestions] = usePersistentState(STORAGE.launchQuiz, [emptyQuestion()])
+  const [procedureSteps, setProcedureSteps] = usePersistentState(STORAGE.launchSteps, [emptyStep()])
   const [schemaOpen, setSchemaOpen] = usePersistentState(STORAGE.launchSchemaOpen, false)
   const [resourcesOpen, setResourcesOpen] = usePersistentState(STORAGE.launchResourcesOpen, false)
   const [presets, setPresets] = usePersistentState(STORAGE.taskPresets, [])
@@ -72,6 +74,8 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
   }, [open])
 
   const isQuiz = form.dialog_mode === 'quiz'
+  const isProcedure = form.dialog_mode === 'procedure'
+  const isPacked = PACKED_MODES.includes(form.dialog_mode)
   const schemaError = useMemo(() => jsonFieldError(frameSchema, 'object'), [frameSchema])
   const resourcesError = useMemo(() => jsonFieldError(resources, 'array'), [resources])
 
@@ -79,7 +83,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
 
   // Action goal from the current draft (built by the pure helper in ./launch/goal).
   // Shared by the send and the copy (ros2 command / JSON) so they cannot diverge.
-  const goal = buildGoal({ form, frameSchema, resources, quizQuestions })
+  const goal = buildGoal({ form, frameSchema, resources, quizQuestions, procedureSteps })
 
   function handleSend() {
     onSend(goal)
@@ -91,10 +95,13 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     setFrameSchema('')
     setResources('')
     setQuizQuestions([emptyQuestion()])
+    setProcedureSteps([emptyStep()])
   }
 
   function savePreset(name) {
-    const preset = { id: `p${Date.now()}`, name, savedAt: Date.now(), form, frameSchema, resources, quizQuestions }
+    const preset = {
+      id: `p${Date.now()}`, name, savedAt: Date.now(), form, frameSchema, resources, quizQuestions, procedureSteps,
+    }
     // Same name: overwritten; the most recent one on top
     setPresets((prev) => [preset, ...prev.filter((p) => p.name !== name)])
   }
@@ -104,6 +111,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     setFrameSchema(p.frameSchema || '')
     setResources(p.resources || '')
     setQuizQuestions(p.quizQuestions?.length ? p.quizQuestions : [emptyQuestion()])
+    setProcedureSteps(p.procedureSteps?.length ? p.procedureSteps : [emptyStep()])
   }
 
   function deletePreset(id) {
@@ -117,6 +125,10 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     setForm((f) => ({ ...f, dialog_mode: kind }))
     if (kind === 'quiz') {
       setQuizQuestions(state?.questions?.length ? state.questions : [emptyQuestion()])
+      return
+    }
+    if (kind === 'procedure') {
+      setProcedureSteps(state?.steps?.length ? state.steps : [emptyStep()])
       return
     }
     for (const f of compileFields(kind, state)) {
@@ -149,6 +161,9 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     if (goal.dialog_mode === 'quiz') {
       const qs = parseQuizFromResources(res)
       if (qs.length) setQuizQuestions(qs)
+    } else if (goal.dialog_mode === 'procedure') {
+      const steps = parseDimension('steps', res)
+      if (steps?.some((s) => s.step.trim())) setProcedureSteps(steps)
     } else if (res && res !== '[]') {
       setResources(res)
       setResourcesOpen(true)
@@ -173,7 +188,9 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
   function editInBuilder(kind) {
     const state = kind === 'quiz'
       ? { questions: quizQuestions }
-      : stateFromFields(kind, { frame_schema_json: frameSchema, resources_json: resources }).state
+      : kind === 'procedure'
+        ? { steps: procedureSteps }
+        : stateFromFields(kind, { frame_schema_json: frameSchema, resources_json: resources }).state
     writeHandoff(HANDOFF_TO_BUILDER, { kind, state })
     onClose()
     navigate('/builder')
@@ -184,7 +201,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     form.task_description.trim().length > 0 &&
     !isActive &&
     !schemaError &&
-    (isQuiz || !resourcesError)
+    (isPacked || !resourcesError)
 
   return (
     <div className="fixed inset-0 z-40">
@@ -319,6 +336,15 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
             </div>
           )}
 
+          {isProcedure && (
+            <div className="space-y-2">
+              <div className="flex justify-end">
+                <EditInBuilderLink onClick={() => editInBuilder('procedure')} />
+              </div>
+              <StepsEditor steps={procedureSteps} onChange={setProcedureSteps} />
+            </div>
+          )}
+
           <div className="pt-2 border-t border-app-border/60 space-y-3">
             <p className="text-[11px] text-slate-600 uppercase tracking-wider font-semibold">Advanced</p>
             <JsonDisclosure
@@ -334,7 +360,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
                 onClick={() => editInBuilder('slot_filling')}
               />}
             />
-            {!isQuiz && (
+            {!isPacked && (
               <JsonDisclosure
                 label="Resources JSON"
                 open={resourcesOpen}

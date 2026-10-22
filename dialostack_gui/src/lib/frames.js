@@ -5,10 +5,11 @@
  * payload fields and each mode (kind) uses the ones that apply to it:
  *
  *   frame_schema_json   { "slots": [...] }                      - slot_filling only
- *   resources_json      [{ name, description, content }, ...]   - all three, different role:
+ *   resources_json      [{ name, description, content }, ...]   - every mode, different role:
  *       - slot_filling: reference material (CONTEXT, optional)
  *       - explanation:  the material to explain (main)
  *       - quiz:         question bank, content = "[{question,answer}]"
+ *       - procedure:    ordered steps, content = "[{step,check?}]"
  *
  * Model: "resources" is an orthogonal DIMENSION, not a mode. Each kind declares
  * which dimensions it edits (KIND_FIELDS) and each dimension knows how to
@@ -89,6 +90,7 @@ export const emptySlot = () => ({
   condition_mode: 'equals', cond_min_op: '>=', cond_min: '', cond_max_op: '<=', cond_max: '',
 })
 export const emptyQuestion = () => ({ question: '', answer: '' })
+export const emptyStep = () => ({ step: '', check: '' })
 export const emptyResource = () => ({ name: '', description: '', content: '' })
 
 // ==== COMPILERS AND PARSERS PER DIMENSION ====
@@ -114,6 +116,16 @@ function buildQuizJSON(questions) {
     .map((q) => ({ question: q.question.trim(), answer: q.answer.trim() }))
   return JSON.stringify(
     [{ name: 'questions', description: 'Quiz question bank', content: JSON.stringify(items) }],
+    null, 2,
+  )
+}
+
+function buildStepsJSON(steps) {
+  const items = (steps || [])
+    .filter((s) => s.step.trim())
+    .map((s) => (s.check.trim() ? { step: s.step.trim(), check: s.check.trim() } : { step: s.step.trim() }))
+  return JSON.stringify(
+    [{ name: 'steps', description: 'Procedure steps', content: JSON.stringify(items) }],
     null, 2,
   )
 }
@@ -157,6 +169,26 @@ function questionsFromJSON(parsed) {
   return null
 }
 
+// Same criterion as the engine's ProcedureStrategy._parse_steps: the first
+// resource whose content is a list of steps (strings or {step/instruction, check}).
+function stepsFromJSON(parsed) {
+  if (!Array.isArray(parsed)) return null
+  for (const r of parsed) {
+    const content = (r?.content ?? '').toString().trim()
+    if (!content) continue
+    let data
+    try { data = JSON.parse(content) } catch { continue }
+    if (!Array.isArray(data)) continue
+    const items = data
+      .map((e) => (typeof e === 'string'
+        ? { step: e, check: '' }
+        : { step: String(e?.step ?? e?.instruction ?? ''), check: String(e?.check ?? '') }))
+      .filter((s) => s.step.trim())
+    if (items.length) return items
+  }
+  return null
+}
+
 function resourcesFromJSON(parsed) {
   if (!Array.isArray(parsed)) return null
   return parsed
@@ -177,6 +209,7 @@ const DIMENSIONS = {
   slots:     { build: buildSlotsJSON,     parse: slotsFromJSON,     empty: emptySlot },
   resources: { build: buildResourcesJSON, parse: resourcesFromJSON, empty: emptyResource },
   questions: { build: buildQuizJSON,      parse: questionsFromJSON, empty: emptyQuestion },
+  steps:     { build: buildStepsJSON,     parse: stepsFromJSON,     empty: emptyStep },
 }
 
 // ==== MODES AND THE GOAL FIELDS EACH ONE PRODUCES ====
@@ -193,12 +226,16 @@ const KIND_FIELDS = {
   quiz: [
     { key: 'questions', field: 'resources_json', label: 'Questions', optional: false },
   ],
+  procedure: [
+    { key: 'steps', field: 'resources_json', label: 'Steps', optional: false },
+  ],
 }
 
 export const FRAME_KINDS = [
   { value: 'slot_filling', label: 'Slot filling', desc: 'Collect structured data (+ optional context resources)' },
   { value: 'quiz',         label: 'Quiz',         desc: 'Question bank with its answer' },
   { value: 'explanation',  label: 'Explanation',  desc: 'Reference material to explain' },
+  { value: 'procedure',    label: 'Procedure',    desc: 'Ordered steps to guide the user through' },
 ]
 
 export const kindMeta = (kind) => FRAME_KINDS.find((k) => k.value === kind) ?? FRAME_KINDS[0]

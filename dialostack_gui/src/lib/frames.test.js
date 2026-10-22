@@ -21,6 +21,10 @@ describe('compileFields: goal fields per mode', () => {
   it('quiz produces only resources_json (question bank)', () => {
     expect(compileFields('quiz', { questions: [] }).map((f) => f.field)).toEqual(['resources_json'])
   })
+
+  it('procedure produces only resources_json (steps)', () => {
+    expect(compileFields('procedure', { steps: [] }).map((f) => f.field)).toEqual(['resources_json'])
+  })
 })
 
 describe('round-trip compile/parse per dimension', () => {
@@ -99,6 +103,17 @@ describe('round-trip compile/parse per dimension', () => {
     expect(parseDimension('questions', json)).toEqual(questions)
   })
 
+  it('procedure packs steps into a resource and recovers them', () => {
+    const steps = [{ step: 'Open the box', check: '' }, { step: 'Plug it in', check: 'green light' }]
+    const json = fieldByGoal('procedure', { steps }, 'resources_json').json
+    expect(parseDimension('steps', json)).toEqual(steps)
+  })
+
+  it('procedure parses the engine formats: plain strings and the instruction key', () => {
+    const json = JSON.stringify([{ name: 'steps', content: JSON.stringify(['A', { instruction: 'B', check: 'c' }, '']) }])
+    expect(parseDimension('steps', json)).toEqual([{ step: 'A', check: '' }, { step: 'B', check: 'c' }])
+  })
+
   it('generic resources are preserved', () => {
     const resources = [{ name: 'doc', description: 'd', content: 'texto' }]
     const json = fieldByGoal('explanation', { resources }, 'resources_json').json
@@ -148,5 +163,6 @@ describe('kindFields', () => {
   it('exposes the dimensions of each mode', () => {
     expect(kindFields('slot_filling').map((f) => f.key)).toEqual(['slots', 'resources'])
     expect(kindFields('quiz').map((f) => f.key)).toEqual(['questions'])
+    expect(kindFields('procedure').map((f) => f.key)).toEqual(['steps'])
   })
 })

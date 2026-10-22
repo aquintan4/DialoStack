@@ -44,6 +44,10 @@ _LANG_FALLBACKS: dict[str, dict[str, str]] = {
         "quiz_correct": "¡Correcto!",
         "quiz_wrong": "No, la respuesta era {expected}.",
         "timeout": "¿Sigues ahí?",
+        "procedure_opening": "Vamos a hacerlo paso a paso.",
+        "procedure_step": "Paso {n} de {total}: {step}",
+        "procedure_remind": "Avísame cuando lo hayas hecho.",
+        "procedure_summary": "Hemos terminado el procedimiento.",
     },
     "English": {
         "opening": "Hello, how can I help you?",
@@ -64,6 +68,10 @@ _LANG_FALLBACKS: dict[str, dict[str, str]] = {
         "quiz_correct": "Correct!",
         "quiz_wrong": "No, the answer was {expected}.",
         "timeout": "Are you still there?",
+        "procedure_opening": "Let's go through it step by step.",
+        "procedure_step": "Step {n} of {total}: {step}",
+        "procedure_remind": "Tell me when you have done it.",
+        "procedure_summary": "We have finished the procedure.",
     },
 }
 
@@ -74,6 +82,10 @@ _LANG_ACK_PHRASES: dict[str, tuple[str, ...]] = {
     "Spanish": ("Anotado.", "Hecho.", "Perfecto.", "Entendido.", "De acuerdo."),
     "English": ("Noted.", "Done.", "Got it.", "Understood.", "Alright."),
 }
+
+
+# Turn intents of the procedure strategy (classify_step_turn).
+_STEP_INTENTS = ("done", "question", "problem", "repeat", "back", "skip", "unclear")
 
 
 def default_ack_phrases(language: str) -> tuple[str, ...]:
@@ -472,6 +484,81 @@ class LLMDialogClient:
         prompt = self._pb.quiz_summary(task, correct, total, wrongs_str)
         res = self._call_nlg(prompt, max_tokens=80)
         return self._clean(res) or self._fb["quiz_summary"]
+
+    # ==== PROCEDURE ====
+
+    def procedure_opening(self, task: str, total: int, ctx: DialogContext | None = None) -> str:
+        prompt = self._pb.procedure_opening(task, total, ctx)
+        res = self._call_nlg(prompt, max_tokens=80)
+        return self._clean(res) or self._fb["procedure_opening"]
+
+    def procedure_step(
+        self, step: str, n: int, total: int, situation: str, ctx: DialogContext | None = None
+    ) -> str:
+        prompt = self._pb.procedure_step(step, n, total, situation, ctx)
+        res = self._call_nlg(prompt, max_tokens=150)
+        return self._clean(res) or self._fb_fmt("procedure_step", n=n, total=total, step=step)
+
+    def classify_step_turn(
+        self,
+        user_text: str,
+        step: str,
+        check: str,
+        history: list[dict],
+        ctx: DialogContext | None = None,
+    ) -> str:
+        prompt, schema = self._pb.classify_step_turn(user_text, step, check, history, ctx)
+        for _ in range(self.MAX_RETRIES):
+            raw = self._call_nlu(prompt, schema, max_tokens=60)
+            if not raw:
+                continue
+            try:
+                intent = parse_loose_json(raw).get("intent", "unclear")
+                return intent if intent in _STEP_INTENTS else "unclear"
+            except Exception:
+                continue
+        return "unclear"
+
+    def procedure_answer_question(
+        self,
+        user_text: str,
+        task: str,
+        step: str,
+        history: list[dict],
+        ctx: DialogContext | None = None,
+    ) -> str:
+        prompt = self._pb.procedure_answer_question(user_text, task, step, history, ctx)
+        res = self._call_nlg(prompt, max_tokens=150)
+        return self._clean(res) or f"{self._fb['good_question']} {self._fb['procedure_remind']}"
+
+    def procedure_help_step(
+        self,
+        task: str,
+        step: str,
+        history: list[dict],
+        attempt_number: int,
+        ctx: DialogContext | None = None,
+    ) -> str:
+        prompt = self._pb.procedure_help_step(task, step, history, attempt_number, ctx)
+        res = self._call_nlg(prompt, max_tokens=200)
+        return self._clean(res) or step
+
+    def procedure_remind(self, step: str, ctx: DialogContext | None = None) -> str:
+        prompt = self._pb.procedure_remind(step, ctx)
+        res = self._call_nlg(prompt, max_tokens=60)
+        return self._clean(res) or self._fb["procedure_remind"]
+
+    def procedure_summary(
+        self,
+        task: str,
+        completed: int,
+        total: int,
+        not_done: list[str],
+        ctx: DialogContext | None = None,
+    ) -> str:
+        prompt = self._pb.procedure_summary(task, completed, total, "; ".join(not_done), ctx)
+        res = self._call_nlg(prompt, max_tokens=80)
+        return self._clean(res) or self._fb["procedure_summary"]
 
     # ==== CANCEL FLOW ====
 

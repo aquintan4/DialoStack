@@ -592,6 +592,140 @@ dialog_manager_node:
         - Offer to revisit later or to seek another channel (a human, a guide),
           without promising specifics.
 
+      procedure_opening: |
+        Generate the OPENING line of a guided procedure: the robot will walk
+        the user through a sequence of steps, one at a time.
+
+        Rules:
+        - {language} only. No markdown. Return only the raw sentence.
+        - Brief greeting + say what you will do together and how many steps
+          there are. Mention the user can ask questions or ask to repeat.
+        - ONE or two short sentences. Calm, encouraging tone.
+        - Do NOT present the first step here — it is appended separately.
+
+        TASK: "{task}"
+        Number of steps: {total}
+
+      procedure_step: |
+        Present ONE step of a guided procedure to the user, out loud.
+
+        Situations:
+        - first: this is the first step, right after the opening.
+        - next: the previous step was just finished; start with a very short
+          transition (no "Noted"/"Done" style acknowledgments on their own).
+        - repeat: the user asked to hear the step again; say it again, maybe
+          a little slower and clearer.
+        - back: the user asked to go back to this earlier step.
+
+        Rules:
+        - {language} only. No markdown, lists or symbols (it is spoken by TTS).
+          No greeting.
+        - Mention the step number naturally (e.g. "Step 2 of 5" or the
+          {language} equivalent).
+        - Keep EVERY instruction of the step and its meaning; you may rephrase
+          for speech but never drop, add or change actions, quantities or
+          safety warnings.
+        - End by asking the user to tell you when it is done.
+        - Max 3 short sentences. Return raw text only.
+
+        Situation: {situation}
+        STEP {n} of {total}: "{step}"
+
+      classify_step_turn: |
+        The user is following a guided procedure and was given the CURRENT
+        STEP. Classify their latest reply, given at the end.
+
+        Intents:
+        - "done": the user reports they finished the step ("done", "ready",
+          "ok, next", or describing the finished result). If a CHECK is given,
+          the reply must be consistent with it; if the user describes a result
+          that contradicts the CHECK, use "problem" instead.
+        - "question": the user asks something about the step or the task.
+        - "problem": the user is stuck, says they did not understand, or
+          reports that something went wrong.
+        - "repeat": the user asks to hear the step again.
+        - "back": the user wants to go back to the previous step.
+        - "skip": the user wants to skip this step without doing it.
+        - "unclear": anything else (off-topic, filler, ambiguous).
+
+        Rules:
+        - The input is voice-transcribed: tolerate ASR errors.
+        - A bare affirmative after being asked to report completion means
+          "done".
+        - Output strict JSON only:
+          {{"intent": "done"|"question"|"problem"|"repeat"|"back"|"skip"|"unclear"}}
+
+        CURRENT TURN
+        CURRENT STEP: "{step}"
+        CHECK (expected result): {check}
+        Recent history:
+        {history}
+        User's latest reply: "{user_text}"
+
+      procedure_answer_question: |
+        Answer a question the user asked while doing one step of a guided
+        procedure.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - Use the CURRENT STEP and the resources in [CONTEXT] as ground truth.
+          If the answer is not there, say so honestly. Do NOT invent.
+        - Max 2 sentences, then remind the user to tell you when the step is
+          done. Do NOT move on to another step.
+
+        CURRENT TURN
+        TASK: "{task}"
+        CURRENT STEP: "{step}"
+        Recent history:
+        {history}
+        User question: "{user_text}"
+
+      procedure_help_step: |
+        The user is having trouble with one step of a guided procedure. This
+        is help attempt {attempt_number}.
+
+        Rules:
+        - {language} only. No markdown of any kind (symbols become TTS noise).
+          No greeting.
+        - If the user reported a specific problem, address it first.
+        - Explain the SAME step from a clearly different angle: smaller
+          sub-actions in plain prose, a concrete example or what it should look
+          like when done. Never change the step's actions or safety warnings.
+        - If [CONTEXT] flags frustration, acknowledge it briefly.
+        - End by asking the user to tell you when it is done.
+        - Max 3 short sentences. Return raw text only.
+
+        CURRENT TURN
+        TASK: "{task}"
+        CURRENT STEP: "{step}"
+        Previous conversation (avoid repeating yourself):
+        {history}
+
+      procedure_remind: |
+        The user said something unrelated while doing a step of a guided
+        procedure. Gently bring them back.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - ONE short sentence: ask them to tell you when the step is done, or
+          to say "repeat" if they want to hear it again. Vary the wording.
+
+        CURRENT STEP: "{step}"
+
+      procedure_summary: |
+        Generate the CLOSING line of a finished guided procedure.
+
+        Rules:
+        - {language} only. No markdown. No greeting. Return raw text only.
+        - ONE or two short sentences. Warm tone.
+        - If every step was completed, congratulate briefly.
+        - Otherwise mention, without blame, that some steps were not completed
+          and could be reviewed later.
+
+        TASK: "{task}"
+        Steps completed: {completed} of {total}
+        Steps not completed (skipped or stuck): {not_done}
+
       detect_cancel_intent: |
         Decide whether the user wants to STOP or CANCEL the current task
         entirely.
