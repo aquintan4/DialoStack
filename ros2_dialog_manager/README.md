@@ -23,6 +23,7 @@ See [../docs/architecture.md](../docs/architecture.md) for the full design.
 | `/user_emotion` | `std_msgs/String` (JSON, optional) | subscribe |
 | `/user_speaking` | `std_msgs/Bool` (VAD barge-in) | subscribe |
 | `/speak` | `ros2_dialog_interfaces/action/SpeakText` | action client (TTS) |
+| `/barge_in` | `ros2_dialog_interfaces/msg/BargeIn` | publish (the user interrupted the robot) |
 | `/llm/inference` | `ros2_llm_interfaces/action/LlmInference` | action client |
 | `/llm/session/create` | `ros2_llm_interfaces/srv/CreateSession` | service client |
 | `/llm/session/delete` | `ros2_llm_interfaces/srv/DeleteSession` | service client |
@@ -64,7 +65,7 @@ ros2 action send_goal /dialog/execute_task ros2_dialog_interfaces/action/DialogT
 
 ## Tests
 
-Pure-Python unit tests, no ROS graph needed (173 tests):
+Pure-Python unit tests, no ROS graph needed (267 tests):
 
 ```bash
 python3 -m pytest test/ -q
