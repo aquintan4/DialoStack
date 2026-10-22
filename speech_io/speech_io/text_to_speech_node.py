@@ -16,6 +16,7 @@ currently running playback before accepting or finishing the next operation.
 """
 
 import os
+import queue
 import subprocess
 import tempfile
 import threading
@@ -33,6 +34,95 @@ from rclpy.qos import QoSProfile, HistoryPolicy, ReliabilityPolicy, DurabilityPo
 from std_msgs.msg import Bool
 
 from ros2_dialog_interfaces.action import SpeakText
+
+# ==== SPEAKER PLAYER ====
+
+
+class SpeakerPlayer:
+    """
+    Plays one utterance on a local output stream from a dedicated thread.
+
+    Every call into the audio stack can block: when the sound server stalls
+    (PulseAudio over WSLg, a hung PipeWire), even PortAudio's buffer queries
+    wait on it. Keeping all of them on this thread lets the caller detect the
+    stall and give up on the utterance instead of freezing the action server.
+    A stalled thread is abandoned; it ends by itself if the server recovers.
+    """
+
+    def __init__(self, open_stream, stall_s: float, clock=time.monotonic):
+        self._open_stream = open_stream
+        self._stall_s = stall_s
+        self._clock = clock
+        self._queue = queue.Queue(maxsize=8)
+        self._abort = threading.Event()
+        self._done = threading.Event()
+        self._last_progress = clock()
+        self.error = None
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self) -> None:
+        try:
+            stream = self._open_stream()
+            stream.start()
+            self._last_progress = self._clock()
+            while not self._abort.is_set():
+                chunk = self._queue.get()
+                if chunk is None:
+                    break
+                stream.write(chunk)
+                self._last_progress = self._clock()
+            if self._abort.is_set():
+                stream.abort()
+            else:
+                stream.stop()  # lets the buffered tail play out
+            stream.close()
+        except Exception as exc:  # reported through play()/finish()
+            self.error = exc
+        finally:
+            self._done.set()
+
+    def _stalled(self) -> bool:
+        return self._clock() - self._last_progress > self._stall_s
+
+    def _wait(self, step, should_stop) -> str:
+        """Retry step() until it succeeds; return why it stopped otherwise."""
+        while not step():
+            if self.error is not None:
+                return "error"
+            if should_stop():
+                self.abort()
+                return "interrupted"
+            if self._stalled():
+                self.abort()
+                return "stalled"
+        return "completed"
+
+    def play(self, chunk, should_stop) -> str:
+        """Queue a chunk: "completed", "interrupted", "stalled" or "error"."""
+        def put():
+            try:
+                self._queue.put(chunk, timeout=0.02)
+                return True
+            except queue.Full:
+                return False
+        return self._wait(put, should_stop)
+
+    def finish(self, should_stop) -> str:
+        """Wait until everything queued has been played."""
+        status = self.play(None, should_stop)
+        if status != "completed":
+            return status
+        status = self._wait(lambda: self._done.wait(0.02), should_stop)
+        return "error" if status == "completed" and self.error is not None else status
+
+    def abort(self) -> None:
+        """Cut playback at once (the thread drops what is still queued)."""
+        self._abort.set()
+        try:
+            self._queue.put_nowait(None)
+        except queue.Full:
+            pass
+
 
 # ==== TEXT-TO-SPEECH NODE ====
 
@@ -263,6 +353,10 @@ class TextToSpeechNode(Node):
 
     # ==== PLAYBACK HELPERS ====
 
+    # Seconds the output device may stop taking audio before the utterance is
+    # given up (a healthy device accepts a chunk every ~0.1 s).
+    OUTPUT_STALL_S = 3.0
+
     def _stream_to_speaker(self, proc, goal_handle, stop_event):
         """Play Piper's raw PCM straight to the local audio device."""
         status = "completed"
@@ -270,34 +364,56 @@ class TextToSpeechNode(Node):
         played_chunks = 0
         chunk_size = 4096
 
-        with sd.OutputStream(
-            samplerate=self.sample_rate,
-            channels=1,
-            dtype="int16",
-            device=self._out_dev,
-        ) as stream:
+        def should_stop():
+            return stop_event.is_set() or goal_handle.is_cancel_requested
 
-            while True:
-                if stop_event.is_set() or goal_handle.is_cancel_requested:
-                    status = "interrupted"
-                    break
+        # A generous buffer absorbs scheduling hiccups of bridged sound servers
+        # (PulseAudio over WSLg, PipeWire) that would otherwise underrun and
+        # garble the speech.
+        player = SpeakerPlayer(
+            lambda: sd.OutputStream(
+                samplerate=self.sample_rate,
+                channels=1,
+                dtype="int16",
+                device=self._out_dev,
+                latency="high",
+            ),
+            self.OUTPUT_STALL_S,
+        )
 
-                raw_bytes = proc.stdout.read(chunk_size)
-                if not raw_bytes:
-                    break
+        while True:
+            if should_stop():
+                player.abort()
+                status = "interrupted"
+                break
 
-                audio_data = np.frombuffer(raw_bytes, dtype=np.int16)
+            raw_bytes = proc.stdout.read(chunk_size)
+            if not raw_bytes:
+                status = player.finish(should_stop)
+                break
 
-                # Publish True only when real audio starts playing.
-                if not first_chunk_played:
-                    self._publish_speaking(True)
-                    first_chunk_played = True
+            audio_data = np.frombuffer(raw_bytes, dtype=np.int16)
 
-                stream.write(audio_data)
+            # Publish True only when real audio starts playing.
+            if not first_chunk_played:
+                self._publish_speaking(True)
+                first_chunk_played = True
 
-                played_chunks += 1
-                self._publish_feedback(goal_handle, played_chunks)
+            status = player.play(audio_data, should_stop)
+            if status != "completed":
+                break
 
+            played_chunks += 1
+            self._publish_feedback(goal_handle, played_chunks)
+
+        if status == "stalled":
+            self.get_logger().error(
+                f"Audio output stalled for {self.OUTPUT_STALL_S:.0f}s; utterance "
+                "given up (check the sound server / audio device)."
+            )
+            status = "error"
+        elif status == "error":
+            self.get_logger().error(f"Audio output failed: {player.error}")
         return status, played_chunks
 
     def _stream_to_topic(self, proc, goal_handle, stop_event):
