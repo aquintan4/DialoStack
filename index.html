@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DialoStack · LLM spoken dialogue for ROS 2 robots</title>
-<meta name="description" content="Open-source spoken dialogue stack for ROS 2 robots: Whisper speech recognition, a deterministic LLM dialogue engine (slot filling, explanation, quiz, procedure), Piper TTS and a web GUI. Gemini, Claude, OpenAI or Ollama. One docker run.">
+<meta name="description" content="Open-source spoken dialogue stack for ROS 2 robots: Whisper speech recognition, a deterministic LLM dialogue engine (slot filling, explanation, quiz, procedure, roleplay), Piper TTS and a web GUI. Gemini, Claude, OpenAI or Ollama. One docker run.">
 <meta name="keywords" content="ROS 2, robot dialogue, spoken dialogue system, conversational robot, human-robot interaction, LLM robot, voice assistant robot, slot filling, Whisper, Piper TTS, NAO robot, Ollama, Gemini, Claude, OpenAI">
 <meta name="author" content="Álvaro Quintana">
 <meta name="robots" content="index, follow">
@@ -357,9 +357,9 @@ footer nav{all:unset;display:flex;gap:20px;flex-wrap:wrap}
 <header class="hero">
   <div class="wrap">
     <div>
-      <a class="pill" href="https://github.com/aquintan4/DialoStack/releases"><b>NEW</b> Guided procedures · browser audio</a>
+      <a class="pill" href="https://github.com/aquintan4/DialoStack/releases"><b>NEW</b> Roleplay practice · guided procedures · browser audio</a>
       <h1>Give your <span class="grad">ROS&nbsp;2 robot</span> a voice that gets things done.</h1>
-      <p class="lead">DialoStack is an open-source <strong>spoken dialogue stack for robots</strong>: speech recognition, an LLM-powered dialogue engine with a <strong>deterministic core</strong>, text-to-speech and a web GUI. Your robot takes orders, teaches, quizzes and guides, by voice, in any language.</p>
+      <p class="lead">DialoStack is an open-source <strong>spoken dialogue stack for robots</strong>: speech recognition, an LLM-powered dialogue engine with a <strong>deterministic core</strong>, text-to-speech and a web GUI. Your robot takes orders, teaches, quizzes, coaches and guides, by voice, in any language.</p>
       <div class="cta">
         <a class="btn btn-primary" href="#start">Get started in 60 s
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -409,7 +409,7 @@ turns: 4</div>
 <section id="strategies">
   <div class="wrap">
     <div class="center reveal">
-      <div class="eyebrow">Four dialogue strategies</div>
+      <div class="eyebrow">Five dialogue strategies</div>
       <h2>Not a chatbot. A robot with a job to do.</h2>
       <p class="sub">Every conversation has a goal and an end. Pick a strategy with one field of the ROS 2 goal, or describe the task in plain words and let the engine design the questions.</p>
     </div>
@@ -503,7 +503,7 @@ turns: 4</div>
       <article class="feat reveal"><div class="ic">🤖</div><h3>Robot embodiment</h3><p>Talking gestures, postures and eye LEDs for the NAO, in RViz and on the real robot. Core stays robot-agnostic.</p></article>
       <article class="feat reveal"><div class="ic">🐳</div><h3>One-command deploy</h3><p>CPU and CUDA images, Linux and Windows 11 compose files, automatic GPU detection.</p></article>
       <article class="feat reveal"><div class="ic">🌳</div><h3>Behavior trees</h3><p>A BehaviorTree.CPP leaf node runs a dialogue as one step of a larger robot mission.</p></article>
-      <article class="feat wide reveal"><div class="ic">📊</div><h3>Measured, not guessed</h3><p>A ROS-free evaluation suite (precision/recall/F1, confusion matrices, end-to-end task completion) on hand-annotated datasets to compare models and validate prompt changes, plus 336 unit tests over the deterministic core and the GUI.</p></article>
+      <article class="feat wide reveal"><div class="ic">📊</div><h3>Measured, not guessed</h3><p>A ROS-free evaluation suite (precision/recall/F1, confusion matrices, end-to-end task completion) on hand-annotated datasets to compare models and validate prompt changes, plus 363 unit tests over the deterministic core and the GUI.</p></article>
     </div>
   </div>
 </section>
@@ -519,7 +519,7 @@ turns: 4</div>
     <div class="shot reveal"><img src="assets/gui-monitor.jpg" alt="DialoStack GUI Monitor page: a live spoken dialogue with STT, LLM and TTS latencies and the dialogue frame" width="960" height="540" loading="lazy"></div>
     <div class="pages reveal">
       <div class="page"><b>Monitor</b><p>Live transcript, latencies, barge-in, frame and emotion. Export to CSV, JSON, Markdown.</p></div>
-      <div class="page"><b>Frame Builder</b><p>Slots, quiz banks and procedure steps, in a library.</p></div>
+      <div class="page"><b>Frame Builder</b><p>Slots, quiz banks, procedure steps and roleplay scenes, in a library.</p></div>
       <div class="page"><b>Prompts</b><p>Override any template, with placeholder validation.</p></div>
       <div class="page"><b>Strategies</b><p>Edit each strategy's fixed phrases, per language.</p></div>
       <div class="page"><b>Configuration</b><p>LLM, dialogue, STT, TTS and audio, saved as profiles.</p></div>
@@ -601,7 +601,7 @@ export GEMINI_API_KEY=<span class="str">"your-key"</span>
     </div>
     <div class="compare reveal" role="table" aria-label="Chatbot with a microphone compared with DialoStack">
       <div class="crow h" role="row"><div role="columnheader"></div><div role="columnheader">Chatbot + microphone</div><div role="columnheader">DialoStack</div></div>
-      <div class="crow" role="row"><div role="cell">Goal</div><div role="cell">Open-ended chat</div><div role="cell">A task with an end: collect, teach, quiz, guide</div></div>
+      <div class="crow" role="row"><div role="cell">Goal</div><div role="cell">Open-ended chat</div><div role="cell">A task with an end: collect, teach, quiz, guide, rehearse</div></div>
       <div class="crow" role="row"><div role="cell">Who decides the next step</div><div role="cell">The LLM</div><div role="cell">A tested state machine; the LLM understands and phrases</div></div>
       <div class="crow" role="row"><div role="cell">Output</div><div role="cell">A transcript</div><div role="cell">Structured JSON results, scores, completed steps</div></div>
       <div class="crow" role="row"><div role="cell">When the model fails</div><div role="cell">The conversation derails</div><div role="cell">Timeouts, bounded retries, deterministic fallbacks</div></div>
@@ -620,7 +620,7 @@ export GEMINI_API_KEY=<span class="str">"your-key"</span>
     </div>
     <div class="uses">
       <div class="use reveal"><div class="e">🏥</div><b>Healthcare</b><p>Patient intake, pre-surgery instructions with understanding checks, guided rehab exercises.</p></div>
-      <div class="use reveal"><div class="e">🎓</div><b>Education</b><p>Spoken quizzes, tutoring and explanations with comprehension checks.</p></div>
+      <div class="use reveal"><div class="e">🎓</div><b>Education</b><p>Spoken quizzes, tutoring, language practice through roleplay with rubric-based feedback.</p></div>
       <div class="use reveal"><div class="e">🛎️</div><b>Reception &amp; retail</b><p>Orders, check-in, wayfinding and FAQs, returning structured data to your systems.</p></div>
       <div class="use reveal"><div class="e">🔬</div><b>HRI research</b><p>Reproducible, logged, measurable dialogues with exportable sessions and an evaluation suite.</p></div>
     </div>
@@ -788,6 +788,11 @@ export GEMINI_API_KEY=<span class="str">"your-key"</span>
       tags: ['physiotherapy', 'assembly', 'recipes', 'checklists'],
       convo: [['bot', 'Step 2: roll your shoulders back slowly, five times. Tell me when you are done.'], ['user', 'Wait, forwards or backwards?'], ['bot', 'Backwards: lift them up, squeeze them back, then let them drop. Take your time.'], ['user', 'Done, no pain.']],
       ret: '{ "completed": [1, 2], "skipped": [], "current": 3 }' },
+    { id: 'roleplay', icon: '🎭', name: 'Roleplay', short: 'Practise a scene, get scored',
+      desc: 'Plays a character so the user can rehearse, gives hints on request, then steps out of the role and scores a rubric from 1 to 5.',
+      tags: ['job interviews', 'language practice', 'soft skills'],
+      convo: [['bot', '(as the interviewer) Tell me about a project you are proud of.'], ['user', 'Can I get a hint?'], ['bot', '(coach) Pick one project and give a concrete result: what you built and what changed because of it.'], ['user', 'I built a voice interface for a NAO robot that cut setup time in half.']],
+      ret: '{ "Answers clearly": 4, "Gives concrete examples": 5, "feedback": "…" }' },
   ];
   const tabs = document.getElementById('stabs');
   S.forEach((s, i) => {
