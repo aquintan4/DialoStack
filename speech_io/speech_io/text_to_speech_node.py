@@ -416,20 +416,23 @@ class TextToSpeechNode(Node):
             self.get_logger().error(f"Audio output failed: {player.error}")
         return status, played_chunks
 
+    # Seconds of audio a remote player may hold ahead of real time in topic
+    # mode: enough to ride out network jitter, little enough to stop quickly.
+    TOPIC_LEAD_S = 0.5
+
     def _stream_to_topic(self, proc, goal_handle, stop_event):
         """
         Publish Piper's raw PCM (S16LE mono @ sample_rate) as AudioChunk on a
         ROS topic so a remote player (audio_bridge_node, a robot driver, or any
         consumer of the contract) renders it on its speaker.
 
-        Piper synthesizes faster than real time, so chunks are published as soon
-        as they are produced and then /is_speaking is held True for the audio's
-        real duration plus a latency pad. This keeps turn-taking correct: STT
-        stays muted and the dialog manager waits until playback truly ends.
-
-        Limitation: the remote player buffers what it receives, so a mid-
-        utterance interruption stops further publishing but audio already sent
-        finishes playing on the robot.
+        Piper synthesizes much faster than real time, but chunks are published
+        at playback pace, at most TOPIC_LEAD_S ahead: a whole utterance sent at
+        once overflows the transport (rosbridge drops most of it on its way to a
+        browser), and an interruption could not stop audio the player already
+        has. /is_speaking is held True for the audio's real duration plus a
+        latency pad, so STT stays muted and the dialog manager waits until
+        playback truly ends.
         """
         status = "completed"
         first_chunk_played = False
@@ -451,6 +454,16 @@ class TextToSpeechNode(Node):
                 self._publish_speaking(True)
                 first_chunk_played = True
                 play_start = time.monotonic()
+
+            # Pace to playback: wait while the player already holds enough.
+            while (total_samples / float(self.sample_rate)
+                   - (time.monotonic() - play_start)) > self.TOPIC_LEAD_S:
+                if stop_event.is_set() or goal_handle.is_cancel_requested:
+                    break
+                time.sleep(0.01)
+            if stop_event.is_set() or goal_handle.is_cancel_requested:
+                status = "interrupted"
+                break
 
             msg = self._AudioChunk()
             msg.data = raw_bytes                 # uint8[] accepts a bytes object
