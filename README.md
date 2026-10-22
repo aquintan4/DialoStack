@@ -111,6 +111,21 @@ There are two ways to run DialoStack: the prebuilt Docker image (quickest, nothi
 
 The image bundles ROS 2 Jazzy, the dialogue core, the speech models and the web GUI. It runs on Linux and on Windows 11.
 
+#### Quick start (any system with Docker)
+
+With [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine installed, one command:
+
+```bash
+docker run -d --name dialostack -p 5173:5173 -p 9090:9090 ghcr.io/aquintan4/dialostack
+```
+
+Open **http://localhost:5173**, enter your LLM API key in **Configuration > LLM** (or pick Ollama) and press **Start engine**. Allow the microphone when the browser asks: the GUI page itself is the robot's microphone and speaker (the sidebar shows **Browser mic live**), so no audio setup is needed. From then on the container shows up in Docker Desktop, where it can be stopped and started again.
+
+- **Local LLM:** on Docker Desktop, Ollama running on your machine is found with the GUI's default host `127.0.0.1`.
+- **Keep the GUI tab open** while talking; browsers only allow the microphone on `localhost` or HTTPS.
+
+The compose files below add what the quick start lacks: host audio routing, an NVIDIA GPU, and on Linux the host network so robots and other ROS 2 machines can discover the engine.
+
 #### Linux
 
 Requires [Docker](https://docs.docker.com/engine/install/) and the Compose plugin.
@@ -123,7 +138,7 @@ docker compose up
 
 Open **http://localhost:5173**, check the configuration and press **Start engine**.
 
-- **Audio:** the container uses your desktop's microphone and speakers through the PulseAudio/PipeWire socket (`$XDG_RUNTIME_DIR/pulse/native`), the default on Ubuntu and most desktop distributions.
+- **Audio:** by default the GUI page captures and plays the sound (**Configuration > Audio**, *This browser*). For *Local hardware*, the container also gets your desktop's microphone and speakers through the PulseAudio/PipeWire socket (`$XDG_RUNTIME_DIR/pulse/native`), the default on Ubuntu and most desktop distributions.
 - **Local LLM:** run [Ollama](https://ollama.com) on the host and enable it in the GUI with host `127.0.0.1`; the container shares the host network.
 - **ROS 2:** the dialogue action `/dialog/execute_task` is reachable from ROS 2 nodes on the host or the network (same `ROS_DOMAIN_ID`). To run the engine headless instead of the GUI: `docker compose run --rm dialostack ros2 launch ros2_dialog_manager main.launch.py`.
 - The image does not include the optional vision nodes or the NAO packages; use a source build for those. For an NVIDIA GPU, see [GPU acceleration](#gpu-acceleration-nvidia).
@@ -142,18 +157,30 @@ docker compose -f docker-compose.windows.yml up
 
 Open **http://localhost:5173** and press **Start engine**.
 
-- **Audio:** the microphone and speakers of Windows reach the container through WSLg, built into Windows 11. Allow microphone access for desktop apps in Windows privacy settings.
+- **Audio:** by default the GUI page captures and plays the sound, as in the quick start. For *Local hardware* routing (**Configuration > Audio**), the microphone and speakers of Windows reach the container through WSLg, built into Windows 11; allow microphone access for desktop apps in Windows privacy settings.
 - **Local LLM:** install [Ollama for Windows](https://ollama.com/download) and select it in the GUI. The default host `127.0.0.1` is redirected to your PC, and Ollama uses your GPU.
 - **ROS 2:** the Windows file publishes ports instead of sharing the host network, so the engine is not discoverable by robots or other ROS 2 machines. For that, build from source inside WSL2 (Ubuntu 24.04).
 
 #### GPU acceleration (NVIDIA)
 
-The `-cuda` image runs speech recognition on an NVIDIA GPU, which makes the larger Whisper models (`medium`, `large-v3`) fast enough for live conversation. Download the GPU add-on next to your compose file and pass both:
+The `-cuda` image runs speech recognition on an NVIDIA GPU, which makes the larger Whisper models (`medium`, `large-v3`) fast enough for live conversation. With the quick start, add `--gpus all` and the tag:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.gpu.yml   # curl.exe on Windows
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up                  # Linux
-docker compose -f docker-compose.windows.yml -f docker-compose.gpu.yml up          # Windows 11
+docker run -d --name dialostack --gpus all -p 5173:5173 -p 9090:9090 ghcr.io/aquintan4/dialostack:latest-cuda
+```
+
+With the compose files, download the GPU add-on next to yours and pass both. Linux:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.gpu.yml
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+```
+
+Windows 11 (PowerShell):
+
+```powershell
+curl.exe -fsSLO https://raw.githubusercontent.com/aquintan4/DialoStack/main/docker-compose.gpu.yml
+docker compose -f docker-compose.windows.yml -f docker-compose.gpu.yml up
 ```
 
 Nothing to set in the GUI: the STT device defaults to `auto`, which uses the GPU when there is one and the CPU otherwise. With the GPU, pick a larger model size in the **STT** tab. To force a device or compute type, set it there (`int8_float32` is fast on any NVIDIA GPU; `float16` only on RTX cards).

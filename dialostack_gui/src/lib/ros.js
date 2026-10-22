@@ -17,6 +17,10 @@ export const DIALOG_ACTION_TYPE = 'ros2_dialog_interfaces/action/DialogTask'
 export const SPEAK_ACTION = '/speak'
 export const SPEAK_ACTION_TYPE = 'ros2_dialog_interfaces/action/SpeakText'
 
+// Raw PCM contract between the speech nodes and whatever captures/plays sound
+// (a robot, the audio_bridge_node, or this page in "browser" audio routing).
+export const AUDIO_CHUNK_TYPE = 'ros2_dialog_interfaces/msg/AudioChunk'
+
 export const TOPICS = {
   transcription: { name: '/transcription', type: 'std_msgs/String' },
   robotUtterance: { name: '/robot_utterance', type: 'std_msgs/String' },
