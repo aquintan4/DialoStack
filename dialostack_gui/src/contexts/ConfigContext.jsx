@@ -34,6 +34,7 @@ export const DEFAULT_CONFIG = {
     timeout_prompt: '',
     history_max_turns: 200,
     ack_phrases: [],
+    ack_enabled: true,
     silent_mode: false,
     conversation_log_path: '/tmp/dialog_conversations.log',
     conversation_log_max_mb: 10.0,

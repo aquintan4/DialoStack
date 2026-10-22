@@ -529,6 +529,7 @@ def build_params(config: dict) -> dict:
             dialog.get("history_max_turns"), 200, 1, integer=True
         ),
         "ack_phrases": ack_phrases,
+        "ack_enabled": _flag(dialog.get("ack_enabled"), True),
         "wait_timeout": _num(dialog.get("wait_timeout"), 20.0, 1.0),
         "llm_timeout": _num(dialog.get("llm_timeout"), 120.0, 1.0),
         "tts_timeout": _num(dialog.get("tts_timeout"), 60.0, 1.0),
