@@ -51,7 +51,7 @@ jobs:
             type=ref,event=branch
           flavor: |
             latest=${{ startsWith(github.ref, 'refs/tags/v') }}
-            suffix=${{ matrix.variant == 'cuda' && '-cuda' || '' }}
+            suffix=${{ matrix.variant == 'cuda' && '-cuda' || '' }},onlatest=true
 
       - uses: docker/build-push-action@v6
         with:
