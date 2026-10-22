@@ -17,6 +17,9 @@ export function DialogTab({ dialog, update }) {
             {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
           </Select>
         </Field>
+        <ToggleField label="Acknowledgment phrases"
+          hint={'Prefix slot-filling replies with a short line such as "Noted." or "Done.". Turn off with capable models, whose reply already reads naturally'}
+          value={dialog.ack_enabled} onChange={v => update({ ack_enabled: v })} />
         <p className="text-xs text-slate-500 leading-relaxed">
           The canned phrases each strategy falls back to (greetings, acknowledgments,
           timeout, quiz feedback…) are edited in the <span className="text-slate-300">Strategies</span> page,

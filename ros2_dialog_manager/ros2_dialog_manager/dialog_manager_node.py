@@ -142,6 +142,7 @@ class DialogManagerNode(Node):
             "language": "English",
             "history_max_turns": 200,
             "ack_phrases": [""],  # Empty = built-in phrases for `language`; set a list to override
+            "ack_enabled": True,  # False = never prefix replies with an acknowledgment
         }
         for name, default in defaults.items():
             if not self.has_parameter(name):
@@ -179,6 +180,8 @@ class DialogManagerNode(Node):
         legacy_ack = tuple(s for s in (p("ack_phrases").value or []) if s.strip())
         ack_ovr = tuple(s for s in (ack_ovr or []) if s and s.strip())
         self._ack_phrases = ack_ovr or legacy_ack or default_ack_phrases(self._language)
+        if not p("ack_enabled").value:
+            self._ack_phrases = ()
 
         legacy_timeout = (p("timeout_prompt").value or "").strip()
         self._timeout_prompt = (

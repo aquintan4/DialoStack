@@ -146,6 +146,19 @@ def test_ack_does_not_accumulate_without_extractions():
     assert s._ack_idx == 0
 
 
+def test_no_ack_when_disabled():
+    """Empty ack_phrases (ack_enabled: false) leaves the LLM reply untouched."""
+    llm = _FullFakeLLM(
+        extractions=[{"slot": "nombre", "value": "Ana", "source_span": "Ana"}],
+        next_q="¿Cuál es tu edad?",
+    )
+    s = SlotFillingStrategy(llm=llm, config=FSMConfig(), ctx=DialogContext(), request=None)
+    s._frame = DialogFrame({"nombre": None, "edad": None}, {"nombre": "str", "edad": "int"})
+    s._phase = "gathering"
+    reply, done = s._handle_gathering("task", "Me llamo Ana")
+    assert reply == "¿Cuál es tu edad?"
+
+
 # ==== PHASE TRANSITION: GATHERING TO CONFIRMING ====
 
 

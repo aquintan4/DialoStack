@@ -89,6 +89,9 @@ dialog_manager_node:
     # Leave empty ([""]) to use the language-aware defaults that follow
     # `language` above; set an explicit list here to override them.
     ack_phrases: [""]
+    # Set to false to drop the acknowledgments entirely (a capable model's
+    # reply already reads naturally without them).
+    ack_enabled: true
 
     # Timing.
     wait_timeout: 20.0
