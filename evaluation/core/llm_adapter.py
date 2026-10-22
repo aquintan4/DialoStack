@@ -73,10 +73,15 @@ def make_ollama_infer_fn(
         schema: Optional[dict],
     ) -> Optional[str]:
         payload: dict = {"model": model, "prompt": prompt, "stream": False, "think": think}
+        options: dict = {}
         if max_tokens and max_tokens > 0:
-            payload["options"] = {"num_predict": max_tokens}
+            options["num_predict"] = max_tokens
         if schema:
+            # Same rule as OllamaProvider: NLU calls run at temperature 0.
             payload["format"] = schema
+            options["temperature"] = 0
+        if options:
+            payload["options"] = options
         try:
             r = requests.post(url, json=payload, timeout=120)
             r.raise_for_status()

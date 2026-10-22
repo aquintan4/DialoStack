@@ -8,6 +8,11 @@ repeated cold-start penalties during a dialog session.
 Reasoning models (Qwen 3.5, DeepSeek-R1...) think before answering unless the
 request sends think=false; `think` (False by default) keeps spoken replies
 fast. Models without thinking accept the flag and ignore it.
+
+Requests with a JSON schema are NLU calls (classify, extract): they run at
+temperature 0, so the same utterance always gets the same answer. The model
+default (often 0.8) made small local models flip between labels from one run
+to the next. Spoken replies (no schema) keep the model's own temperature.
 """
 
 import json
@@ -98,10 +103,14 @@ class OllamaProvider(BaseProvider):
             "keep_alive": -1,
             "think": self._think,
         }
+        options: dict = {}
         if max_tokens > 0:
-            payload["options"] = {"num_predict": max_tokens}
+            options["num_predict"] = max_tokens
         if format_schema:
             payload["format"] = format_schema
+            options["temperature"] = 0
+        if options:
+            payload["options"] = options
 
         try:
             if stream_callback is not None:
