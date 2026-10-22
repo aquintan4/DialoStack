@@ -2,6 +2,7 @@
 import { NavLink } from 'react-router-dom'
 import { Activity, Layers, Loader2, MessageSquareText, Play, SlidersHorizontal, Square, Workflow } from 'lucide-react'
 import { ConnectionBadge } from './ConnectionBadge'
+import { BrowserAudioBadge } from './BrowserAudioBadge'
 import { useConfig } from '../contexts/ConfigContext'
 import { useEngine } from '../contexts/EngineContext'
 import { ENGINE_STATUS } from '../lib/status'
@@ -106,6 +107,7 @@ export function Sidebar() {
       <div className="p-3 border-t border-app-border space-y-1.5">
         <EngineControl />
         <ConnectionBadge />
+        <BrowserAudioBadge />
       </div>
     </aside>
   )

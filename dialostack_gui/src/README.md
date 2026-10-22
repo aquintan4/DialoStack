@@ -12,15 +12,16 @@ DialoStack dialogues. It talks to two backends:
 
 ```
 src/
-├── main.jsx            Entry: mounts providers (Engine, ROS, Config) + router
+├── main.jsx            Entry: mounts providers (Engine, ROS, Config, BrowserAudio) + router
 ├── App.jsx             Shell: sidebar + routes + the shared dialogue timeline
 ├── components/         Shared UI, built from here, not redefined per page
 │   ├── ui.jsx          Form atoms (Field, Select, NumberField…), ModifiedTag, badges
-│   ├── FileImportButton.jsx, Sidebar.jsx, ConnectionBadge.jsx, EngineNotices.jsx
+│   ├── FileImportButton.jsx, Sidebar.jsx, ConnectionBadge.jsx, BrowserAudioBadge.jsx, EngineNotices.jsx
 ├── contexts/           Cross-page global state
 │   ├── ConfigContext   The whole config object (localStorage-backed) + updateSection
 │   ├── EngineContext   Engine status polling, start/stop/killAll, keepalive
-│   └── ROSContext      rosbridge connection
+│   ├── ROSContext      rosbridge connection
+│   └── BrowserAudioContext  "browser" audio routing: this page as mic + speaker
 ├── hooks/              Reusable React/IO logic
 │   ├── useTopic / usePublisher / useActionClient   ROS plumbing
 │   ├── useDialogTimeline                            Topics → timeline reducer actions
@@ -28,6 +29,7 @@ src/
 ├── lib/                Pure logic + constants (unit-tested with *.test.js)
 │   ├── api.js          The ONLY HTTP client (timeouts, typed ApiError)
 │   ├── ros.js          Topic/action names + types (single source)
+│   ├── browserAudio.js Mic capture/resampling and TTS playback over AudioChunk
 │   ├── formatters.js   Time/duration formatting (shared by Monitor + export)
 │   ├── prompts.js / strategies.js   Editor metadata + validation/grouping
 │   ├── frames.js       Frame Builder data layer + Builder↔page handoff

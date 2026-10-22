@@ -57,11 +57,13 @@ export const DEFAULT_CONFIG = {
     audio_device: 'default',
   },
   // Audio routing ("flavour"): where speech is captured and played.
-  //   local -> this machine's mic/speaker (sounddevice)
-  //   topic -> AudioChunk over ROS (a robot, the audio_bridge_node, or any
-  //            producer/consumer of the contract) via in_topic / out_topic.
+  //   browser -> this GUI page's mic/speaker, streamed as AudioChunk over
+  //              rosbridge (works anywhere, no host audio setup)
+  //   local   -> the engine machine's mic/speaker (sounddevice)
+  //   topic   -> AudioChunk over ROS (a robot, the audio_bridge_node, or any
+  //              producer/consumer of the contract) via in_topic / out_topic.
   audio: {
-    mode: 'local',
+    mode: 'browser',
     in_topic: '/audio_in',
     out_topic: '/audio_out',
     topic_latency_pad: 0.3,

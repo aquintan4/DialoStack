@@ -81,6 +81,10 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
     && rm -rf build log
 COPY --from=gui /gui/dist dialostack_gui/dist
 
+# GUI + API, and rosbridge (the GUI's live connection). Declared so Docker
+# Desktop offers them in its Run dialog.
+EXPOSE 5173 9090
+
 COPY docker/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/opt/dialostack/gui.sh"]

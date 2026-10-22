@@ -1,4 +1,4 @@
-/** Audio tab: routing "flavour" — local mic/speaker vs ROS topics (AudioChunk). */
+/** Audio tab: routing "flavour" — this browser, local mic/speaker or ROS topics (AudioChunk). */
 import { Radio, Waypoints } from 'lucide-react'
 import { Field, NumberField, SectionCard, Select, inputCls } from '../../components/ui'
 
@@ -14,10 +14,12 @@ export function AudioTab({ audio, update }) {
       >
         <Field
           label="Routing mode"
-          hint="Local uses this machine's microphone and speaker. Topic exchanges
-            raw audio over ROS (AudioChunk), so a robot plays/captures the sound."
+          hint="Browser uses the microphone and speaker of the device showing this
+            page. Local uses the engine machine's own. Topic exchanges raw audio
+            over ROS (AudioChunk), so a robot plays/captures the sound."
         >
           <Select value={audio.mode} onChange={e => update({ mode: e.target.value })}>
+            <option value="browser">This browser (mic + speaker)</option>
             <option value="local">Local hardware (mic + speaker)</option>
             <option value="topic">ROS topics (AudioChunk)</option>
           </Select>
@@ -33,6 +35,12 @@ export function AudioTab({ audio, update }) {
             </span>
             Any node that produces/consumes AudioChunk on these topics works too;
             no bridge needed in that case.
+          </p>
+        ) : audio.mode === 'browser' ? (
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Once the engine is running, the browser asks for the microphone; the
+            sidebar shows its state. Keep this page open while talking. Browsers
+            only allow the microphone on localhost or HTTPS.
           </p>
         ) : (
           <p className="text-xs text-slate-500 leading-relaxed">

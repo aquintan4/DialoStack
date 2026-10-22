@@ -37,6 +37,7 @@ import http.server
 import json
 import os
 import signal
+import socket
 import string
 import subprocess
 import threading
@@ -365,22 +366,36 @@ DEFAULT_LLM_MODELS = {
 
 
 # Inside a container 127.0.0.1 is the container itself, not the machine running
-# Ollama. When DIALOSTACK_HOST_ALIAS is set (e.g. host.docker.internal in the
-# Windows compose file), loopback Ollama hosts are redirected to it, so the
-# GUI's default 127.0.0.1 still reaches Ollama on the host.
+# Ollama. Loopback Ollama hosts are redirected to DIALOSTACK_HOST_ALIAS when set,
+# or else to Docker Desktop's host.docker.internal when it resolves (a plain
+# `docker run` from Docker Desktop), so the GUI's default 127.0.0.1 still
+# reaches Ollama on the host. With the host network (Linux compose) the name
+# does not resolve and loopback is kept.
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", ""}
+_DOCKER_HOST_NAME = "host.docker.internal"
+
+
+def _host_alias() -> str:
+    alias = os.environ.get("DIALOSTACK_HOST_ALIAS", "").strip()
+    if alias or not os.path.exists("/.dockerenv"):
+        return alias
+    try:
+        socket.gethostbyname(_DOCKER_HOST_NAME)
+    except OSError:
+        return ""
+    return _DOCKER_HOST_NAME
 
 
 def _ollama_host(llm: dict) -> str:
     host = _text(llm.get("ollama_host"), "127.0.0.1")
-    alias = os.environ.get("DIALOSTACK_HOST_ALIAS", "").strip()
+    alias = _host_alias()
     return alias if alias and host in _LOOPBACK_HOSTS else (host or "127.0.0.1")
 
 
 def _openai_base_url(llm: dict) -> str:
     """OpenAI-compatible server URL, with a loopback host redirected like Ollama's."""
     url = _text(llm.get("openai_base_url"))
-    alias = os.environ.get("DIALOSTACK_HOST_ALIAS", "").strip()
+    alias = _host_alias()
     if not url or not alias:
         return url
     parts = urllib.parse.urlsplit(url)
@@ -428,8 +443,10 @@ def build_params(config: dict) -> dict:
 
     # Audio routing "flavour": local hardware or AudioChunk over ROS topics.
     # A single GUI choice drives the STT source and the TTS sink together.
+    # "browser" is topic routing where the GUI page itself is the producer and
+    # consumer of the audio (through rosbridge).
     audio = config.get("audio") or {}
-    if audio.get("mode") == "topic":
+    if audio.get("mode") in ("topic", "browser"):
         stt_params["audio_source"] = "topic"
         stt_params["audio_topic"] = _text(audio.get("in_topic"), "/audio_in")
         tts_params["audio_sink"] = "topic"
