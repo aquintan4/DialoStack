@@ -5,8 +5,9 @@ import { Field, NumberField, Select, inputCls } from '../../components/ui'
 import { usePersistentState } from '../../hooks/usePersistentState'
 import { QuizEditor } from '../FrameBuilder/editors/QuizEditor'
 import { StepsEditor } from '../FrameBuilder/editors/StepsEditor'
+import { SceneEditor } from '../FrameBuilder/editors/SceneEditor'
 import {
-  emptyQuestion, emptyStep, compileFields, parseDimension, stateFromFields, kindMeta,
+  emptyQuestion, emptyStep, emptyScene, compileFields, parseDimension, stateFromFields, kindMeta,
   LIBRARY_KEY, INJECT_TO_LAUNCH, HANDOFF_TO_BUILDER,
   readHandoff, writeHandoff, clearHandoff,
 } from '../../lib/frames'
@@ -47,6 +48,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
   const [resources, setResources] = usePersistentState(STORAGE.launchResources, '')
   const [quizQuestions, setQuizQuestions] = usePersistentState(STORAGE.launchQuiz, [emptyQuestion()])
   const [procedureSteps, setProcedureSteps] = usePersistentState(STORAGE.launchSteps, [emptyStep()])
+  const [roleplayScene, setRoleplayScene] = usePersistentState(STORAGE.launchScene, [emptyScene()])
   const [schemaOpen, setSchemaOpen] = usePersistentState(STORAGE.launchSchemaOpen, false)
   const [resourcesOpen, setResourcesOpen] = usePersistentState(STORAGE.launchResourcesOpen, false)
   const [presets, setPresets] = usePersistentState(STORAGE.taskPresets, [])
@@ -75,6 +77,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
 
   const isQuiz = form.dialog_mode === 'quiz'
   const isProcedure = form.dialog_mode === 'procedure'
+  const isRoleplay = form.dialog_mode === 'roleplay'
   const isPacked = PACKED_MODES.includes(form.dialog_mode)
   const schemaError = useMemo(() => jsonFieldError(frameSchema, 'object'), [frameSchema])
   const resourcesError = useMemo(() => jsonFieldError(resources, 'array'), [resources])
@@ -83,7 +86,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
 
   // Action goal from the current draft (built by the pure helper in ./launch/goal).
   // Shared by the send and the copy (ros2 command / JSON) so they cannot diverge.
-  const goal = buildGoal({ form, frameSchema, resources, quizQuestions, procedureSteps })
+  const goal = buildGoal({ form, frameSchema, resources, quizQuestions, procedureSteps, roleplayScene })
 
   function handleSend() {
     onSend(goal)
@@ -96,11 +99,13 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     setResources('')
     setQuizQuestions([emptyQuestion()])
     setProcedureSteps([emptyStep()])
+    setRoleplayScene([emptyScene()])
   }
 
   function savePreset(name) {
     const preset = {
       id: `p${Date.now()}`, name, savedAt: Date.now(), form, frameSchema, resources, quizQuestions, procedureSteps,
+      roleplayScene,
     }
     // Same name: overwritten; the most recent one on top
     setPresets((prev) => [preset, ...prev.filter((p) => p.name !== name)])
@@ -112,6 +117,7 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     setResources(p.resources || '')
     setQuizQuestions(p.quizQuestions?.length ? p.quizQuestions : [emptyQuestion()])
     setProcedureSteps(p.procedureSteps?.length ? p.procedureSteps : [emptyStep()])
+    setRoleplayScene(p.roleplayScene?.length ? p.roleplayScene : [emptyScene()])
   }
 
   function deletePreset(id) {
@@ -129,6 +135,10 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     }
     if (kind === 'procedure') {
       setProcedureSteps(state?.steps?.length ? state.steps : [emptyStep()])
+      return
+    }
+    if (kind === 'roleplay') {
+      setRoleplayScene(state?.scene?.length ? state.scene : [emptyScene()])
       return
     }
     for (const f of compileFields(kind, state)) {
@@ -164,6 +174,9 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
     } else if (goal.dialog_mode === 'procedure') {
       const steps = parseDimension('steps', res)
       if (steps?.some((s) => s.step.trim())) setProcedureSteps(steps)
+    } else if (goal.dialog_mode === 'roleplay') {
+      const scene = parseDimension('scene', res)
+      if (scene?.[0]?.scenario.trim()) setRoleplayScene(scene)
     } else if (res && res !== '[]') {
       setResources(res)
       setResourcesOpen(true)
@@ -190,7 +203,9 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
       ? { questions: quizQuestions }
       : kind === 'procedure'
         ? { steps: procedureSteps }
-        : stateFromFields(kind, { frame_schema_json: frameSchema, resources_json: resources }).state
+        : kind === 'roleplay'
+          ? { scene: roleplayScene }
+          : stateFromFields(kind, { frame_schema_json: frameSchema, resources_json: resources }).state
     writeHandoff(HANDOFF_TO_BUILDER, { kind, state })
     onClose()
     navigate('/builder')
@@ -342,6 +357,15 @@ export function LaunchDrawer({ open, onClose, onSend, isActive, rosStatus }) {
                 <EditInBuilderLink onClick={() => editInBuilder('procedure')} />
               </div>
               <StepsEditor steps={procedureSteps} onChange={setProcedureSteps} />
+            </div>
+          )}
+
+          {isRoleplay && (
+            <div className="space-y-2">
+              <div className="flex justify-end">
+                <EditInBuilderLink onClick={() => editInBuilder('roleplay')} />
+              </div>
+              <SceneEditor scenes={roleplayScene} onChange={setRoleplayScene} />
             </div>
           )}
 

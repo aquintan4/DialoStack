@@ -155,6 +155,17 @@ def local_cancel_check(text: str, strict: bool = False) -> bool | None:
     return False
 
 
+def spoken_ask(text: str) -> str:
+    """What a spoken line asks for: its question sentence, or its last sentence
+    when it asks without a question mark ("...but first tell me X.")."""
+    end = text.find("?")
+    if end < 0:
+        sentences = [s for s in re.split(r"[.!;]", text) if s.strip()]
+        return sentences[-1].strip(" ¿¡").lower() if sentences else ""
+    start = max(text.rfind(c, 0, end) for c in ".!;:") + 1
+    return text[start : end + 1].strip(" ¿¡").lower()
+
+
 def to_snake_case(name: str) -> str:
     """Normalise a slot name to snake_case.
     Handles spaces, hyphens, CamelCase and non-alphanumeric characters."""

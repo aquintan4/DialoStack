@@ -31,6 +31,12 @@ export const PHRASE_LABELS = {
   procedure_step: 'Present a step ({n}, {total}, {step})',
   procedure_remind: 'Remind to report the step',
   procedure_summary: 'Procedure summary',
+  roleplay_intro: 'Roleplay introduction',
+  roleplay_reply: 'Character line (LLM down)',
+  roleplay_coach: 'Hint for the user',
+  roleplay_feedback: 'Closing feedback',
+  roleplay_scores: 'Scores sentence ({scores})',
+  roleplay_score_item: 'One score ({criterion}, {score})',
 }
 
 // The slot-filling acknowledgments are a LIST (a random one is spoken after a
@@ -81,6 +87,14 @@ export const STRATEGIES = [
     summary: 'Guides the user through ordered steps, one at a time.',
     desc: 'Presents each step, waits until the user reports it done, answers questions, helps when they are stuck and lets them repeat, go back or skip. Define the steps in the Frame Builder.',
     keys: ['procedure_opening', 'procedure_step', 'procedure_remind', 'procedure_summary'],
+  },
+  {
+    id: 'roleplay',
+    label: 'Roleplay',
+    frameKind: 'roleplay',
+    summary: 'Acts out a scene so the user can practise, then scores them.',
+    desc: 'The robot plays a character (an interviewer, a waiter, a patient...) while the user practises. They can ask for a hint at any moment; at the end the robot steps out of the role and scores each criterion of the rubric. Define the scene in the Frame Builder.',
+    keys: ['roleplay_intro', 'roleplay_reply', 'roleplay_coach', 'roleplay_feedback', 'roleplay_scores', 'roleplay_score_item'],
   },
 ]
 

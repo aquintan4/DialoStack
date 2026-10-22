@@ -78,7 +78,7 @@ def test_available_modes_is_sorted():
 
 def test_available_modes_includes_known():
     modes = available_modes()
-    for expected in ("slot_filling", "explanation", "quiz", "procedure"):
+    for expected in ("slot_filling", "explanation", "quiz", "procedure", "roleplay"):
         assert expected in modes
 
 

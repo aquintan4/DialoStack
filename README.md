@@ -17,7 +17,7 @@
 
 ---
 
-DialoStack lets a robot hold **goal-driven spoken conversations**: collect structured data from a user, explain a topic and check understanding, run an interactive quiz, or guide them step by step through a procedure. It works entirely through voice, in any language, on any ROS 2 robot.
+DialoStack lets a robot hold **goal-driven spoken conversations**: collect structured data from a user, explain a topic and check understanding, run an interactive quiz, guide them step by step through a procedure, or act out a scene for them to practise and score how they did. It works entirely through voice, in any language, on any ROS 2 robot.
 
 The core design principle is **deterministic control, probabilistic understanding**. The dialogue flow (states, phases, turn limits, cancellation, confirmation) is plain, testable Python. The LLM is consulted only for what it does well: understanding what the user said and phrasing the next reply. The behavior stays predictable and debuggable, and the conversation still feels natural.
 
@@ -38,7 +38,7 @@ The core design principle is **deterministic control, probabilistic understandin
 
 ## Features
 
-- 🎯 **Task-oriented dialogue engine** with four pluggable strategies: **slot filling**, **explanation**, **quiz** and **guided procedure**, plus a registry to add your own.
+- 🎯 **Task-oriented dialogue engine** with five pluggable strategies: **slot filling**, **explanation**, **quiz**, **guided procedure** and **roleplay practice**, plus a registry to add your own.
 - 🗣️ **Full speech pipeline**: faster-whisper + Silero VAD for STT, Piper for streaming TTS, with automatic self-muting so the robot never transcribes its own voice.
 - 🧠 **Provider-agnostic LLM backend**: Google Gemini, Anthropic Claude or OpenAI (cloud), or Ollama (local), behind one ROS interface, with isolated NLU/NLG sessions per dialogue.
 - 👀 **Multimodal perception**: facial emotion recognition and lip-activity detection feed live user state into the dialogue context.
@@ -282,6 +282,16 @@ ros2 action send_goal /dialog/execute_task \
   "{task_description: 'Guide a short shoulder warm-up',
     dialog_mode: 'procedure',
     resources_json: '[{\"name\": \"steps\", \"description\": \"Procedure steps\", \"content\": \"[\\\"Sit up straight with your feet flat on the floor\\\", {\\\"step\\\": \\\"Roll your shoulders back slowly five times\\\", \\\"check\\\": \\\"no pain\\\"}]\"}]'}"
+```
+
+**Roleplay** plays a character so the user can practise a situation. The user can ask for a hint at any moment; when the scene ends, the robot steps out of the role and scores each criterion from 1 to 5:
+
+```bash
+ros2 action send_goal /dialog/execute_task \
+  ros2_dialog_interfaces/action/DialogTask \
+  "{task_description: 'Practise a job interview',
+    dialog_mode: 'roleplay',
+    resources_json: '[{\"name\": \"scene\", \"description\": \"Roleplay scene\", \"content\": \"{\\\"scenario\\\": \\\"Interview for a robotics internship\\\", \\\"role\\\": \\\"The HR interviewer: demanding but kind\\\", \\\"criteria\\\": [\\\"Answers clearly\\\", \\\"Gives concrete examples\\\"]}\"}]'}"
 ```
 
 Per-turn **feedback** (current phase, frame state, last utterance) streams while the dialogue runs, and the final **result** reports success, the collected data and the turn count. Users can cancel naturally at any point ("forget it, stop"). The engine detects the intent, asks for confirmation and aborts cleanly.

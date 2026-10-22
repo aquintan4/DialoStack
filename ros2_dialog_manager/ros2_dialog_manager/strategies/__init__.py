@@ -12,6 +12,7 @@ from .slot_filling import SlotFillingStrategy  # noqa: F401
 from .explanation import ExplanationStrategy  # noqa: F401
 from .quiz import QuizStrategy  # noqa: F401
 from .procedure import ProcedureStrategy  # noqa: F401
+from .roleplay import RoleplayStrategy  # noqa: F401
 
 # Public package API.
 from .base import (  # noqa: F401
