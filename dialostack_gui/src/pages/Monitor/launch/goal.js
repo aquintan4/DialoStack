@@ -8,9 +8,15 @@ export const MODES = [
   { value: 'slot_filling', label: 'Slot filling - collect data' },
   { value: 'quiz',         label: 'Quiz - evaluate the user' },
   { value: 'explanation',  label: 'Explanation - explain a topic' },
+  { value: 'procedure',    label: 'Procedure - guide step by step' },
 ]
 
-export const MODE_LABEL = { '': 'auto', slot_filling: 'slot filling', quiz: 'quiz', explanation: 'explanation' }
+export const MODE_LABEL = {
+  '': 'auto', slot_filling: 'slot filling', quiz: 'quiz', explanation: 'explanation', procedure: 'procedure',
+}
+
+// Modes whose payload is edited in the drawer itself (not as raw resources JSON).
+export const PACKED_MODES = ['quiz', 'procedure']
 
 /**
  * Validates an optional JSON field. Returns null if empty or valid, or an error
@@ -35,28 +41,37 @@ export function jsonFieldError(text, expected) {
 
 /**
  * Resources payload for a goal. Quiz mode packs the question bank into a single
- * "questions" resource; the other modes pass the raw resources JSON. Pure, so it
- * is shared by the launch (send) and the copy (ros2 command / JSON) paths.
+ * "questions" resource and procedure mode its steps into a "steps" resource; the
+ * other modes pass the raw resources JSON. Pure, so it is shared by the launch
+ * (send) and the copy (ros2 command / JSON) paths.
  */
-export function buildResourcesJson({ form, resources, quizQuestions }) {
+export function buildResourcesJson({ form, resources, quizQuestions, procedureSteps }) {
   if (form.dialog_mode === 'quiz') {
     const items = (quizQuestions || []).filter((q) => q.question.trim() && q.answer.trim())
     return items.length
       ? JSON.stringify([{ name: 'questions', description: 'Quiz question bank', content: JSON.stringify(items) }])
       : ''
   }
+  if (form.dialog_mode === 'procedure') {
+    const items = (procedureSteps || [])
+      .filter((s) => s.step.trim())
+      .map((s) => (s.check.trim() ? { step: s.step.trim(), check: s.check.trim() } : { step: s.step.trim() }))
+    return items.length
+      ? JSON.stringify([{ name: 'steps', description: 'Procedure steps', content: JSON.stringify(items) }])
+      : ''
+  }
   return (resources || '').trim()
 }
 
 /** The DialogTask goal built from the launch-form draft (single source). */
-export function buildGoal({ form, frameSchema, resources, quizQuestions }) {
+export function buildGoal({ form, frameSchema, resources, quizQuestions, procedureSteps }) {
   return {
     task_description: form.task_description.trim(),
     frame_schema_json: (frameSchema || '').trim(),
     initial_frame_json: '',
     max_turns: Number(form.max_turns) || 10,
     dialog_mode: form.dialog_mode,
-    resources_json: buildResourcesJson({ form, resources, quizQuestions }),
+    resources_json: buildResourcesJson({ form, resources, quizQuestions, procedureSteps }),
     domain: form.domain.trim(),
     skip_intro: Boolean(form.skip_intro),
   }

@@ -51,6 +51,21 @@ describe('buildResourcesJson', () => {
     expect(JSON.parse(parsed[0].content)).toEqual([{ question: 'Q1', answer: 'A1' }]) // blanks dropped
   })
 
+  it('packs the procedure steps into a single "steps" resource, check only when set', () => {
+    const out = buildResourcesJson({
+      form: form('procedure'),
+      procedureSteps: [{ step: ' Open the box ', check: '' }, { step: 'Plug it in', check: 'green light' }, { step: ' ', check: 'x' }],
+    })
+    const parsed = JSON.parse(out)
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0].name).toBe('steps')
+    expect(JSON.parse(parsed[0].content)).toEqual([
+      { step: 'Open the box' },
+      { step: 'Plug it in', check: 'green light' },
+    ])
+    expect(buildResourcesJson({ form: form('procedure'), procedureSteps: [] })).toBe('')
+  })
+
   it('returns "" for quiz with no complete questions, and the raw resources otherwise', () => {
     expect(buildResourcesJson({ form: form('quiz'), quizQuestions: [] })).toBe('')
     expect(buildResourcesJson({ form: form('slot_filling'), resources: '  [{"name":"x"}] ' }))

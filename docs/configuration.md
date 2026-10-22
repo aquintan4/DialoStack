@@ -95,6 +95,9 @@ The templates, grouped by purpose:
 - **Explanation strategy:** `explanation_opening`, `check_understanding`,
   `classify_understanding`, `answer_explanation_question`,
   `rephrase_explanation`, `understanding_confirmed`, `explanation_max_attempts`
+- **Procedure strategy:** `procedure_opening`, `procedure_step`,
+  `classify_step_turn`, `procedure_answer_question`, `procedure_help_step`,
+  `procedure_remind`, `procedure_summary`
 - **Cancellation handling:** `detect_cancel_intent`,
   `detect_cancel_confirmation`, `ask_cancel_confirmation`,
   `cancel_confirmed_response`, `cancel_denied_response`

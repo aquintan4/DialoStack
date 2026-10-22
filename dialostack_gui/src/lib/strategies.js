@@ -27,6 +27,10 @@ export const PHRASE_LABELS = {
   quiz_summary: 'Quiz summary',
   quiz_correct: 'Correct answer',
   quiz_wrong: 'Wrong answer ({expected})',
+  procedure_opening: 'Procedure opening',
+  procedure_step: 'Present a step ({n}, {total}, {step})',
+  procedure_remind: 'Remind to report the step',
+  procedure_summary: 'Procedure summary',
 }
 
 // The slot-filling acknowledgments are a LIST (a random one is spoken after a
@@ -69,6 +73,14 @@ export const STRATEGIES = [
     summary: 'Asks a question bank and scores the answers.',
     desc: 'Runs through a bank of questions, judges each answer and summarises the score. Build the question bank in the Frame Builder.',
     keys: ['quiz_opening', 'quiz_summary', 'quiz_correct', 'quiz_wrong'],
+  },
+  {
+    id: 'procedure',
+    label: 'Procedure',
+    frameKind: 'procedure',
+    summary: 'Guides the user through ordered steps, one at a time.',
+    desc: 'Presents each step, waits until the user reports it done, answers questions, helps when they are stuck and lets them repeat, go back or skip. Define the steps in the Frame Builder.',
+    keys: ['procedure_opening', 'procedure_step', 'procedure_remind', 'procedure_summary'],
   },
 ]
 

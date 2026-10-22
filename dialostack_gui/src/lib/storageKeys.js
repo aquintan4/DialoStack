@@ -27,6 +27,7 @@ export const STORAGE = {
   launchSchema: 'dialostack_launch_schema',
   launchResources: 'dialostack_launch_resources',
   launchQuiz: 'dialostack_launch_quiz',
+  launchSteps: 'dialostack_launch_steps',
   launchSchemaOpen: 'dialostack_launch_schema_open',
   launchResourcesOpen: 'dialostack_launch_resources_open',
   taskPresets: 'dialostack_task_presets',
@@ -35,6 +36,7 @@ export const STORAGE = {
   builderKind: 'dialostack_builder_kind',
   builderSlots: 'dialostack_builder_slots',
   builderQuiz: 'dialostack_builder_quiz',
+  builderSteps: 'dialostack_builder_steps',
   builderResources: 'dialostack_builder_resources',
   frames: 'dialostack_frames',
 

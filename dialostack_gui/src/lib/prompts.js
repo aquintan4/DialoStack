@@ -48,7 +48,7 @@ export function validateOverride(template, defaultTpl) {
   return null
 }
 
-// Grouping of the 27 prompts by strategy for the side list. Keys returned by
+// Grouping of the prompts by strategy for the side list. Keys returned by
 // the server that are not here fall into "Other" (robust to changes).
 export const PROMPT_GROUPS = [
   { label: 'General', keys: ['classify_task_mode'] },
@@ -62,6 +62,10 @@ export const PROMPT_GROUPS = [
     'explanation_opening', 'check_understanding', 'classify_understanding',
     'answer_explanation_question', 'rephrase_explanation', 'understanding_confirmed',
     'explanation_max_attempts',
+  ] },
+  { label: 'Procedure', keys: [
+    'procedure_opening', 'procedure_step', 'classify_step_turn', 'procedure_answer_question',
+    'procedure_help_step', 'procedure_remind', 'procedure_summary',
   ] },
   { label: 'Cancellation', keys: [
     'detect_cancel_intent', 'detect_cancel_confirmation', 'ask_cancel_confirmation',

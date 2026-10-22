@@ -67,6 +67,10 @@ def test_quiz_registered():
     assert "quiz" in _STRATEGY_REGISTRY
 
 
+def test_procedure_registered():
+    assert "procedure" in _STRATEGY_REGISTRY
+
+
 def test_available_modes_is_sorted():
     modes = available_modes()
     assert modes == sorted(modes)
@@ -74,7 +78,7 @@ def test_available_modes_is_sorted():
 
 def test_available_modes_includes_known():
     modes = available_modes()
-    for expected in ("slot_filling", "explanation", "quiz"):
+    for expected in ("slot_filling", "explanation", "quiz", "procedure"):
         assert expected in modes
 
 

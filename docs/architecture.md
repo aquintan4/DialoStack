@@ -91,7 +91,7 @@ In detail:
 
 1. **Goal received.** `dialog_manager_node` accepts a `DialogTask` goal and builds a `DialogContext` from `resources_json`, `domain` and the live user-state feed.
 2. **Sessions.** Two LLM sessions are created via `/llm/session/create`, named `nlu` and `nlg`. They bind to the provider and model selected by parameters, or to the LLM node's defaults.
-3. **Strategy resolution.** If `dialog_mode` is set, that strategy is built from the registry. If empty, a classification prompt picks between `slot_filling` and `explanation` (`quiz` is never auto-detected, because it requires a question bank in `resources_json`).
+3. **Strategy resolution.** If `dialog_mode` is set, that strategy is built from the registry. If empty, a classification prompt picks between `slot_filling` and `explanation` (`quiz` and `procedure` are never auto-detected, because they require a question bank or a step list in `resources_json`).
 4. **Initialization.** The strategy's `on_init()` prepares its state. For slot filling that means obtaining a frame. It comes from `frame_schema_json` if the caller supplied one, otherwise the LLM generates it from the task description and audits it against the available resources.
 5. **Turn loop.** `DialogFSM` drives `listen → strategy.on_user_turn() → speak` until the strategy reports completion, the turn budget runs out, or consecutive timeouts/unclear answers hit their limits. Cancellation (both ROS-level and spoken, e.g. *"stop, forget it"*) is checked every turn.
 6. **Finalization.** Sessions are deleted, the transcript log is flushed, and the result carries `success`, `final_frame_json`, `failure_reason` and `total_turns`.
@@ -106,6 +106,7 @@ strategies/
   slot_filling.py          gathering → confirming → done
   explanation.py           explain → check understanding → rephrase (bounded)
   quiz.py                  question bank → evaluate → score
+  procedure.py             present step → done / help / repeat / back / skip → summary
 dialog_frame.py            Typed, thread-safe slot store
 dialog_context.py          Static resources + live user state → [CONTEXT] block
 llm_client.py              NLU/NLG facade: retries, JSON parsing, fallbacks
