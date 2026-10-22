@@ -19,6 +19,7 @@ one listed, and any divergence between code and YAML is called out in the
 | `ros2_dialog_manager/config/prompts.yaml` | All LLM prompt templates for the Dialog Manager. |
 | `ros2_llm_manager/config/params.yaml` | Standalone parameters for the LLM Manager node. |
 | `speech_io/config/params.yaml` | Standalone parameters for the speech-to-text and text-to-speech nodes. |
+| `speech_io/config/audio_bridge.yaml` | Parameters for the audio bridge that captures and plays sound on a remote device (a robot head, an SBC). |
 | `vision_io/config/params.yaml` | Parameters for the emotion detector node. |
 | `vision_io/config/lip_activity_params.yaml` | Parameters for the lip activity detector node. |
 | `robots/nao/nao_pose_manager/config/nao_saved_poses.yaml` | Saved arm poses consumed by the gesture managers (not a parameter file). |
@@ -30,6 +31,9 @@ one listed, and any divergence between code and YAML is called out in the
 | `ros2_dialog_manager/launch/main.launch.py` | `app_params.yaml` (all four nodes) plus `prompts.yaml` (Dialog Manager only) | `speech_to_text_node`, `text_to_speech_node`, `llm_manager_node`, `dialog_manager_node` |
 | `ros2_llm_manager/launch/llm_manager.launch.py` | `params.yaml` | `llm_manager_node` |
 | `speech_io/launch/speech_io.launch.py` | `params.yaml` | `speech_to_text_node`, `text_to_speech_node` |
+| `speech_io/launch/audio_bridge.launch.py` | `audio_bridge.yaml` | `audio_bridge_node` |
+| `speech_io/launch/nao_min.launch.py` | `audio_bridge.yaml` | `audio_bridge_node` plus the NAO's `nao_lola_client` (run on the robot) |
+| `speech_io/launch/nao_demo.launch.py` | `audio_bridge.yaml` | As `nao_min`, plus the NAO standing and posture stack (run on the robot) |
 | `vision_io/launch/emotion_detector.launch.py` | `params.yaml` | `emotion_detector` |
 | `vision_io/launch/lip_detector.launch.py` | `lip_activity_params.yaml` | `lip_activity_detector_node` |
 | `robots/nao/nao_pose_manager/launch/arm_gesture_manager.launch.py` | launch arguments (no YAML) | `arm_gesture_manager`, `eye_led_feedback` |
@@ -154,7 +158,9 @@ Silero VAD for voice activity detection.
 | `output_topic` | string | `/transcription` | Topic where final transcriptions are published. |
 | `is_speaking_topic` | string | `/is_speaking` | TTS playback signal. While true, STT mutes itself to avoid transcribing the robot. |
 | `vad_topic` | string | `/user_vad` | Topic where the raw VAD probability is published as `Float32` in `[0, 1]`. |
-| `input_device` | string | `''` | Microphone input device. Empty string uses the default system input. |
+| `input_device` | string | `''` | Microphone input device. Empty string uses the default system input. Only used when `audio_source` is `microphone`. |
+| `audio_source` | string | `microphone` | Where the audio comes from: `microphone` (a local device) or `topic` (`AudioChunk` messages on `audio_topic`, from the audio bridge, a robot driver or the GUI page). See [Audio routing](#audio-routing). |
+| `audio_topic` | string | `/audio_in` | `AudioChunk` input topic when `audio_source` is `topic`. |
 | `model_size` | string | `base` | faster-whisper model size (`tiny`, `base`, `small`, `medium`, `large-v3`, …). |
 | `language` | string | `en` | Expected speech language (ISO code). |
 | `device` | string | `auto` | faster-whisper inference device: `auto` (an NVIDIA GPU if usable, else the CPU), `cpu` or `cuda`. |
@@ -177,7 +183,41 @@ Declared in `speech_io/speech_io/text_to_speech_node.py`. Shipped values from
 | `is_speaking_topic` | string | `/is_speaking` | Topic publishing whether TTS is currently playing. STT uses it to mute itself. |
 | `model_path` | string | `en_US-lessac-medium.onnx` | Piper voice, as a filename under `DIALOSTACK_MODELS_DIR` or an absolute path. |
 | `sample_rate` | int | `22050` | Output sample rate expected by the selected Piper model. |
-| `audio_device` | string | `default` | Audio output device. `default` uses the system default output. |
+| `audio_device` | string | `default` | Audio output device. `default` uses the system default output. Only used when `audio_sink` is `speaker`. |
+| `audio_sink` | string | `speaker` | Where the audio goes: `speaker` (a local device) or `topic` (`AudioChunk` messages on `audio_topic`, paced to real-time playback). See [Audio routing](#audio-routing). |
+| `audio_topic` | string | `/audio_out` | `AudioChunk` output topic when `audio_sink` is `topic`. |
+| `topic_latency_pad` | float | `0.3` | Topic mode only: extra seconds `/is_speaking` stays high after the last chunk's playback time, to cover network and playback delay on the remote speaker. |
+
+## Audio routing
+
+The speech nodes can use local audio hardware or exchange raw PCM over ROS
+with the `AudioChunk` message (`ros2_dialog_interfaces/msg/AudioChunk`:
+`data`, `sample_rate`, `channels`, `encoding`, currently `S16LE` only). Anything
+that publishes `/audio_in` and plays `/audio_out` interoperates with the stack.
+Three setups are supported, and the GUI selects them in **Configuration > Audio**:
+
+| Setup | STT / TTS | Who captures and plays the sound |
+| --- | --- | --- |
+| Local hardware | `audio_source: microphone`, `audio_sink: speaker` | The machine running the speech nodes |
+| This browser (GUI) | `audio_source: topic`, `audio_sink: topic` | The GUI page, over rosbridge, with the browser's echo cancellation |
+| ROS topics | `audio_source: topic`, `audio_sink: topic` | `audio_bridge_node` on a remote device, or a robot driver speaking `AudioChunk` |
+
+## audio_bridge_node
+
+Declared in `speech_io/speech_io/audio_bridge_node.py`. Shipped values from
+`speech_io/config/audio_bridge.yaml`. Run it on the device that has the
+microphone and speaker (a robot head, a Raspberry Pi, a laptop) while the speech
+nodes run in topic mode elsewhere.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `mode` | string | `both` | `capture` (mic to `capture_topic`), `play` (`play_topic` to speaker) or `both` (full duplex). |
+| `capture_topic` | string | `/audio_in` | `AudioChunk` topic published with the microphone audio. |
+| `play_topic` | string | `/audio_out` | `AudioChunk` topic played on the speaker. |
+| `capture_sample_rate` | int | `16000` | Microphone capture rate. Must match the STT node's `sample_rate`. |
+| `input_device` | string | `""` | Microphone device. Empty uses the system default. |
+| `output_device` | string | `""` | Speaker device. Empty uses the system default. |
+| `blocksize` | int | `512` | Samples per captured chunk (mirrors the STT VAD frame). |
 
 ## emotion_detector
 

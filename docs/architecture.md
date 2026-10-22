@@ -27,7 +27,10 @@ Five core nodes plus optional perception and embodiment:
 | `text_to_speech_node` | speech_io | Text to audio (Piper), action server for `/speak` |
 | `emotion_detector` | vision_io | Camera to facial emotion (optional) |
 | `lip_activity_detector` | vision_io | Camera to a user-speaking signal (optional) |
+| `audio_bridge_node` | speech_io | Remote microphone and speaker over `AudioChunk` topics (optional) |
 | `gesture_manager` / `arm_gesture_manager`, `eye_led_feedback` | robots/nao | Embodiment (optional) |
+
+On top of the graph, the **web GUI** (`dialostack_gui`) configures, launches and monitors the engine through a small HTTP server and rosbridge. See [The web GUI](#the-web-gui-dialostack_gui).
 
 ### Communication reference
 
@@ -42,6 +45,9 @@ Five core nodes plus optional perception and embodiment:
 | `/user_speaking` | `std_msgs/Bool` | lip_activity_detector | dialog_manager_node | Visual speaking signal (barge-in) |
 | `/lip_activity` | `std_msgs/Float32` | lip_activity_detector | none | Raw lip-gap signal (debug) |
 | `/target_pose` | `std_msgs/String` | any | gesture managers | Force a named pose. `"AUTO"` resumes automatic mode |
+| `/barge_in` | `BargeIn` | dialog_manager_node | GUI Monitor | The user cut the robot off mid-utterance (`utterance`, `spoken_ms`) |
+| `/audio_in` | `AudioChunk` | audio_bridge_node, GUI page, robot driver | speech_to_text_node (topic mode) | Raw microphone PCM |
+| `/audio_out` | `AudioChunk` | text_to_speech_node (topic mode) | audio_bridge_node, GUI page, robot driver | Synthesized PCM, paced to playback |
 
 **Actions**
 
@@ -182,7 +188,17 @@ Adding a provider means implementing `BaseProvider` (`connect`, `ensure_model_re
 
 **STT** runs three cooperating loops: a capture loop feeding 512-sample chunks into a queue, a Silero-VAD loop that segments speech into phrases (closing after `grace_period` of silence, force-closing at `max_phrase_secs`), and a faster-whisper inference loop publishing final text. While `/is_speaking` is high the node discards audio, so the robot never hears itself.
 
-**TTS** serves the `/speak` action by piping text through Piper (`--output-raw`) and streaming the raw PCM to the audio device chunk by chunk, so speech starts before synthesis finishes. Goals are preemptable and cancellable mid-utterance (this is what makes barge-in possible), and `/is_speaking` is always lowered on exit, even on error.
+**TTS** serves the `/speak` action by piping text through Piper (`--output-raw`) and streaming the raw PCM to the audio device chunk by chunk, so speech starts before synthesis finishes. Goals are preemptable and cancellable mid-utterance (this is what makes barge-in possible), and `/is_speaking` is always lowered on exit, even on error. When the user interrupts, the dialogue manager publishes `/barge_in` with the cut-off text and how long the robot had been speaking.
+
+### Audio routing
+
+Where the sound is captured and played is decoupled from where the models run. Both speech nodes can use local hardware (`audio_source: microphone`, `audio_sink: speaker`) or exchange raw PCM over ROS with the `AudioChunk` message on `/audio_in` and `/audio_out` (`topic` mode). In topic mode the TTS node paces its chunks to real-time playback, so rosbridge and slow links do not drop audio, and it holds `/is_speaking` until the remote speaker has finished.
+
+Three producers and consumers of `AudioChunk` ship with the stack:
+
+- **The GUI page** (*This browser*): the browser captures the microphone with echo cancellation, resamples it to 16 kHz S16LE and publishes it through rosbridge, and plays the TTS audio back. No host audio setup (PulseAudio, WSLg) is involved, which is why the Docker quick start works with no audio configuration.
+- **`audio_bridge_node`**: runs on the device with the microphone and speaker (a NAO head, a Raspberry Pi) while Whisper, Piper and the LLM run on a laptop or a GPU server. `nao_min.launch.py` and `nao_demo.launch.py` bring it up on a NAO.
+- **Your robot's driver**: any node that speaks `AudioChunk` on those topics works, with no bridge.
 
 ## Perception (`vision_io`)
 
@@ -201,6 +217,20 @@ The NAO layer consumes only generic signals (`/is_speaking`, `/user_vad`, `/targ
 
 Porting to another robot means re-implementing this layer for your platform's effectors.
 
+## The web GUI (`dialostack_gui`)
+
+A React single-page app plus a small Python server (`server.py`). The server turns the GUI configuration into ROS parameter files, starts and stops the engine, and serves the engine's default prompts and phrases; the page talks to ROS through rosbridge. It has five pages:
+
+| Page | What it does |
+|------|--------------|
+| **Monitor** | Live chat timeline of the dialogue with STT, LLM and TTS latencies, barge-in marks, the live frame and user emotion, camera images, a composer to type as the user or make the robot say something, and export of the session to CSV, JSON or Markdown |
+| **Frame Builder** | Visual editors for each strategy's input: slots with types, canonical values, ranges and conditions; quiz banks; procedure steps; roleplay scenes and rubrics; resources. Frames are saved to a library and launched from the Monitor |
+| **Prompts** | Override any LLM prompt template, with validation of its placeholders |
+| **Strategies** | Edit each strategy's fixed phrases per language |
+| **Configuration** | LLM provider and model, dialogue limits, STT, TTS and audio routing, saved as named profiles that can be imported and exported |
+
+The GUI's internal design is documented in [`dialostack_gui/src/README.md`](../dialostack_gui/src/README.md).
+
 ## Extension points
 
 | You want to… | Touch |
@@ -210,9 +240,11 @@ Porting to another robot means re-implementing this layer for your platform's ef
 | Switch dialogue language | `language` parameter (prompts adapt, and you add fallback phrases for the new language in `llm_client.py`) |
 | Add an LLM provider | Subclass `BaseProvider` in `ros2_llm_manager/providers/` |
 | Use different STT/TTS | Replace the speech_io node, keep `/transcription`, `/speak`, `/is_speaking` |
+| Capture and play audio on your robot | Publish `/audio_in` and play `/audio_out` (`AudioChunk`), or run `audio_bridge_node` on it |
 | Support another robot | New package under `robots/` consuming `/is_speaking`, `/user_vad`, `/target_pose` |
 
 ## Testing & evaluation
 
-- **Unit tests** (`ros2_dialog_manager/test/`, 173 tests) cover the deterministic core: frame semantics, strategy phase logic, context rendering and input hygiene. They use fake LLMs and need no ROS.
+- **Unit tests** (`ros2_dialog_manager/test/`, 267 tests) cover the deterministic core: frame semantics, strategy phase logic, context rendering and input hygiene. They use fake LLMs and need no ROS.
+- **GUI tests** (`dialostack_gui`, 96 tests with Vitest) cover the pure logic in `src/lib/`: the Monitor timeline reducer, frame validation, browser-audio resampling and session export.
 - **Statistical evaluation** ([`evaluation/`](../evaluation)) measures the LLM-dependent behavior per capability and end-to-end, against hand-annotated datasets, for any configured provider. Use it to compare models or validate prompt changes before deploying.
