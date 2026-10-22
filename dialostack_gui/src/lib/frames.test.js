@@ -114,6 +114,19 @@ describe('round-trip compile/parse per dimension', () => {
     expect(parseDimension('steps', json)).toEqual([{ step: 'A', check: '' }, { step: 'B', check: 'c' }])
   })
 
+  it('roleplay packs the scene into a resource and recovers it', () => {
+    const scene = [{ scenario: 'Interview', role: 'HR', user_goal: 'Get it', criteria: ['Clear', 'Examples'], max_exchanges: '8' }]
+    const json = fieldByGoal('roleplay', { scene }, 'resources_json').json
+    expect(parseDimension('scene', json)).toEqual(scene)
+  })
+
+  it('roleplay parses criteria objects and drops a bad max_exchanges', () => {
+    const content = JSON.stringify({ scenario: 'S', role: 'R', criteria: [{ name: 'A' }, ''], max_exchanges: 'x' })
+    expect(parseDimension('scene', JSON.stringify([{ name: 'scene', content }]))).toEqual([
+      { scenario: 'S', role: 'R', user_goal: '', criteria: ['A'], max_exchanges: '' },
+    ])
+  })
+
   it('generic resources are preserved', () => {
     const resources = [{ name: 'doc', description: 'd', content: 'texto' }]
     const json = fieldByGoal('explanation', { resources }, 'resources_json').json
@@ -164,5 +177,6 @@ describe('kindFields', () => {
     expect(kindFields('slot_filling').map((f) => f.key)).toEqual(['slots', 'resources'])
     expect(kindFields('quiz').map((f) => f.key)).toEqual(['questions'])
     expect(kindFields('procedure').map((f) => f.key)).toEqual(['steps'])
+    expect(kindFields('roleplay').map((f) => f.key)).toEqual(['scene'])
   })
 })

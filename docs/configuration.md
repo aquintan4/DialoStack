@@ -98,6 +98,9 @@ The templates, grouped by purpose:
 - **Procedure strategy:** `procedure_opening`, `procedure_step`,
   `classify_step_turn`, `procedure_answer_question`, `procedure_help_step`,
   `procedure_remind`, `procedure_summary`
+- **Roleplay strategy:** `roleplay_intro`, `roleplay_reply`,
+  `classify_roleplay_turn`, `roleplay_coach`, `evaluate_roleplay`,
+  `roleplay_feedback`
 - **Cancellation handling:** `detect_cancel_intent`,
   `detect_cancel_confirmation`, `ask_cancel_confirmation`,
   `cancel_confirmed_response`, `cancel_denied_response`

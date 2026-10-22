@@ -10,6 +10,7 @@
  *       - explanation:  the material to explain (main)
  *       - quiz:         question bank, content = "[{question,answer}]"
  *       - procedure:    ordered steps, content = "[{step,check?}]"
+ *       - roleplay:     the scene, content = "{scenario,role,user_goal?,criteria,max_exchanges?}"
  *
  * Model: "resources" is an orthogonal DIMENSION, not a mode. Each kind declares
  * which dimensions it edits (KIND_FIELDS) and each dimension knows how to
@@ -91,6 +92,7 @@ export const emptySlot = () => ({
 })
 export const emptyQuestion = () => ({ question: '', answer: '' })
 export const emptyStep = () => ({ step: '', check: '' })
+export const emptyScene = () => ({ scenario: '', role: '', user_goal: '', criteria: [''], max_exchanges: '' })
 export const emptyResource = () => ({ name: '', description: '', content: '' })
 
 // ==== COMPILERS AND PARSERS PER DIMENSION ====
@@ -126,6 +128,30 @@ function buildStepsJSON(steps) {
     .map((s) => (s.check.trim() ? { step: s.step.trim(), check: s.check.trim() } : { step: s.step.trim() }))
   return JSON.stringify(
     [{ name: 'steps', description: 'Procedure steps', content: JSON.stringify(items) }],
+    null, 2,
+  )
+}
+
+/**
+ * Engine payload of one roleplay scene, or null while scenario/role are empty.
+ * Shared with the launcher (goal.js) so both pack the scene the same way.
+ */
+export function sceneToJSON(scene) {
+  if (!scene?.scenario?.trim() || !scene?.role?.trim()) return null
+  const max = Number(scene.max_exchanges)
+  return {
+    scenario: scene.scenario.trim(),
+    role: scene.role.trim(),
+    ...(scene.user_goal?.trim() ? { user_goal: scene.user_goal.trim() } : {}),
+    criteria: (scene.criteria || []).map((c) => c.trim()).filter(Boolean),
+    ...(Number.isInteger(max) && max > 0 ? { max_exchanges: max } : {}),
+  }
+}
+
+function buildSceneJSON(scenes) {
+  const scene = sceneToJSON(scenes?.[0])
+  return JSON.stringify(
+    scene ? [{ name: 'scene', description: 'Roleplay scene', content: JSON.stringify(scene) }] : [],
     null, 2,
   )
 }
@@ -189,6 +215,29 @@ function stepsFromJSON(parsed) {
   return null
 }
 
+// Same criterion as the engine's RoleplayStrategy._parse_scene: the first
+// resource whose content is an object with scenario and role.
+function sceneFromJSON(parsed) {
+  if (!Array.isArray(parsed)) return null
+  for (const r of parsed) {
+    let data
+    try { data = JSON.parse((r?.content ?? '').toString()) } catch { continue }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) continue
+    if (!String(data.scenario ?? '').trim() || !String(data.role ?? '').trim()) continue
+    const criteria = (Array.isArray(data.criteria) ? data.criteria : [])
+      .map((c) => String((c && typeof c === 'object' ? c.name : c) ?? ''))
+      .filter((c) => c.trim())
+    return [{
+      scenario: String(data.scenario),
+      role: String(data.role),
+      user_goal: String(data.user_goal ?? ''),
+      criteria: criteria.length ? criteria : [''],
+      max_exchanges: Number(data.max_exchanges) > 0 ? String(data.max_exchanges) : '',
+    }]
+  }
+  return null
+}
+
 function resourcesFromJSON(parsed) {
   if (!Array.isArray(parsed)) return null
   return parsed
@@ -210,6 +259,7 @@ const DIMENSIONS = {
   resources: { build: buildResourcesJSON, parse: resourcesFromJSON, empty: emptyResource },
   questions: { build: buildQuizJSON,      parse: questionsFromJSON, empty: emptyQuestion },
   steps:     { build: buildStepsJSON,     parse: stepsFromJSON,     empty: emptyStep },
+  scene:     { build: buildSceneJSON,     parse: sceneFromJSON,     empty: emptyScene },
 }
 
 // ==== MODES AND THE GOAL FIELDS EACH ONE PRODUCES ====
@@ -229,6 +279,9 @@ const KIND_FIELDS = {
   procedure: [
     { key: 'steps', field: 'resources_json', label: 'Steps', optional: false },
   ],
+  roleplay: [
+    { key: 'scene', field: 'resources_json', label: 'Scene', optional: false },
+  ],
 }
 
 export const FRAME_KINDS = [
@@ -236,6 +289,7 @@ export const FRAME_KINDS = [
   { value: 'quiz',         label: 'Quiz',         desc: 'Question bank with its answer' },
   { value: 'explanation',  label: 'Explanation',  desc: 'Reference material to explain' },
   { value: 'procedure',    label: 'Procedure',    desc: 'Ordered steps to guide the user through' },
+  { value: 'roleplay',     label: 'Roleplay',     desc: 'A scene the robot acts out, and the rubric to score the user' },
 ]
 
 export const kindMeta = (kind) => FRAME_KINDS.find((k) => k.value === kind) ?? FRAME_KINDS[0]

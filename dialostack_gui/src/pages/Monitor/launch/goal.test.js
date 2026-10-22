@@ -66,6 +66,16 @@ describe('buildResourcesJson', () => {
     expect(buildResourcesJson({ form: form('procedure'), procedureSteps: [] })).toBe('')
   })
 
+  it('packs the roleplay scene into a single "scene" resource, only once scenario and role are set', () => {
+    const scene = { scenario: ' Interview ', role: 'Interviewer', user_goal: '', criteria: ['Clear', ' '], max_exchanges: '6' }
+    const parsed = JSON.parse(buildResourcesJson({ form: form('roleplay'), roleplayScene: [scene] }))
+    expect(parsed[0].name).toBe('scene')
+    expect(JSON.parse(parsed[0].content)).toEqual({
+      scenario: 'Interview', role: 'Interviewer', criteria: ['Clear'], max_exchanges: 6,
+    })
+    expect(buildResourcesJson({ form: form('roleplay'), roleplayScene: [{ ...scene, role: ' ' }] })).toBe('')
+  })
+
   it('returns "" for quiz with no complete questions, and the raw resources otherwise', () => {
     expect(buildResourcesJson({ form: form('quiz'), quizQuestions: [] })).toBe('')
     expect(buildResourcesJson({ form: form('slot_filling'), resources: '  [{"name":"x"}] ' }))

@@ -20,8 +20,17 @@ from string import Formatter
 
 from .dialog_context import DialogContext
 from .dialog_frame import DialogFrame
+from .utils import spoken_ask
 
 _log = logging.getLogger("PromptBuilder")  # TRACE
+
+
+# How a roleplay ended, as told to the feedback prompt.
+_ROLEPLAY_ENDINGS = {
+    "user": "the user asked to stop",
+    "scene": "the scene reached its natural end",
+    "limit": "the time for the practice ran out",
+}
 
 
 class Prompt(str):
@@ -463,6 +472,125 @@ class PromptBuilder:
         )
         return self._inject(prompt, ctx)
 
+    # ==== ROLEPLAY ====
+
+    def roleplay_intro(self, task: str, scene: dict, ctx: DialogContext | None = None) -> str:
+        prompt = self._t("roleplay_intro", task=task, scene=self._fmt_scene(scene))
+        return self._inject(prompt, ctx)
+
+    def roleplay_reply(
+        self,
+        scene: dict,
+        history: list[dict],
+        ctx: DialogContext | None = None,
+        avoid: str = "",
+    ) -> str:
+        # The whole scene, not a sliding window: it only grows by appending, so
+        # each turn's prompt starts with the previous one (prefix cache reuse).
+        asked = [spoken_ask(t["content"]) for t in history if t["role"] == "assistant"]
+        prompt = self._t(
+            "roleplay_reply",
+            scene=self._fmt_scene(scene),
+            history=self._fmt_transcript(history),
+            asked="\n".join(f"  - {a}" for a in asked if a) or "  (none yet)",
+        )
+        if avoid:
+            # Retry after a repeated question: a note at the very end, so the
+            # cached prefix stays the same.
+            prompt = _prompt(
+                f"{prompt}\nYour draft repeated a question you already asked: \"{avoid}\". "
+                "Ask about something different this time.\n",
+                prompt.cache_prefix_len,
+            )
+        return self._inject(prompt, ctx)
+
+    def classify_roleplay_turn(
+        self, user_text: str, scene: dict, history: list[dict], ctx: DialogContext | None = None
+    ) -> tuple[str, dict]:
+        # No context injection: a quick routing decision over the scene only.
+        schema = {
+            "type": "object",
+            "properties": {
+                "intent": {"type": "string", "enum": ["continue", "coach", "end", "scene_end"]}
+            },
+            "required": ["intent"],
+        }
+        # history ends with the reply being classified: show the exchange before it.
+        prompt = self._t(
+            "classify_roleplay_turn",
+            scene=self._fmt_scene(scene),
+            history=self._fmt_transcript(history[-3:-1]),
+            user_text=user_text,
+        )
+        return prompt, schema
+
+    def roleplay_coach(
+        self, user_text: str, scene: dict, history: list[dict], ctx: DialogContext | None = None
+    ) -> str:
+        prompt = self._t(
+            "roleplay_coach",
+            scene=self._fmt_scene(scene),
+            history=self._fmt_transcript(history[-7:-1]),
+            user_text=user_text,
+        )
+        return self._inject(prompt, ctx)
+
+    def evaluate_roleplay_criterion(
+        self,
+        scene: dict,
+        transcript: list[dict],
+        user_lines: list[str],
+        criterion: str,
+        ctx: DialogContext | None = None,
+    ) -> tuple[str, dict]:
+        """One criterion per call. Everything but the criterion is the same for
+        all of them, and the criterion goes last, so the calls share the cache."""
+        schema = {
+            "type": "object",
+            "properties": {
+                # Evidence, then reasoning, then the score: decoding follows
+                # property order, so the score is grounded on what came before.
+                "lines": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+                "comment": {"type": "string"},
+                "score": {"type": "integer", "minimum": 1, "maximum": 5},
+            },
+            "required": ["lines", "comment", "score"],
+        }
+        prompt = self._t(
+            "evaluate_roleplay",
+            scene=self._fmt_scene(scene),
+            transcript=self._fmt_transcript(transcript),
+            user_lines="\n".join(f"  {i}. {line}" for i, line in enumerate(user_lines, 1))
+            or "  (none)",
+            criterion=criterion,
+        )
+        return self._inject(prompt, ctx), schema
+
+    def roleplay_feedback(
+        self, scene: dict, evaluation: dict, ended_by: str, ctx: DialogContext | None = None
+    ) -> tuple[str, dict]:
+        schema = {
+            "type": "object",
+            "properties": {
+                "closing": {"type": "string"},
+                "highlight": {"type": "string"},
+                "improve": {"type": "string"},
+            },
+            "required": ["closing", "highlight", "improve"],
+        }
+        results = "\n".join(
+            f"  - {s['criterion']}: {s['score']}/5. {s['comment']}"
+            + (f' Evidence: "{s["evidence"]}"' if s.get("evidence") else "")
+            for s in evaluation["scores"]
+        )
+        prompt = self._t(
+            "roleplay_feedback",
+            scene=self._fmt_scene(scene),
+            results=results,
+            ended_by=_ROLEPLAY_ENDINGS.get(ended_by, ended_by),
+        )
+        return self._inject(prompt, ctx), schema
+
     # ==== CANCEL FLOW ====
 
     def detect_cancel_intent(
@@ -513,6 +641,21 @@ class PromptBuilder:
         return self._inject(prompt, ctx)
 
     # ==== HELPERS ====
+
+    @staticmethod
+    def _fmt_scene(scene: dict) -> str:
+        lines = [f"  Scenario: {scene['scenario']}", f"  Your character: {scene['role']}"]
+        if scene.get("user_goal"):
+            lines.append(f"  The user's goal: {scene['user_goal']}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _fmt_transcript(turns: list[dict]) -> str:
+        """Roleplay history: the assistant's turns are the character's lines."""
+        if not turns:
+            return "  (empty)"
+        labels = {"assistant": "Character", "user": "User"}
+        return "\n".join(f"  {labels.get(t['role'], t['role'])}: {t['content']}" for t in turns)
 
     @staticmethod
     def _fmt_history(turns: list[dict]) -> str:

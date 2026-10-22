@@ -35,6 +35,7 @@ See [../docs/architecture.md](../docs/architecture.md) for the full design.
 | `explanation` | Explains a topic and verifies the user understood it, re-phrasing if not. | Yes |
 | `quiz` | Asks scored questions from `resources_json` and reports results. | No. Must be set explicitly in the goal (needs a question bank) |
 | `procedure` | Guides the user through ordered steps from `resources_json`: answers questions, helps when stuck, repeats, goes back or skips, and reports which steps were completed. | No. Must be set explicitly in the goal (needs the step list) |
+| `roleplay` | Plays a character in a scene from `resources_json` so the user can practise, gives hints on request, then steps out of the role and scores each rubric criterion (1-5). | No. Must be set explicitly in the goal (needs the scene and rubric) |
 
 The mode comes from the goal's `dialog_mode` field. When it is empty, the node asks the
 LLM to classify between `slot_filling` and `explanation`.

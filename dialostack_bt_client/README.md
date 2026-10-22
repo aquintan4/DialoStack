@@ -17,7 +17,7 @@ dialogue from inside a behavior tree, plus a generic runner and an example.
 | Port | Direction | Meaning |
 |------|-----------|---------|
 | `task_description` | in (required) | Natural-language task |
-| `dialog_mode` | in | `slot_filling` \| `explanation` \| `quiz` \| `procedure` \| empty for auto-detect |
+| `dialog_mode` | in | `slot_filling` \| `explanation` \| `quiz` \| `procedure` \| `roleplay` \| empty for auto-detect |
 | `domain` | in | Context hint for the prompts |
 | `frame_schema_json` | in | Optional JSON slot schema |
 | `initial_frame_json` | in | Optional pre-filled slot values (resume) |
