@@ -11,8 +11,6 @@ find_package(rclcpp_action REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(ros2_dialog_interfaces REQUIRED)
 
-set(deps rclcpp rclcpp_action behaviortree_cpp ros2_dialog_interfaces)
-
 include_directories(include)
 
 # The leaf node as a BT.CPP plugin, loadable at runtime via registerFromPlugin().
@@ -20,12 +18,16 @@ add_library(dialostack_bt_client_plugin SHARED
   src/execute_dialog.cpp
   src/bt_plugins.cpp
 )
-ament_target_dependencies(dialostack_bt_client_plugin ${deps})
+target_link_libraries(dialostack_bt_client_plugin PUBLIC
+  rclcpp::rclcpp
+  rclcpp_action::rclcpp_action
+  behaviortree_cpp::behaviortree_cpp
+  ${ros2_dialog_interfaces_TARGETS}
+)
 
 # Generic runner: loads a tree XML and ticks it.
 add_executable(bt_runner src/bt_runner.cpp)
 target_link_libraries(bt_runner dialostack_bt_client_plugin)
-ament_target_dependencies(bt_runner ${deps})
 
 install(TARGETS dialostack_bt_client_plugin
   ARCHIVE DESTINATION lib

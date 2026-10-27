@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/aquintan4/DialoStack/releases"><img src="https://img.shields.io/github/v/release/aquintan4/DialoStack?color=12a5cb" alt="Latest release"/></a>
   <a href="https://github.com/aquintan4/DialoStack/pkgs/container/dialostack"><img src="https://img.shields.io/badge/docker-ghcr.io-12a5cb?logo=docker&logoColor=white" alt="Docker image"/></a>
-  <img src="https://img.shields.io/badge/ROS%202-Jazzy-22314E?logo=ros" alt="ROS 2 Jazzy"/>
+  <img src="https://img.shields.io/badge/ROS%202-Jazzy%20%7C%20Lyrical-22314E?logo=ros" alt="ROS 2 Jazzy | Lyrical"/>
   <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+"/>
   <img src="https://img.shields.io/badge/LLM-Gemini%20%7C%20Claude%20%7C%20OpenAI%20%7C%20Ollama-orange" alt="LLM providers"/>
   <img src="https://img.shields.io/badge/tests-363%20passing-brightgreen" alt="363 tests"/>

@@ -23,7 +23,6 @@ import threading
 import time
 
 import numpy as np
-import sounddevice as sd
 import rclpy
 
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -359,6 +358,9 @@ class TextToSpeechNode(Node):
 
     def _stream_to_speaker(self, proc, goal_handle, stop_event):
         """Play Piper's raw PCM straight to the local audio device."""
+        # Imported here so topic mode never initialises PortAudio (see STT).
+        import sounddevice as sd
+
         status = "completed"
         first_chunk_played = False
         played_chunks = 0

@@ -23,7 +23,6 @@ import queue
 
 import ctranslate2
 import numpy as np
-import sounddevice as sd
 import rclpy
 import torch
 
@@ -106,9 +105,12 @@ class SpeechToTextNode(Node):
         self._audio_topic = p("audio_topic").value
 
         # Only the microphone path touches the local audio hardware. In topic
-        # mode we avoid querying sounddevice so the node can run on machines
-        # without an input device.
+        # mode sounddevice is not even imported (importing it initialises
+        # PortAudio, which fails without a sound server on Ubuntu 26.04), so
+        # the node can run on machines without an input device.
         if self._audio_source == "microphone":
+            import sounddevice as sd
+
             input_dev = p("input_device").value
             self._input_dev = input_dev if input_dev else sd.default.device[0]
         else:
@@ -246,6 +248,8 @@ class SpeechToTextNode(Node):
     # ==== AUDIO CAPTURE ====
 
     def _capture_loop(self) -> None:
+        import sounddevice as sd
+
         def callback(indata, frames, time_info, status):
             with self._mute_lock:
                 muted = self._muted

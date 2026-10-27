@@ -21,7 +21,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 add_executable(zero_joint_state_publisher src/zero_joint_state_publisher.cpp)
-ament_target_dependencies(zero_joint_state_publisher rclcpp sensor_msgs)
+target_link_libraries(zero_joint_state_publisher rclcpp::rclcpp ${sensor_msgs_TARGETS})
 
 install(TARGETS
   zero_joint_state_publisher

@@ -36,7 +36,8 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 fi
 
 # ─── Source ROS 2 ───────────────────────────────────────────────────────────
-if   [ -f /opt/ros/jazzy/setup.bash ];  then source /opt/ros/jazzy/setup.bash
+if   [ -f /opt/ros/lyrical/setup.bash ]; then source /opt/ros/lyrical/setup.bash
+elif [ -f /opt/ros/jazzy/setup.bash ];  then source /opt/ros/jazzy/setup.bash
 elif [ -f /opt/ros/humble/setup.bash ]; then source /opt/ros/humble/setup.bash
 else
   echo -e "${RED}ERROR: ROS 2 installation not found${NC}" >&2

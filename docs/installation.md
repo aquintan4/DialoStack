@@ -4,9 +4,9 @@ There are two ways to run DialoStack:
 
 | | Docker image | Source build |
 |---|---|---|
-| Setup time | One command | ROS 2 Jazzy workspace + `colcon build` |
+| Setup time | One command | ROS 2 Jazzy or Lyrical workspace + `colcon build` |
 | Includes | Dialogue core, speech models, web GUI | Everything, including vision nodes and the NAO layer |
-| Runs on | Linux, Windows 11 | Ubuntu 24.04 |
+| Runs on | Linux, Windows 11 | Ubuntu 24.04 (Jazzy) or 26.04 (Lyrical) |
 | Choose it to | Try DialoStack, run demos, use it from the GUI | Modify the code, drive a robot, use the vision nodes |
 
 - [Run with Docker](#run-with-docker): [quick start](#quick-start-any-system-with-docker) · [Linux](#linux) · [Windows 11](#windows-11) · [NVIDIA GPU](#gpu-acceleration-nvidia)
@@ -16,6 +16,12 @@ There are two ways to run DialoStack:
 ## Run with Docker
 
 The image bundles ROS 2 Jazzy, the dialogue core, the speech models and the web GUI. It runs on Linux and on Windows 11.
+
+To build the image on ROS 2 Lyrical instead, pass the distro as a build argument:
+
+```bash
+docker build -f docker/Dockerfile --build-arg ROS_DISTRO=lyrical -t dialostack:lyrical .
+```
 
 ### Quick start (any system with Docker)
 
@@ -99,7 +105,7 @@ Nothing to set in the GUI: the STT device defaults to `auto`, which uses the GPU
 
 ### Prerequisites
 
-- Ubuntu 24.04 with [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html)
+- Ubuntu 24.04 with [ROS 2 Jazzy](https://docs.ros.org/en/jazzy/Installation.html), or Ubuntu 26.04 with [ROS 2 Lyrical](https://docs.ros.org/en/lyrical/Get-Started/Installation.html)
 - Python ≥ 3.10
 - An LLM provider: a [Gemini API key](https://aistudio.google.com/apikey) (the free tier works), a [Claude API key](https://console.anthropic.com) (a Claude.ai subscription does not include API access), an [OpenAI API key](https://platform.openai.com/api-keys) **or** a local [Ollama](https://ollama.com) install
 - A microphone and speakers (any ALSA device)
@@ -146,7 +152,7 @@ This brings up the four core nodes: STT, TTS, LLM manager and dialogue manager. 
 With the workspace sourced, `gui.sh` starts rosbridge and the GUI server, which then starts and stops the engine for you:
 
 ```bash
-sudo apt install ros-jazzy-rosbridge-suite nodejs npm   # once
+sudo apt install ros-$ROS_DISTRO-rosbridge-suite nodejs npm   # once
 ./src/DialoStack/gui.sh                      # open http://localhost:5173
 ./src/DialoStack/gui.sh --dev                # Vite with hot reload, for GUI development
 ```
