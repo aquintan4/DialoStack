@@ -45,13 +45,15 @@ COPY docker/asound.conf /etc/asound.conf
 
 # Python dependencies. CPU-only torch keeps the image gigabytes smaller; the
 # pinned setuptools is skipped because the system one (used by colcon) cannot
-# be replaced by pip.
+# be replaced by pip. --ignore-installed installs next to the apt packages
+# instead of upgrading them: Debian's have no RECORD file (Ubuntu 26.04 ships
+# typing_extensions that way), so pip cannot uninstall them.
 COPY speech_io/requirements.txt /tmp/req/speech_io.txt
 COPY ros2_llm_manager/config/requirements.txt /tmp/req/llm.txt
 RUN grep -hE '^(torch|torchaudio|torchvision)==' /tmp/req/speech_io.txt > /tmp/req/torch.txt \
     && pip install --index-url https://download.pytorch.org/whl/cpu -r /tmp/req/torch.txt \
     && grep -hvE '^setuptools==' /tmp/req/speech_io.txt /tmp/req/llm.txt > /tmp/req/all.txt \
-    && pip install -r /tmp/req/all.txt \
+    && pip install --ignore-installed -r /tmp/req/all.txt \
     && rm -rf /tmp/req
 
 # GPU variant: cuBLAS and cuDNN from pip (what CTranslate2 links against),
