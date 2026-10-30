@@ -21,6 +21,17 @@ describe('snapshotConfig', () => {
 })
 
 describe('applyProfileConfig', () => {
+  it('moves the former default transcript path but keeps a custom one', () => {
+    const withLogPath = conversation_log_path => ({
+      ...DEFAULT_CONFIG,
+      dialog: { ...DEFAULT_CONFIG.dialog, conversation_log_path },
+    })
+    expect(applyProfileConfig({}, withLogPath('/tmp/dialog_conversations.log')).dialog.conversation_log_path)
+      .toBe(DEFAULT_CONFIG.dialog.conversation_log_path)
+    expect(applyProfileConfig({}, withLogPath('/data/talks.log')).dialog.conversation_log_path)
+      .toBe('/data/talks.log')
+  })
+
   it('switches language, STT and TTS in one go and keeps the current key', () => {
     const current = { ...DEFAULT_CONFIG, llm: { ...DEFAULT_CONFIG.llm, gemini_api_key: 'mine' } }
     const next = applyProfileConfig(current, snapshotConfig(english))

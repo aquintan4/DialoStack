@@ -113,6 +113,6 @@ dialog_manager_node:
     # Logging.
     silent_mode: false
     # Set to "" to disable transcript logging.
-    conversation_log_path: "/tmp/dialog_conversations.log"
+    conversation_log_path: "/tmp/dialostack/logs/conversations.log"
     # Rotate transcript when it exceeds this size. 0 = never rotate.
     conversation_log_max_mb: 10.0

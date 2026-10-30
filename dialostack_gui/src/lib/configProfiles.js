@@ -7,7 +7,7 @@
  * Pure module (no React, no storage): the page keeps the list in
  * localStorage and calls these helpers.
  */
-import { DEFAULT_CONFIG } from '../contexts/ConfigContext'
+import { DEFAULT_CONFIG, mergeWithDefaults } from '../contexts/ConfigContext'
 
 // ==== SECRETS ====
 // Credentials are machine/user specific, not part of a "setup": they are never
@@ -37,12 +37,7 @@ export function snapshotConfig(config) {
  * of `current` are preserved.
  */
 export function applyProfileConfig(current, profileConfig) {
-  const next = Object.fromEntries(
-    Object.entries(DEFAULT_CONFIG).map(([section, defaults]) => [
-      section,
-      { ...defaults, ...(profileConfig?.[section] ?? {}) },
-    ])
-  )
+  const next = mergeWithDefaults(profileConfig)
   for (const [section, keys] of Object.entries(SECRET_FIELDS)) {
     for (const k of keys) {
       if (current?.[section]?.[k] !== undefined) next[section][k] = current[section][k]
