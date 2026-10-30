@@ -67,13 +67,21 @@ _LIP_OUTLINE = [
 ]
 
 _MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
-_MODEL_PATH = "/tmp/face_landmarker.task"
+_MODEL_PATH = os.path.join(
+    os.environ.get("DIALOSTACK_MODELS_DIR")
+    or os.path.expanduser("~/.local/share/dialostack/models"),
+    "face_landmarker.task",
+)
 
 
 def _ensure_model() -> str:
     if not os.path.exists(_MODEL_PATH):
         print(f"[lip_activity_detector] Downloading model to {_MODEL_PATH} ...")
-        urllib.request.urlretrieve(_MODEL_URL, _MODEL_PATH)
+        os.makedirs(os.path.dirname(_MODEL_PATH), exist_ok=True)
+        # Download aside: the models dir persists, so a partial file would stick.
+        partial_path = f"{_MODEL_PATH}.part"
+        urllib.request.urlretrieve(_MODEL_URL, partial_path)
+        os.replace(partial_path, _MODEL_PATH)
         print("[lip_activity_detector] Download complete.")
     return _MODEL_PATH
 

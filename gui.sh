@@ -9,7 +9,7 @@ GUI_DIR="$SCRIPT_DIR/dialostack_gui"
 BRIDGE_PORT=9090
 WEB_PORT=5173
 API_PORT=5175   # Dev only; in production /api shares WEB_PORT
-BRIDGE_LOG=/tmp/dialostack_bridge.log
+BRIDGE_LOG=/tmp/dialostack/logs/rosbridge.log
 
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
@@ -111,6 +111,7 @@ fi
 # interfere, but keep the workspace overlay so it can import the project's own
 # message types (ros2_dialog_interfaces).
 echo -e "${BLUE}[1/2]${NC} rosbridge_websocket  →  ws://localhost:${BRIDGE_PORT}  (log: ${BRIDGE_LOG})"
+mkdir -p "$(dirname "$BRIDGE_LOG")"
 SYSTEM_PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "dialostack_venv" | tr '\n' ':' | sed 's/:$//')
 
 BRIDGE_WS_SOURCE=""

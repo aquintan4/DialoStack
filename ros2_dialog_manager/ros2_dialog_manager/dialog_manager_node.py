@@ -137,7 +137,7 @@ class DialogManagerNode(Node):
             "llm_model": "",
             "silent_mode": False,
             "timeout_prompt": "",
-            "conversation_log_path": "/tmp/dialog_conversations.log",
+            "conversation_log_path": "/tmp/dialostack/logs/conversations.log",
             "conversation_log_max_mb": 10.0,
             "language": "English",
             "history_max_turns": 200,

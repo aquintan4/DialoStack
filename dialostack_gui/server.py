@@ -48,8 +48,11 @@ import urllib.request
 
 import yaml
 
-GUI_PARAMS_FILE = "/tmp/dialostack_gui_params.yaml"
-ENGINE_LOG_FILE = "/tmp/dialostack_engine.log"
+# Runtime files live under one folder instead of littering /tmp:
+#   /tmp/dialostack/logs/  engine, rosbridge (gui.sh) and conversation logs
+#   /tmp/dialostack/run/   params generated for the engine
+GUI_PARAMS_FILE = "/tmp/dialostack/run/gui_params.yaml"
+ENGINE_LOG_FILE = "/tmp/dialostack/logs/engine.log"
 # Stop the engine if the browser disappears. Must be generous: browsers throttle
 # background-tab timers to ~1/min, so a low value would kill the engine just by
 # switching windows.
@@ -872,7 +875,8 @@ class EngineManager:
 
     @staticmethod
     def _write_params_file(config: dict):
-        # 0600: the file may contain an API key
+        # 0700/0600: the file may contain an API key
+        os.makedirs(os.path.dirname(GUI_PARAMS_FILE), mode=0o700, exist_ok=True)
         fd = os.open(GUI_PARAMS_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(params_yaml(config))
@@ -880,6 +884,7 @@ class EngineManager:
     def _open_log(self, env: dict):
         if self._log_fh:
             self._log_fh.close()
+        os.makedirs(os.path.dirname(ENGINE_LOG_FILE), exist_ok=True)
         self._log_fh = open(ENGINE_LOG_FILE, "w", encoding="utf-8")
         self._log_fh.write(
             f"--- DialoStack engine start ---\n"

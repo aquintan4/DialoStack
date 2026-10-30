@@ -36,7 +36,7 @@ export const DEFAULT_CONFIG = {
     ack_phrases: [],
     ack_enabled: true,
     silent_mode: false,
-    conversation_log_path: '/tmp/dialog_conversations.log',
+    conversation_log_path: '/tmp/dialostack/logs/conversations.log',
     conversation_log_max_mb: 10.0,
   },
   stt: {
@@ -79,17 +79,29 @@ export const DEFAULT_CONFIG = {
 
 const LS_KEY = STORAGE.config
 
+// Former default: configs and profiles saved with it follow the new location,
+// while a path the user chose is left alone.
+const LEGACY_CONVERSATION_LOG_PATH = '/tmp/dialog_conversations.log'
+
+/** Stored config (or profile) on top of the defaults, keeping old saves loadable. */
+export function mergeWithDefaults(stored) {
+  const merged = Object.fromEntries(
+    Object.entries(DEFAULT_CONFIG).map(([section, defaults]) => [
+      section,
+      { ...defaults, ...(stored?.[section] ?? {}) },
+    ])
+  )
+  if (merged.dialog.conversation_log_path === LEGACY_CONVERSATION_LOG_PATH) {
+    merged.dialog.conversation_log_path = DEFAULT_CONFIG.dialog.conversation_log_path
+  }
+  return merged
+}
+
 function loadConfig() {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return DEFAULT_CONFIG
-    const parsed = JSON.parse(raw)
-    return Object.fromEntries(
-      Object.entries(DEFAULT_CONFIG).map(([section, defaults]) => [
-        section,
-        { ...defaults, ...(parsed[section] ?? {}) },
-      ])
-    )
+    return mergeWithDefaults(JSON.parse(raw))
   } catch {
     return DEFAULT_CONFIG
   }

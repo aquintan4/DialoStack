@@ -67,7 +67,7 @@ export function DialogTab({ dialog, update }) {
           <Field label="Log path" hint="Leave empty to disable logging">
             <input type="text" value={dialog.conversation_log_path}
               onChange={e => update({ conversation_log_path: e.target.value })}
-              placeholder="/tmp/dialog_conversations.log"
+              placeholder="/tmp/dialostack/logs/conversations.log"
               className={inputCls} />
           </Field>
           <NumberField label="Rotate when exceeding" unit="MB" min={0} max={1000}
